@@ -40,11 +40,27 @@
       <span>Updated: {{ infoSummary.updated }}</span>
       <span>Untranslated: {{ infoSummary.untranslated }}</span>
     </div>
+    <form class="add-key-form" @submit.prevent="onAddKey">
+      <input v-model="newKey" class="input input-xs mr-2" placeholder="New key" required />
+      <input v-for="(file, idx) in files" :key="file.name" v-model="newValues[idx]" class="input input-xs mr-2" :placeholder="file.name + ' value'" />
+      <button class="btn btn-xs btn-success" type="submit">Add</button>
+    </form>
+    <div class="highlight-legend">
+      <span class="legend-icon legend-edited"></span> <span>Edited (green)</span><br/>
+      <span class="legend-icon legend-duplicate"></span> <span>Duplicate (yellow)</span><br/>
+      <span class="legend-icon legend-all-equal"></span> <span>All-equal (light red)</span>
+    </div>
     <div class="table-scroll-wrapper">
       <table class="table w-full">
         <thead>
           <tr>
-            <th class="key-col">Key</th>
+            <th class="key-col">
+              Key
+              <button class="sort-btn" @click="toggleKeySort" :title="keySortDesc ? 'Sort A-Z' : 'Sort Z-A'">
+                <span v-if="keySortDesc">↓</span>
+                <span v-else>↑</span>
+              </button>
+            </th>
             <th>Paste</th>
             <th v-for="(fileIdx, colIdx) in columnOrder" :key="files[fileIdx].name" draggable="true"
               @dragstart="onDragStart($event, colIdx)" @dragover="onDragOver" @drop="onDrop($event, colIdx)"
@@ -165,16 +181,27 @@ const visibleKeys = computed(() => {
   return allKeys.value.filter(key => key.startsWith(selectedPage.value + '_'))
 })
 
+const keySortDesc = ref(false)
+function toggleKeySort() {
+  keySortDesc.value = !keySortDesc.value
+}
+
 const filteredKeys = computed(() => {
-  if (!search.value.trim()) return visibleKeys.value
-  const q = search.value.trim().toLowerCase()
-  return visibleKeys.value.filter(key => {
-    if (key.toLowerCase().includes(q)) return true
-    for (const obj of props.data) {
-      if ((obj[key] ?? '').toLowerCase().includes(q)) return true
-    }
-    return false
-  })
+  let keys = visibleKeys.value
+  if (!search.value.trim()) {
+    keys = [...keys]
+  } else {
+    const q = search.value.trim().toLowerCase()
+    keys = keys.filter(key => {
+      if (key.toLowerCase().includes(q)) return true
+      for (const obj of props.data) {
+        if ((obj[key] ?? '').toLowerCase().includes(q)) return true
+      }
+      return false
+    })
+  }
+  keys.sort((a, b) => keySortDesc.value ? b.localeCompare(a) : a.localeCompare(b))
+  return keys
 })
 
 // Info summary for table
@@ -258,6 +285,19 @@ async function onPaste(key: string) {
   } catch (e) {
     alert('Unable to read clipboard.');
   }
+}
+
+const newKey = ref('')
+const newValues = ref<string[]>([])
+watch(() => props.files, () => { newValues.value = Array(props.files.length).fill('') }, { immediate: true })
+
+function onAddKey() {
+  if (!newKey.value.trim()) return
+  for (let i = 0; i < props.files.length; i++) {
+    props.data[i][newKey.value] = newValues.value[i] || ''
+  }
+  newKey.value = ''
+  newValues.value = Array(props.files.length).fill('')
 }
 
 function onExportAll() {
@@ -640,5 +680,27 @@ td.key-col::-webkit-scrollbar {
 td.key-col>span {
   display: inline-block;
   min-width: 100%;
+}
+
+.add-key-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sort-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1em;
+  margin-left: 0.3em;
+  color: #1976d2;
+  vertical-align: middle;
+  padding: 0 0.1em;
+}
+
+.sort-btn:focus {
+  outline: 1.5px solid #1976d2;
 }
 </style>
