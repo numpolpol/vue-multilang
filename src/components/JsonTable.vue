@@ -1,0 +1,465 @@
+<template>
+  <div>
+    <div class="toolbar-search-top">
+      <input v-model="search" class="input input-bordered input-xs" placeholder="Search key or value..." />
+      <span class="toolbar-desc toolbar-desc-inline"> Search by key or value</span>
+    </div>
+    <div class="toolbar" style="align-items: flex-start;">
+      <div class="toolbar-group">
+        <span class="toolbar-label">View:</span>
+        <div>
+            <label class="toolbar-radio" title="Show all keys in a single table (See All)"><input type="radio" v-model="mode" value="all" /> See All</label>
+            <span class="toolbar-desc toolbar-desc-inline"> Show all keys in one page</span>
+            <label class="toolbar-radio" title="Group keys by prefix (Paging)"><input type="radio" v-model="mode" value="paging" /> Paging</label>
+            <span class="toolbar-desc toolbar-desc-inline"> Page keys by prefix (e.g. common_, home_)</span>
+        </div>
+        <label class="toolbar-checkbox" title="Highlight rows that are edited, duplicate, or identical in all languages"><input type="checkbox" v-model="highlightMode" /> Highlight</label>
+        <span class="toolbar-desc toolbar-desc-inline"> Highlight: edited (green), duplicate (yellow), or all-equal (light red)</span>
+      </div>
+    </div>
+    <div v-if="mode === 'paging'" class="tabs-paging">
+      <div class="tabs">
+        <button v-for="prefix in pagePrefixes" :key="prefix" :class="['tab', { 'tab-active': selectedPage === prefix }]" @click="selectedPage = prefix">
+          {{ prefix }}
+        </button>
+      </div>
+    </div>
+    <div class="table-info-summary">
+      <span>Total: {{ infoSummary.total }}</span>
+      <span>Updated: {{ infoSummary.updated }}</span>
+      <span>Untranslated: {{ infoSummary.untranslated }}</span>
+    </div>
+    <div class="table-scroll-wrapper">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th class="key-col">Key</th>
+            <th>Paste</th>
+            <th v-for="file in files" :key="file.name">{{ file.name }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template v-for="key in filteredKeys" :key="key">
+            <tr :class="rowClass(key)">
+              <td class="key-col"><span>{{ key }}</span></td>
+              <td>
+                <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
+              </td>
+              <td v-for="(file, idx) in files" :key="file.name">
+                <input v-model="data[idx][key]" class="input input-bordered w-full" :placeholder="'—'" />
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <div class="floating-actions">
+      <button class="floating-btn" @click="onExportAll" title="Export all .strings files">
+        <span>⭳</span>
+      </button>
+      <button class="floating-btn" @click="onExportChanged" title="Export only changed keys">
+        <span>📝</span>
+      </button>
+      <button class="floating-btn" @click="confirmRestartImport" title="Back">
+        <span>←</span>
+      </button>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { ref, computed, defineProps, watch } from 'vue'
+
+const props = defineProps<{
+  data: Record<string, string>[]
+  files: File[]
+}>()
+
+const mode = ref<'all' | 'paging'>('all')
+const selectedPage = ref('')
+const highlightMode = ref(false)
+const search = ref('')
+
+const allKeys = computed(() => {
+  const keySet = new Set<string>()
+  props.data.forEach(obj => Object.keys(obj).forEach(k => keySet.add(k)))
+  return Array.from(keySet)
+})
+
+const pagePrefixes = computed(() => {
+  // Map prefix to count of keys
+  const prefixCount: Record<string, number> = {}
+  allKeys.value.forEach(key => {
+    const prefix = key.split('_')[0]
+    prefixCount[prefix] = (prefixCount[prefix] || 0) + 1
+  })
+  // Only include prefixes with more than 1 key
+  const multiKeyPrefixes = Object.keys(prefixCount).filter(p => prefixCount[p] > 1)
+  // If only 1 key in all, use 'a-z'
+  if (allKeys.value.length === 1) return ['a-z']
+  // Always include 'a-z' if there are any single-key prefixes
+  if (Object.values(prefixCount).some(count => count === 1)) {
+    return [...multiKeyPrefixes, 'a-z']
+  }
+  return multiKeyPrefixes
+})
+
+const visibleKeys = computed(() => {
+  if (mode.value === 'all') return allKeys.value
+  if (!selectedPage.value) return []
+  // If only 1 key, show it in 'a-z' page
+  if (allKeys.value.length === 1 && selectedPage.value === 'a-z') {
+    return allKeys.value
+  }
+  // Find all keys for selectedPage, or all single-key prefixes for 'a-z'
+  const prefixCount: Record<string, number> = {}
+  allKeys.value.forEach(key => {
+    const prefix = key.split('_')[0]
+    prefixCount[prefix] = (prefixCount[prefix] || 0) + 1
+  })
+  if (selectedPage.value === 'a-z') {
+    // Show all keys whose prefix has only 1 key
+    return allKeys.value.filter(key => prefixCount[key.split('_')[0]] === 1)
+  }
+  return allKeys.value.filter(key => key.startsWith(selectedPage.value + '_'))
+})
+
+const filteredKeys = computed(() => {
+  if (!search.value.trim()) return visibleKeys.value
+  const q = search.value.trim().toLowerCase()
+  return visibleKeys.value.filter(key => {
+    if (key.toLowerCase().includes(q)) return true
+    for (const obj of props.data) {
+      if ((obj[key] ?? '').toLowerCase().includes(q)) return true
+    }
+    return false
+  })
+})
+
+// Info summary for table
+const infoSummary = computed(() => {
+  const total = filteredKeys.value.length
+  let updated = 0
+  let untranslated = 0
+  for (const key of filteredKeys.value) {
+    let isUpdated = false
+    let isUntranslated = false
+    for (let i = 0; i < props.data.length; i++) {
+      const val = props.data[i][key] ?? ''
+      const orig = originalData.value[i]?.[key] ?? ''
+      if (val !== orig) isUpdated = true
+      // Consider untranslated if value is empty or equals the English (first file) value
+      if (!val || (i > 0 && val === props.data[0][key])) isUntranslated = true
+    }
+    if (isUpdated) updated++
+    if (isUntranslated) untranslated++
+  }
+  return { total, updated, untranslated }
+})
+
+// Track original values for highlight
+const originalData = ref(props.data.map(obj => ({ ...obj })))
+watch(() => props.data, (newVal) => {
+  if (originalData.value.length !== newVal.length) {
+    originalData.value = newVal.map(obj => ({ ...obj }))
+  }
+}, { deep: true })
+
+function isAllEqual(key: string): boolean {
+  const values = props.data.map(obj => obj[key] ?? '')
+  return values.length > 0 && values.every(v => v === values[0])
+}
+
+function isEdited(key: string): boolean {
+  for (let i = 0; i < props.data.length; i++) {
+    if ((props.data[i][key] ?? '') !== (originalData.value[i]?.[key] ?? '')) {
+      return true
+    }
+  }
+  return false
+}
+
+function isDuplicateValue(key: string): boolean {
+  const valueCount: Record<string, number> = {};
+  for (const obj of props.data) {
+    const val = (obj[key] ?? '').trim();
+    if (!val) continue;
+    valueCount[val] = (valueCount[val] || 0) + 1;
+    if (valueCount[val] > 1) return true;
+  }
+  return false;
+}
+
+function rowClass(key: string) {
+  if (!highlightMode.value) return ''
+  if (isEdited(key)) return 'row-edited'
+  if (isDuplicateValue(key)) return 'row-duplicate'
+  if (isAllEqual(key)) return 'row-all-equal'
+  return ''
+}
+
+if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
+  selectedPage.value = pagePrefixes.value[0]
+}
+
+async function onPaste(key: string) {
+  try {
+    const text = await navigator.clipboard.readText();
+    let values = text.split('\t');
+    if (values.length < props.files.length) {
+      values = text.split(/\r?\n/);
+    }
+    for (let i = 0; i < props.files.length; i++) {
+      if (values[i] !== undefined) {
+        props.data[i][key] = values[i].trim();
+      }
+    }
+  } catch (e) {
+    alert('Unable to read clipboard.');
+  }
+}
+
+function onExportAll() {
+  for (let i = 0; i < props.files.length; i++) {
+    const file = props.files[i]
+    const data = props.data[i]
+    let content = ''
+    for (const key of Object.keys(data)) {
+      // Only export non-empty keys
+      if (key && data[key] !== undefined) {
+        content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+      }
+    }
+    const blob = new Blob([content], { type: 'text/plain' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = file.name || `export_${i + 1}.strings`
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+    }, 100)
+  }
+}
+
+function onExportChanged() {
+  for (let i = 0; i < props.files.length; i++) {
+    const file = props.files[i]
+    const data = props.data[i]
+    let content = ''
+    for (const key of Object.keys(data)) {
+      // Only export keys that have changed from original
+      if (key && data[key] !== undefined && data[key] !== (originalData.value[i]?.[key] ?? '')) {
+        content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+      }
+    }
+    if (!content) continue // skip if no changes
+    const blob = new Blob([content], { type: 'text/plain' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = file.name.replace(/\.strings$/, '') + '_changed.strings'
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+    }, 100)
+  }
+}
+
+function confirmRestartImport() {
+  if (window.confirm('Are you sure you want to restart and import new files? All unsaved changes will be lost.')) {
+    window.location.reload()
+  }
+}
+</script>
+
+<style scoped>
+.table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 0.5rem; }
+.input-bordered { width: 100%; }
+td:first-of-type, th:first-of-type {
+  text-align: left;
+}
+td:nth-of-type(1) {
+  text-align: left;
+}
+td:nth-of-type(2) {
+  text-align: left;
+}
+
+.toolbar-search-top {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-start;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  background: #f8f9fa;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 4px 0 #0001;
+}
+.toolbar, .toolbar-label, .toolbar-radio, .toolbar-checkbox {
+  color: #111;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.toolbar-label {
+  font-weight: 500;
+  margin-right: 0.5rem;
+  color: #444;
+}
+.toolbar-radio, .toolbar-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.97em;
+  background: #fff;
+  border-radius: 0.5rem;
+  padding: 0.15rem 0.7rem;
+  border: 1px solid #e0e0e0;
+}
+.toolbar-checkbox {
+  margin-left: 0.5rem;
+}
+.tabs-paging {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+.tab {
+  padding: 0.25rem 1.1rem;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  background: #f9f9f9;
+  cursor: pointer;
+  border-radius: 0.5rem 0.5rem 0 0;
+  color: #222;
+  font-size: 0.98em;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-active {
+  background: #fff;
+  font-weight: bold;
+  border-bottom: 2px solid #fff;
+  color: #222;
+  box-shadow: 0 2px 8px 0 #0001;
+}
+.row-edited { background: #e6ffe6 !important; color: #222 !important; }
+.row-all-equal { background: #ffeaea !important; color: #222 !important; }
+.row-duplicate { background: #fff3cd !important; color: #222 !important; }
+.toolbar-descs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 0.25rem;
+  margin-left: 0.5rem;
+  font-size: 0.97em;
+  color: #666;
+}
+.toolbar-desc {
+  background: #f3f3f3;
+  border-radius: 0.5rem;
+  padding: 0.15rem 0.7rem;
+}
+.toolbar-desc-inline {
+  display: inline-block;
+  margin-left: 0.5em;
+  font-size: 0.95em;
+  color: #888;
+  background: none;
+  padding: 0;
+}
+.toolbar-radio-group {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+.table-info-summary {
+  margin-bottom: 0.5rem;
+  font-size: 1em;
+  color: #444;
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+.floating-actions {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  z-index: 100;
+}
+.floating-btn {
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: 50%;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px #0002;
+  font-size: 1.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.floating-btn:hover {
+  background: #125ea7;
+}
+.table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.table-scroll-wrapper .table {
+  min-width: 700px;
+}
+
+th.key-col, td.key-col {
+  max-width: 220px;
+  min-width: 120px;
+  width: 18vw;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-overflow: unset;
+  padding-right: 0.5rem;
+}
+
+/* Make the key cell content scrollable horizontally and always show full key on scroll */
+td.key-col {
+  position: relative;
+  max-width: 220px;
+  min-width: 120px;
+  width: 18vw;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-overflow: unset;
+  padding-right: 0.5rem;
+}
+td.key-col::-webkit-scrollbar {
+  height: 6px;
+}
+td.key-col > span {
+  display: inline-block;
+  min-width: 100%;
+}
+</style>

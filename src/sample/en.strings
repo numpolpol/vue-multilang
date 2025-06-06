@@ -1,0 +1,12 @@
+"register_foreigner_title" = "TODO";
+"register_foreigner_subtitle" = "Please fill in your details below.";
+"register_foreigner_passport_label" = "Passport Number";
+"register_foreigner_nationality_label" = "Nationality";
+"register_foreigner_visa_label" = "Visa Type";
+"register_foreigner_expiry_label" = "Visa Expiry Date";
+"register_foreigner_upload_passport_button" = "Upload Passport";
+"register_foreigner_upload_visa_button" = "Upload Visa";
+"register_foreigner_submit_button" = "Submit Registration";
+"register_foreigner_cancel_button" = "Cancel";
+"register_foreigner_success_message" = "Registration successful!";
+"register_foreigner_error_message" = "Please check your information and try again.";
