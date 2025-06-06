@@ -45,11 +45,6 @@
       <input v-for="(file, idx) in files" :key="file.name" v-model="newValues[idx]" class="input input-xs mr-2" :placeholder="file.name + ' value'" />
       <button class="btn btn-xs btn-success" type="submit">Add</button>
     </form>
-    <div class="highlight-legend">
-      <span class="legend-icon legend-edited"></span> <span>Edited (green)</span><br/>
-      <span class="legend-icon legend-duplicate"></span> <span>Duplicate (yellow)</span><br/>
-      <span class="legend-icon legend-all-equal"></span> <span>All-equal (light red)</span>
-    </div>
     <div class="table-scroll-wrapper">
       <table class="table w-full">
         <thead>

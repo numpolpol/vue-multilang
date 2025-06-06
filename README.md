@@ -29,3 +29,40 @@ This webapp lets you upload, view, and edit multiple iOS .strings files (multi-l
 ---
 
 *This project was bootstrapped and iteratively built with GitHub Copilot.*
+
+# iOS .strings Multi-file Editor
+
+A modern webapp for editing multiple iOS .strings files side-by-side, with advanced features for translation, review, and export.
+
+## How to Use
+
+1. **Choose Files:** Select multiple iOS .strings files (one per language, same keys).
+2. **Ready:** Click **Ready** to load and edit all keys/values side-by-side.
+3. **View:** Use **See All**/**Paging** to switch key views. Use **Search** to filter. Drag column headers to re-order languages.
+4. **Edit:** Edit values directly or use **Paste** per row for quick input.
+5. **Export:** Use floating buttons to export all, changed, or keep order.
+6. **Back:** Use the floating **Back** button to restart (confirmation required).
+
+### Highlight Legend
+- 🟩 **Edited (green):** This row has been changed from the original value.
+- 🟨 **Duplicate (yellow):** This row has duplicate values across languages.
+- 🟥 **All-equal (light red):** All values in this row are identical.
+
+### Tips
+- All processing is local. No files are uploaded to a server.
+- The key column scrolls if long. Use the same keys in all files for best results.
+- You can add new keys and values for all languages using the form above the table.
+- You can re-order language columns by dragging the column headers.
+
+---
+
+## Development
+
+- Install dependencies: `npm install`
+- Run locally: `npm run dev`
+- Build for production: `npm run build`
+- Deploy to GitHub Pages: `npm run deploy`
+
+---
+
+For more details, see the in-app instructions or contact the maintainer.
