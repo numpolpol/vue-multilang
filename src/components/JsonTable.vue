@@ -35,7 +35,15 @@
           <tr>
             <th class="key-col">Key</th>
             <th>Paste</th>
-            <th v-for="file in files" :key="file.name">{{ file.name }}</th>
+            <th v-for="(fileIdx, colIdx) in columnOrder" :key="files[fileIdx].name"
+                draggable="true"
+                @dragstart="onDragStart($event, colIdx)"
+                @dragover="onDragOver"
+                @drop="onDrop($event, colIdx)"
+                style="cursor: grab; user-select: none;">
+              {{ files[fileIdx].name }}
+              <span style="font-size:0.9em;opacity:0.5;">↕</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -45,8 +53,8 @@
               <td>
                 <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
               </td>
-              <td v-for="(file, idx) in files" :key="file.name">
-                <input v-model="data[idx][key]" class="input input-bordered w-full" :placeholder="'—'" />
+              <td v-for="fileIdx in columnOrder" :key="files[fileIdx].name">
+                <input v-model="data[fileIdx][key]" class="input input-bordered w-full" :placeholder="'—'" />
               </td>
             </tr>
           </template>
@@ -56,12 +64,19 @@
     <div class="floating-actions">
       <button class="floating-btn" @click="onExportAll" title="Export all .strings files">
         <span>⭳</span>
+        <span class="floating-btn-label">Export All</span>
       </button>
       <button class="floating-btn" @click="onExportChanged" title="Export only changed keys">
         <span>📝</span>
+        <span class="floating-btn-label">Export Changed</span>
+      </button>
+      <button class="floating-btn" @click="onExportKeepOrder" title="Export (keep order, only changed values)">
+        <span>📦</span>
+        <span class="floating-btn-label">Export Keep Order</span>
       </button>
       <button class="floating-btn" @click="confirmRestartImport" title="Back">
         <span>←</span>
+        <span class="floating-btn-label">Back</span>
       </button>
     </div>
   </div>
@@ -79,6 +94,24 @@ const mode = ref<'all' | 'paging'>('all')
 const selectedPage = ref('')
 const highlightMode = ref(false)
 const search = ref('')
+
+// Track column order (file indices)
+const columnOrder = ref(props.files.map((_, idx) => idx))
+
+function onDragStart(e: DragEvent, idx: number) {
+  e.dataTransfer?.setData('col-idx', idx.toString())
+}
+function onDrop(e: DragEvent, idx: number) {
+  const fromIdx = Number(e.dataTransfer?.getData('col-idx'))
+  if (isNaN(fromIdx) || fromIdx === idx) return
+  const newOrder = [...columnOrder.value]
+  const [moved] = newOrder.splice(fromIdx, 1)
+  newOrder.splice(idx, 0, moved)
+  columnOrder.value = newOrder
+}
+function onDragOver(e: DragEvent) {
+  e.preventDefault()
+}
 
 const allKeys = computed(() => {
   const keySet = new Set<string>()
@@ -268,6 +301,45 @@ function onExportChanged() {
   }
 }
 
+function onExportKeepOrder() {
+  for (let i = 0; i < props.files.length; i++) {
+    const file = props.files[i]
+    const data = props.data[i]
+    const orig = originalData.value[i] || {}
+    // Read original file lines to preserve order and comments
+    const fileReader = new FileReader()
+    fileReader.onload = () => {
+      const lines = (fileReader.result as string).split(/\r?\n/)
+      let content = ''
+      for (const line of lines) {
+        const match = line.match(/^\s*"([^"]+)"\s*=\s*"([\s\S]*?)";/)
+        if (match) {
+          const key = match[1]
+          // Only export changed value, otherwise keep original
+          if (data[key] !== undefined && data[key] !== orig[key]) {
+            content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+          } else {
+            content += line + '\n'
+          }
+        } else {
+          content += line + '\n'
+        }
+      }
+      const blob = new Blob([content], { type: 'text/plain' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = file.name.replace(/\.strings$/, '') + '_keeporder.strings'
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(a.href)
+      }, 100)
+    }
+    fileReader.readAsText(file)
+  }
+}
+
 function confirmRestartImport() {
   if (window.confirm('Are you sure you want to restart and import new files? All unsaved changes will be lost.')) {
     window.location.reload()
@@ -421,6 +493,19 @@ td:nth-of-type(2) {
   justify-content: center;
   cursor: pointer;
   transition: background 0.2s;
+  position: relative;
+  flex-direction: column;
+}
+.floating-btn-label {
+  font-size: 0.85rem;
+  color: #fff;
+  background: rgba(25, 118, 210, 0.92);
+  border-radius: 0.5rem;
+  padding: 0.1rem 0.7rem;
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 }
 .floating-btn:hover {
   background: #125ea7;
