@@ -8,18 +8,29 @@
       <div class="toolbar-group">
         <span class="toolbar-label">View:</span>
         <div>
-            <label class="toolbar-radio" title="Show all keys in a single table (See All)"><input type="radio" v-model="mode" value="all" /> See All</label>
-            <span class="toolbar-desc toolbar-desc-inline"> Show all keys in one page</span>
-            <label class="toolbar-radio" title="Group keys by prefix (Paging)"><input type="radio" v-model="mode" value="paging" /> Paging</label>
-            <span class="toolbar-desc toolbar-desc-inline"> Page keys by prefix (e.g. common_, home_)</span>
+          <label class="toolbar-radio" title="Show all keys in a single table (See All)"><input type="radio"
+              v-model="mode" value="all" /> See All</label>
+          <span class="toolbar-desc toolbar-desc-inline"> Show all keys in one page</span>
+          <label class="toolbar-radio" title="Group keys by prefix (Paging)"><input type="radio" v-model="mode"
+              value="paging" /> Paging</label>
+          <span class="toolbar-desc toolbar-desc-inline"> Page keys by prefix (e.g. common_, home_)</span>
         </div>
-        <label class="toolbar-checkbox" title="Highlight rows that are edited, duplicate, or identical in all languages"><input type="checkbox" v-model="highlightMode" /> Highlight</label>
-        <span class="toolbar-desc toolbar-desc-inline"> Highlight: edited (green), duplicate (yellow), or all-equal (light red)</span>
+        <label class="toolbar-checkbox"
+          title="Highlight rows that are edited, duplicate, or identical in all languages"><input type="checkbox"
+            v-model="highlightMode" /> Highlight</label>
+        <span class="toolbar-desc toolbar-desc-inline" style="align-self: flex-start; margin-top: 0;">
+          <div class="highlight-legend" style="text-align: left;">
+            <span class="legend-icon legend-edited"></span> <span>Edited (green): This row has been changed from the original value.</span><br />
+            <span class="legend-icon legend-duplicate"></span> <span>Duplicate (yellow): This row has duplicate values across languages.</span><br />
+            <span class="legend-icon legend-all-equal"></span> <span>All-equal (light red): All values in this row are identical.</span>
+          </div>
+        </span>
       </div>
     </div>
     <div v-if="mode === 'paging'" class="tabs-paging">
       <div class="tabs">
-        <button v-for="prefix in pagePrefixes" :key="prefix" :class="['tab', { 'tab-active': selectedPage === prefix }]" @click="selectedPage = prefix">
+        <button v-for="prefix in pagePrefixes" :key="prefix" :class="['tab', { 'tab-active': selectedPage === prefix }]"
+          @click="selectedPage = prefix">
           {{ prefix }}
         </button>
       </div>
@@ -35,12 +46,9 @@
           <tr>
             <th class="key-col">Key</th>
             <th>Paste</th>
-            <th v-for="(fileIdx, colIdx) in columnOrder" :key="files[fileIdx].name"
-                draggable="true"
-                @dragstart="onDragStart($event, colIdx)"
-                @dragover="onDragOver"
-                @drop="onDrop($event, colIdx)"
-                style="cursor: grab; user-select: none;">
+            <th v-for="(fileIdx, colIdx) in columnOrder" :key="files[fileIdx].name" draggable="true"
+              @dragstart="onDragStart($event, colIdx)" @dragover="onDragOver" @drop="onDrop($event, colIdx)"
+              style="cursor: grab; user-select: none;">
               {{ files[fileIdx].name }}
               <span style="font-size:0.9em;opacity:0.5;">↕</span>
             </th>
@@ -348,15 +356,30 @@ function confirmRestartImport() {
 </script>
 
 <style scoped>
-.table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ccc; padding: 0.5rem; }
-.input-bordered { width: 100%; }
-td:first-of-type, th:first-of-type {
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+}
+
+.input-bordered {
+  width: 100%;
+}
+
+td:first-of-type,
+th:first-of-type {
   text-align: left;
 }
+
 td:nth-of-type(1) {
   text-align: left;
 }
+
 td:nth-of-type(2) {
   text-align: left;
 }
@@ -366,6 +389,7 @@ td:nth-of-type(2) {
   display: flex;
   justify-content: flex-start;
 }
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -377,20 +401,28 @@ td:nth-of-type(2) {
   padding: 0.75rem 1rem;
   box-shadow: 0 1px 4px 0 #0001;
 }
-.toolbar, .toolbar-label, .toolbar-radio, .toolbar-checkbox {
+
+.toolbar,
+.toolbar-label,
+.toolbar-radio,
+.toolbar-checkbox {
   color: #111;
 }
+
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
+
 .toolbar-label {
   font-weight: 500;
   margin-right: 0.5rem;
   color: #444;
 }
-.toolbar-radio, .toolbar-checkbox {
+
+.toolbar-radio,
+.toolbar-checkbox {
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -400,21 +432,25 @@ td:nth-of-type(2) {
   padding: 0.15rem 0.7rem;
   border: 1px solid #e0e0e0;
 }
+
 .toolbar-checkbox {
   margin-left: 0.5rem;
 }
+
 .tabs-paging {
   margin-top: 1.5rem;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
 }
+
 .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   max-width: 100%;
 }
+
 .tab {
   padding: 0.25rem 1.1rem;
   border: 1px solid #ccc;
@@ -426,6 +462,7 @@ td:nth-of-type(2) {
   font-size: 0.98em;
   transition: background 0.15s, color 0.15s;
 }
+
 .tab-active {
   background: #fff;
   font-weight: bold;
@@ -433,9 +470,22 @@ td:nth-of-type(2) {
   color: #222;
   box-shadow: 0 2px 8px 0 #0001;
 }
-.row-edited { background: #e6ffe6 !important; color: #222 !important; }
-.row-all-equal { background: #ffeaea !important; color: #222 !important; }
-.row-duplicate { background: #fff3cd !important; color: #222 !important; }
+
+.row-edited {
+  background: #e6ffe6 !important;
+  color: #222 !important;
+}
+
+.row-all-equal {
+  background: #ffeaea !important;
+  color: #222 !important;
+}
+
+.row-duplicate {
+  background: #fff3cd !important;
+  color: #222 !important;
+}
+
 .toolbar-descs {
   display: flex;
   flex-wrap: wrap;
@@ -445,11 +495,13 @@ td:nth-of-type(2) {
   font-size: 0.97em;
   color: #666;
 }
+
 .toolbar-desc {
   background: #f3f3f3;
   border-radius: 0.5rem;
   padding: 0.15rem 0.7rem;
 }
+
 .toolbar-desc-inline {
   display: inline-block;
   margin-left: 0.5em;
@@ -458,10 +510,12 @@ td:nth-of-type(2) {
   background: none;
   padding: 0;
 }
+
 .toolbar-radio-group {
   display: inline-flex;
   gap: 0.5rem;
 }
+
 .table-info-summary {
   margin-bottom: 0.5rem;
   font-size: 1em;
@@ -470,6 +524,38 @@ td:nth-of-type(2) {
   gap: 2rem;
   align-items: center;
 }
+
+.highlight-legend {
+  margin: 0.5em 0 0.5em 0.2em;
+  font-size: 0.98em;
+  line-height: 2.1em;
+}
+
+.legend-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  border-radius: 0.2em;
+  margin-right: 0.6em;
+  vertical-align: middle;
+  border: 1px solid #bbb;
+}
+
+.legend-edited {
+  background: #e6ffe6;
+  border-color: #7ed957;
+}
+
+.legend-duplicate {
+  background: #fff3cd;
+  border-color: #ffe066;
+}
+
+.legend-all-equal {
+  background: #ffeaea;
+  border-color: #ff7b7b;
+}
+
 .floating-actions {
   position: fixed;
   bottom: 2.5rem;
@@ -479,6 +565,7 @@ td:nth-of-type(2) {
   gap: 1.2rem;
   z-index: 100;
 }
+
 .floating-btn {
   width: 3.2rem;
   height: 3.2rem;
@@ -496,6 +583,7 @@ td:nth-of-type(2) {
   position: relative;
   flex-direction: column;
 }
+
 .floating-btn-label {
   font-size: 0.85rem;
   color: #fff;
@@ -507,19 +595,23 @@ td:nth-of-type(2) {
   pointer-events: none;
   user-select: none;
 }
+
 .floating-btn:hover {
   background: #125ea7;
 }
+
 .table-scroll-wrapper {
   width: 100%;
   overflow-x: auto;
   max-width: 100%;
 }
+
 .table-scroll-wrapper .table {
   min-width: 700px;
 }
 
-th.key-col, td.key-col {
+th.key-col,
+td.key-col {
   max-width: 220px;
   min-width: 120px;
   width: 18vw;
@@ -540,10 +632,12 @@ td.key-col {
   text-overflow: unset;
   padding-right: 0.5rem;
 }
+
 td.key-col::-webkit-scrollbar {
   height: 6px;
 }
-td.key-col > span {
+
+td.key-col>span {
   display: inline-block;
   min-width: 100%;
 }
