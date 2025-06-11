@@ -6,6 +6,11 @@
     </div>
     <div class="toolbar" style="align-items: flex-start;">
       <div class="toolbar-group">
+        <span class="toolbar-label">Platform:</span>
+        <label class="toolbar-radio" title="iOS .strings format"><input type="radio" v-model="platform" value="ios" /> iOS</label>
+        <label class="toolbar-radio" title="Android string.xml format"><input type="radio" v-model="platform" value="android" /> Android</label>
+      </div>
+      <div class="toolbar-group">
         <span class="toolbar-label">View:</span>
         <div>
           <label class="toolbar-radio" title="Show all keys in a single table (See All)"><input type="radio"
@@ -15,14 +20,16 @@
               value="paging" /> Paging</label>
           <span class="toolbar-desc toolbar-desc-inline"> Page keys by prefix (e.g. common_, home_)</span>
         </div>
-        <label class="toolbar-checkbox"
+      </div>
+      <div class="toolbar-group">
+                <label class="toolbar-checkbox"
           title="Highlight rows that are edited, duplicate, or identical in all languages"><input type="checkbox"
             v-model="highlightMode" /> Highlight</label>
         <span class="toolbar-desc toolbar-desc-inline" style="align-self: flex-start; margin-top: 0;">
           <div class="highlight-legend" style="text-align: left;">
-            <span class="legend-icon legend-edited"></span> <span>Edited (green): This row has been changed from the original value.</span><br />
-            <span class="legend-icon legend-duplicate"></span> <span>Duplicate (yellow): This row has duplicate values across languages.</span><br />
-            <span class="legend-icon legend-all-equal"></span> <span>All-equal (light red): All values in this row are identical.</span>
+            <span class="legend-icon legend-edited"></span> <span>Edited - This row has been changed from the original value.</span><br />
+            <span class="legend-icon legend-duplicate"></span> <span>Duplicate - This row has duplicate values across languages.</span><br />
+            <span class="legend-icon legend-all-equal"></span> <span>All-equal - All values in this row are identical.</span>
           </div>
         </span>
       </div>
@@ -113,6 +120,7 @@ const mode = ref<'all' | 'paging'>('all')
 const selectedPage = ref('')
 const highlightMode = ref(false)
 const search = ref('')
+const platform = ref<'ios' | 'android'>('ios')
 
 // Track column order (file indices)
 const columnOrder = ref(props.files.map((_, idx) => idx))
@@ -295,21 +303,35 @@ function onAddKey() {
   newValues.value = Array(props.files.length).fill('')
 }
 
+function escapeXml(str: string) {
+  return str.replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c] || c))
+}
+
 function onExportAll() {
   for (let i = 0; i < props.files.length; i++) {
     const file = props.files[i]
     const data = props.data[i]
     let content = ''
-    for (const key of Object.keys(data)) {
-      // Only export non-empty keys
-      if (key && data[key] !== undefined) {
-        content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+    if (platform.value === 'ios') {
+      for (const key of Object.keys(data)) {
+        if (key && data[key] !== undefined) {
+          content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+        }
       }
+    } else {
+      content = '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+      for (const key of Object.keys(data)) {
+        if (key && data[key] !== undefined) {
+          content += `  <string name="${escapeXml(key)}">${escapeXml(data[key] ?? '')}</string>\n`
+        }
+      }
+      content += '</resources>\n'
     }
     const blob = new Blob([content], { type: 'text/plain' })
+    const ext = platform.value === 'ios' ? '.strings' : '.xml'
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = file.name || `export_${i + 1}.strings`
+    a.download = (file.name.replace(/\.(strings|xml)$/,'') || `export_${i + 1}`) + ext
     document.body.appendChild(a)
     a.click()
     setTimeout(() => {
@@ -324,17 +346,30 @@ function onExportChanged() {
     const file = props.files[i]
     const data = props.data[i]
     let content = ''
-    for (const key of Object.keys(data)) {
-      // Only export keys that have changed from original
-      if (key && data[key] !== undefined && data[key] !== (originalData.value[i]?.[key] ?? '')) {
-        content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+    if (platform.value === 'ios') {
+      for (const key of Object.keys(data)) {
+        if (key && data[key] !== undefined && data[key] !== (originalData.value[i]?.[key] ?? '')) {
+          content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+        }
       }
+      if (!content) continue
+    } else {
+      let changed = false
+      content = '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+      for (const key of Object.keys(data)) {
+        if (key && data[key] !== undefined && data[key] !== (originalData.value[i]?.[key] ?? '')) {
+          content += `  <string name="${escapeXml(key)}">${escapeXml(data[key] ?? '')}</string>\n`
+          changed = true
+        }
+      }
+      content += '</resources>\n'
+      if (!changed) continue
     }
-    if (!content) continue // skip if no changes
     const blob = new Blob([content], { type: 'text/plain' })
+    const ext = platform.value === 'ios' ? '_changed.strings' : '_changed.xml'
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = file.name.replace(/\.strings$/, '') + '_changed.strings'
+    a.download = file.name.replace(/\.(strings|xml)$/,'') + ext
     document.body.appendChild(a)
     a.click()
     setTimeout(() => {
@@ -349,37 +384,69 @@ function onExportKeepOrder() {
     const file = props.files[i]
     const data = props.data[i]
     const orig = originalData.value[i] || {}
-    // Read original file lines to preserve order and comments
-    const fileReader = new FileReader()
-    fileReader.onload = () => {
-      const lines = (fileReader.result as string).split(/\r?\n/)
-      let content = ''
-      for (const line of lines) {
-        const match = line.match(/^\s*"([^"]+)"\s*=\s*"([\s\S]*?)";/)
-        if (match) {
-          const key = match[1]
-          // Only export changed value, otherwise keep original
-          if (data[key] !== undefined && data[key] !== orig[key]) {
-            content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+    if (platform.value === 'ios') {
+      const fileReader = new FileReader()
+      fileReader.onload = () => {
+        const lines = (fileReader.result as string).split(/\r?\n/)
+        let content = ''
+        for (const line of lines) {
+          const match = line.match(/^\s*"([^"]+)"\s*=\s*"([\s\S]*?)";/)
+          if (match) {
+            const key = match[1]
+            if (data[key] !== undefined && data[key] !== orig[key]) {
+              content += `"${key}" = "${(data[key] ?? '').replace(/"/g, '\"')}";\n`
+            } else {
+              content += line + '\n'
+            }
           } else {
             content += line + '\n'
           }
-        } else {
-          content += line + '\n'
         }
+        const blob = new Blob([content], { type: 'text/plain' })
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = file.name.replace(/\.strings$/, '') + '_keeporder.strings'
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(a.href)
+        }, 100)
       }
-      const blob = new Blob([content], { type: 'text/plain' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = file.name.replace(/\.strings$/, '') + '_keeporder.strings'
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        document.body.removeChild(a)
-        URL.revokeObjectURL(a.href)
-      }, 100)
+      fileReader.readAsText(file)
+    } else {
+      // For Android, just export changed keys in order of appearance in the file
+      const fileReader = new FileReader()
+      fileReader.onload = () => {
+        const lines = (fileReader.result as string).split(/\r?\n/)
+        let content = '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+        for (const line of lines) {
+          const match = line.match(/<string name=\"([^\"]+)\">([\s\S]*?)<\/string>/)
+          if (match) {
+            const key = match[1]
+            if (data[key] !== undefined && data[key] !== orig[key]) {
+              content += `  <string name="${escapeXml(key)}">${escapeXml(data[key] ?? '')}</string>\n`
+            } else {
+              content += line + '\n'
+            }
+          } else if (line.trim() && !line.trim().startsWith('<?xml') && !line.trim().startsWith('<resources')) {
+            content += line + '\n'
+          }
+        }
+        content += '</resources>\n'
+        const blob = new Blob([content], { type: 'text/plain' })
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = file.name.replace(/\.xml$/, '') + '_keeporder.xml'
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(a.href)
+        }, 100)
+      }
+      fileReader.readAsText(file)
     }
-    fileReader.readAsText(file)
   }
 }
 

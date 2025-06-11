@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hello">สวัสดี</string>
+    <string name="goodbye">ลาก่อน</string>
+    <string name="welcome">ยินดีต้อนรับ</string>
+    <string name="home_title">หน้าหลัก</string>
+    <string name="settings">การตั้งค่า</string>
+    <string name="profile">โปรไฟล์</string>
+    <string name="logout">ออกจากระบบ</string>
+    <string name="language">ภาษา</string>
+    <string name="save">บันทึก</string>
+    <string name="cancel">ยกเลิก</string>
+</resources>
