@@ -3,6 +3,12 @@
     <div class="toolbar-search-top">
       <input v-model="search" class="input input-bordered input-xs" placeholder="Search key or value..." />
       <span class="toolbar-desc toolbar-desc-inline"> Search by key or value</span>
+      <span style="margin-left:1.5em;">
+        <label style="font-size:0.97em;">Ignore first
+          <input type="number" min="0" :max="files.length-1" v-model.number="ignorePasteCount" style="width:3em; margin:0 0.3em;" />
+          cell(s) when Paste
+        </label>
+      </span>
     </div>
     <div class="toolbar" style="align-items: flex-start;">
       <div class="toolbar-group">
@@ -109,7 +115,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, defineProps, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps<{
   data: Record<string, string>[]
@@ -121,6 +127,7 @@ const selectedPage = ref('')
 const highlightMode = ref(false)
 const search = ref('')
 const platform = ref<'ios' | 'android'>('ios')
+const ignorePasteCount = ref(0)
 
 // Track column order (file indices)
 const columnOrder = ref(props.files.map((_, idx) => idx))
@@ -279,6 +286,10 @@ async function onPaste(key: string) {
     let values = text.split('\t');
     if (values.length < props.files.length) {
       values = text.split(/\r?\n/);
+    }
+    // Ignore the first N values from clipboard
+    if (ignorePasteCount.value > 0 && values.length > ignorePasteCount.value) {
+      values = values.slice(ignorePasteCount.value);
     }
     for (let i = 0; i < props.files.length; i++) {
       if (values[i] !== undefined) {
