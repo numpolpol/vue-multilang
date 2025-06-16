@@ -27,20 +27,45 @@
     <table class="table w-full">
       <thead>
         <tr>
-          <th>Key</th>
-          <th>Paste</th>
-          <th v-for="file in files" :key="file.name">{{ file.name }}</th>
+          <!-- Fixed key column -->
+          <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">
+            <div class="flex items-center gap-2">
+              <span>Key</span>
+              <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
+            </div>
+          </th>
+          <!-- Fixed paste column -->
+          <th class="sticky" :style="{ left: `${keyColumnWidth}px` }" style="width: 80px;">
+            <div class="flex items-center gap-2">
+              <span>Paste</span>
+            </div>
+          </th>
+          <!-- Draggable language columns -->
+          <th v-for="(file, index) in orderedFiles" 
+              :key="file.name"
+              :draggable="true"
+              class="relative"
+              :style="{ width: columnWidths[file.name] || '200px' }"
+              @dragstart="startDrag($event, index)"
+              @dragover.prevent
+              @dragenter.prevent
+              @drop="onDrop($event, index)">
+            <div class="flex items-center gap-2">
+              <span>{{ file.name }}</span>
+              <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
+            </div>
+          </th>
         </tr>
       </thead>
       <tbody>
         <template v-for="key in filteredKeys" :key="key">
           <tr :class="rowClass(key)">
-            <td>{{ key }}</td>
-            <td>
+            <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">{{ key }}</td>
+            <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
               <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
             </td>
-            <td v-for="(file, idx) in files" :key="file.name">
-              <input v-model="data[idx][key]" class="input input-bordered w-full" :placeholder="'—'" />
+            <td v-for="(file, idx) in orderedFiles" :key="file.name">
+              <input v-model="props.data[columnOrder.value?.[idx] ?? idx][key]" class="input input-bordered w-full" :placeholder="'—'" />
             </td>
           </tr>
         </template>
@@ -90,7 +115,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, defineProps, watch, defineEmits } from 'vue'
+import { ref, computed, defineProps, defineEmits, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const emit = defineEmits<{
   (e: 'back'): void
@@ -267,6 +292,116 @@ function toAndroidStringsFile(data: Record<string, string>): string {
     .join('\n')
   return `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n${xmlContent}\n</resources>`
 }
+
+// Column ordering
+const columnOrder = ref<number[]>([])
+const orderedFiles = computed(() => {
+  if (columnOrder.value.length === 0) return props.files
+  return columnOrder.value.map(index => props.files[index])
+})
+
+// Key column width computation
+const keyColumnWidth = computed(() => {
+  const width = columnWidths.value['key']
+  if (!width) return 200
+  return parseInt(width)
+})
+
+// Initialize column order
+onMounted(() => {
+  initializeColumns()
+})
+
+// Watch for files changes
+watch(() => props.files, () => {
+  initializeColumns()
+}, { immediate: true })
+
+function initializeColumns() {
+  columnOrder.value = props.files.map((_, index) => index)
+  // Load saved column widths from localStorage
+  const savedWidths = localStorage.getItem('columnWidths')
+  if (savedWidths) {
+    columnWidths.value = JSON.parse(savedWidths)
+  }
+}
+
+// Drag and drop functionality
+let draggedIndex = -1
+
+function startDrag(event: DragEvent, index: number) {
+  draggedIndex = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function onDrop(_event: DragEvent, index: number) {
+  if (draggedIndex === -1) return
+  
+  // Reorder columns
+  const newOrder = [...columnOrder.value]
+  const [removed] = newOrder.splice(draggedIndex, 1)
+  newOrder.splice(index, 0, removed)
+  columnOrder.value = newOrder
+  
+  draggedIndex = -1
+}
+
+// Column resizing
+const columnWidths = ref<Record<string, string>>({})
+let isResizing = false
+let currentResizer: string | null = null
+let startX = 0
+let startWidth = 0
+
+function startResizing(event: MouseEvent, columnKey: string) {
+  isResizing = true
+  currentResizer = columnKey
+  startX = event.pageX
+  
+  const target = event.target as HTMLElement
+  const column = target.closest('th')
+  if (column) {
+    startWidth = column.offsetWidth
+  }
+  
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', stopResizing)
+}
+
+function handleMouseMove(event: MouseEvent) {
+  if (!isResizing || !currentResizer) return
+  
+  const diff = event.pageX - startX
+  const newWidth = Math.max(100, startWidth + diff) // Minimum width of 100px
+  columnWidths.value[currentResizer] = `${newWidth}px`
+  
+  // Save column widths to localStorage
+  localStorage.setItem('columnWidths', JSON.stringify(columnWidths.value))
+}
+
+function stopResizing() {
+  isResizing = false
+  currentResizer = null
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', stopResizing)
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', stopResizing)
+})
+
+// Column width reset functionality
+function resetColumnWidths() {
+  columnWidths.value = {}
+  localStorage.removeItem('columnWidths')
+}
+
+defineExpose({
+  resetColumnWidths
+})
 </script>
 
 <style scoped>
@@ -396,5 +531,60 @@ td:nth-of-type(2) {
 }
 .gap-2 {
   gap: 0.5rem;
+}
+
+/* Column resizing */
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 5px;
+  background: rgba(0, 0, 0, 0.1);
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.resizer:hover,
+.resizing {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Draggable columns */
+th[draggable=true] {
+  cursor: move;
+}
+
+th[draggable=true]:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Sticky columns */
+.sticky {
+  position: sticky;
+  z-index: 10;
+  background: inherit;
+}
+
+.left-0 {
+  left: 0;
+}
+
+/* Table layout */
+.table {
+  table-layout: fixed;
+}
+
+td, th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Make sure inputs don't overflow */
+.input {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 </style>
