@@ -6,13 +6,21 @@
       </div>
     </div>
     <div v-if="step === 1">
-      <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded text-blue-900">
-        <b>How to use:</b><br />
-        1. Click <b>Choose Files</b> to select multiple .strings files (e.g. en.strings, th.strings)<br />
-        2. Click <b>Ready</b> to view and edit all keys/values side-by-side<br />
-        3. Edit values directly, or use <b>Paste</b> to fill multiple languages at once<br />
-        4. Export all files when done<br />
-        <span class="text-red-600">* If any file is not a valid .strings format, you will be notified and it will not be imported.</span>
+      <div class="alert alert-info shadow-lg mb-6">
+        <div class="flex flex-col">
+          <div class="font-bold mb-2">How to use:</div>
+          <ol class="list-decimal list-inside space-y-2">
+            <li><span class="font-semibold">Choose Files:</span> Select multiple iOS <span class="font-semibold">.strings</span> or Android <span class="font-semibold">string.xml</span> files (one per language, same keys).</li>
+            <li><span class="font-semibold">Ready:</span> Click <span class="font-semibold">Ready</span> to load and edit all keys/values side-by-side.</li>
+            <li><span class="font-semibold">View:</span> Use <span class="font-semibold">See All</span>/<span class="font-semibold">Paging</span> to switch key views.</li>
+            <li><span class="font-semibold">Edit:</span> Edit values directly or use <span class="font-semibold">Paste</span> per row for quick input.</li>
+            <li><span class="font-semibold">Export:</span> Use floating buttons to export all, changed, or keep order.</li>
+            <li><span class="font-semibold">Back:</span> Use the floating <span class="font-semibold">Back</span> button to restart.</li>
+          </ol>
+          <div class="mt-4 text-sm">
+            <span class="font-bold">Tips:</span> All processing is local. Key column scrolls if long. Use the same keys in all files. Supports both iOS and Android formats.
+          </div>
+        </div>
       </div>
       <input type="file" multiple accept=".strings" @change="onFilesSelected" />
       <div class="mt-4">
@@ -22,7 +30,7 @@
       </div>
     </div>
     <div v-else-if="step === 2">
-      <JsonTable :data="filesStore.stringsData" :files="filesStore.files" />
+      <JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="reset" />
     </div>
   </div>
 </template>

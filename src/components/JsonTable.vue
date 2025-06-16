@@ -46,11 +46,55 @@
         </template>
       </tbody>
     </table>
+    
+    <!-- Export Modal -->
+    <dialog id="export_modal" class="modal">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Export Settings</h3>
+        <!-- Platform Selection -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text">Platform Format</span>
+          </label>
+          <select v-model="exportPlatform" class="select select-bordered w-full">
+            <option value="ios">iOS (.strings)</option>
+            <option value="android">Android (strings.xml)</option>
+          </select>
+        </div>
+        <div class="modal-action">
+          <button class="btn" @click="closeExportModal">Cancel</button>
+          <button class="btn btn-primary" @click="downloadFiles">Export</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
+
+    <!-- Fixed Export Buttons -->
+    <div class="fixed bottom-4 right-4 flex flex-col gap-2">
+      <button class="btn btn-primary" title="Export all files" @click="openExportModal('all')">
+        Export All
+      </button>
+      <button class="btn btn-accent" title="Export only changed values" @click="openExportModal('changed')">
+        Export Changed
+      </button>
+      <button class="btn" title="Export keeping original order" @click="openExportModal('original')">
+        Keep Order
+      </button>
+      <button class="btn btn-ghost" title="Go back to file selection" @click="emit('back')">
+        Back
+      </button>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, defineProps, watch } from 'vue'
+import { ref, computed, defineProps, watch, defineEmits } from 'vue'
+
+const emit = defineEmits<{
+  (e: 'back'): void
+}>()
 
 const props = defineProps<{
   data: Record<string, string>[]
@@ -155,6 +199,73 @@ async function onPaste(key: string) {
   } catch (e) {
     alert('Unable to read clipboard.');
   }
+}
+
+// Export functionality
+const exportPlatform = ref<'ios' | 'android'>('ios')
+const exportMode = ref<'all' | 'changed' | 'original'>('all')
+
+function openExportModal(mode: 'all' | 'changed' | 'original') {
+  exportMode.value = mode
+  const modal = document.getElementById('export_modal') as HTMLDialogElement
+  modal.showModal()
+}
+
+function closeExportModal() {
+  const modal = document.getElementById('export_modal') as HTMLDialogElement
+  modal.close()
+}
+
+function downloadFiles() {
+  closeExportModal()
+  
+  props.files.forEach((file, idx) => {
+    let finalData: Record<string, string> = {}
+    const data = props.data[idx]
+    
+    if (exportMode.value === 'all') {
+      finalData = { ...data }
+    } else if (exportMode.value === 'changed') {
+      Object.keys(data).forEach(key => {
+        if (data[key] !== originalData.value[idx]?.[key]) {
+          finalData[key] = data[key]
+        }
+      })
+    } else if (exportMode.value === 'original') {
+      // Keep original file order by using original data as base
+      finalData = { ...originalData.value[idx], ...data }
+    }
+
+    const fileName = file.name
+    const fileContent = exportPlatform.value === 'ios' 
+      ? toStringsFile(finalData)
+      : toAndroidStringsFile(finalData)
+    
+    const blob = new Blob([fileContent], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = exportPlatform.value === 'ios' 
+      ? fileName 
+      : fileName.replace('.strings', '.xml')
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  })
+}
+
+function toStringsFile(data: Record<string, string>): string {
+  return Object.entries(data)
+    .map(([key, value]) => `"${key}" = "${value.replace(/"/g, '\\"')}";`)
+    .join('\n')
+}
+
+function toAndroidStringsFile(data: Record<string, string>): string {
+  const xmlContent = Object.entries(data)
+    .map(([key, value]) => `    <string name="${key}">${value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '\\"')}</string>`)
+    .join('\n')
+  return `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n${xmlContent}\n</resources>`
 }
 </script>
 
@@ -268,6 +379,22 @@ td:nth-of-type(2) {
 }
 .toolbar-radio-group {
   display: inline-flex;
+  gap: 0.5rem;
+}
+.bottom-4 {
+  bottom: 1rem;
+}
+.right-4 {
+  right: 1rem;
+}
+.fixed {
+  position: fixed;
+}
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+.gap-2 {
   gap: 0.5rem;
 }
 </style>
