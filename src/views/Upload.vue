@@ -1,5 +1,5 @@
 <template>
-  <div class="drawer lg:drawer-open h-screen">
+  <div class="drawer h-screen">
     <input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" />
     
     <!-- Drawer side -->

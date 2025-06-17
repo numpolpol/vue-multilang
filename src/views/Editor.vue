@@ -1,5 +1,5 @@
 <template>
-  <div class="drawer h-screen">
+  <div class="drawer h-screen p-0 m-0 w-full max-w-none">
     <input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" />
     
     <!-- Drawer Sidebar -->
@@ -24,11 +24,11 @@
     />
     
     <!-- Page content -->
-    <div class="drawer-content flex flex-col h-screen">
+    <div class="drawer-content flex flex-col h-screen p-0 m-0 w-full max-w-none">
       <!-- Navbar -->
       <EditorNavbar @toggleDrawer="toggleDrawer" />
 
-      <div class="flex-1 overflow-hidden">
+      <div class="flex-1 overflow-hidden p-0 m-0 w-full">
         <JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="goBack" ref="jsonTable" />
       </div>
     </div>

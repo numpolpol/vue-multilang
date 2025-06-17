@@ -54,10 +54,11 @@ button:focus-visible {
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 
 @media (prefers-color-scheme: light) {
@@ -71,4 +72,33 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* Force full width for editor components */
+.drawer-content {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.table {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Override DaisyUI container constraints */
+.drawer .drawer-content {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Force full width on all flex children in editor */
+.drawer-content .flex-1 {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Override specific container constraints */
+.container {
+  max-width: none !important;
+  width: 100% !important;
 }

@@ -1,9 +1,9 @@
 <template>
-  <div class="h-screen flex flex-col">
+  <div class="h-screen flex flex-col w-full max-w-none json-table-container px-4">
     <!-- Search & Controls -->
-    <div class="bg-base-200 rounded-box p-4 flex-shrink-0">
+    <div class="bg-base-200 flex-shrink-0 w-full px-4">
       <!-- Search -->
-      <div class="form-control">
+      <div class="form-control py-2 w-full">
         <div class="input-group">
                   <div class="flex items-center gap-2 w-full">
                     <button class="btn btn-square btn-ghost">
@@ -16,7 +16,7 @@
         </div>
       </div>
     </div>
-    <div v-if="mode === 'paging'" class="tabs-paging flex-shrink-0">
+    <div v-if="mode === 'paging'" class="tabs-paging flex-shrink-0 px-4">
       <div class="tabs">
         <button v-for="prefix in pagePrefixes" :key="prefix" :class="['tab', { 'tab-active': selectedPage === prefix }]" @click="selectedPage = prefix">
           {{ prefix }}
@@ -24,8 +24,8 @@
       </div>
     </div>
     <!-- Table wrapper with horizontal scroll -->
-    <div class="flex-1 overflow-auto">
-      <table class="table w-full h-full">>
+    <div class="flex-1 overflow-auto w-full px-4">
+      <table class="table w-full h-full">
         <thead>
           <tr>
             <!-- Fixed key column -->
@@ -634,5 +634,16 @@ td, th {
 .input {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Component-specific full width layout */
+.json-table-container {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.json-table-container .table {
+  width: 100% !important;
+  max-width: none !important;
 }
 </style>
