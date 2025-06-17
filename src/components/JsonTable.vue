@@ -98,10 +98,10 @@
               </td>
               <td v-for="(file, idx) in orderedFiles" :key="file.name">
                 <input 
-                  v-model="props.data[columnOrder?.[idx] ?? idx][key]" 
+                  :value="getDataValue(idx, key)" 
+                  @input="setDataValue(idx, key, ($event.target as HTMLInputElement).value)"
                   class="input input-bordered w-full" 
-                  :placeholder="'—'"
-                  @input="onValueChange(key, file.name)"
+                  :placeholder="'Empty'"
                 />
               </td>
             </tr>
@@ -177,8 +177,13 @@ const search = ref('')
 const loading = ref(false)
 
 const allKeys = computed(() => {
+  if (!props.data || props.data.length === 0) return []
   const keySet = new Set<string>()
-  props.data.forEach(obj => Object.keys(obj).forEach(k => keySet.add(k)))
+  props.data.forEach(obj => {
+    if (obj && typeof obj === 'object') {
+      Object.keys(obj).forEach(k => keySet.add(k))
+    }
+  })
   return Array.from(keySet)
 })
 
@@ -186,7 +191,7 @@ const pagePrefixes = computed(() => {
   const prefixes = new Set<string>()
   allKeys.value.forEach(key => {
     const prefix = key.split('_')[0]
-    prefixes.add(prefix)
+    if (prefix) prefixes.add(prefix)
   })
   return Array.from(prefixes)
 })
@@ -202,29 +207,33 @@ const filteredKeys = computed(() => {
   const q = search.value.trim().toLowerCase()
   return visibleKeys.value.filter(key => {
     if (key.toLowerCase().includes(q)) return true
-    for (const obj of props.data) {
-      if ((obj[key] ?? '').toLowerCase().includes(q)) return true
+    if (props.data && props.data.length > 0) {
+      for (const obj of props.data) {
+        if (obj && (obj[key] ?? '').toLowerCase().includes(q)) return true
+      }
     }
     return false
   })
 })
 
 // Track original values for highlight
-const originalData = ref(props.data.map(obj => ({ ...obj })))
+const originalData = ref(props.data ? props.data.map(obj => ({ ...obj })) : [])
 watch(() => props.data, (newVal) => {
-  if (originalData.value.length !== newVal.length) {
+  if (newVal && originalData.value.length !== newVal.length) {
     originalData.value = newVal.map(obj => ({ ...obj }))
   }
 }, { deep: true })
 
 function isAllEqual(key: string): boolean {
-  const values = props.data.map(obj => obj[key] ?? '')
+  if (!props.data || props.data.length === 0) return false
+  const values = props.data.map(obj => obj?.[key] ?? '')
   return values.length > 0 && values.every(v => v === values[0])
 }
 
 function isEdited(key: string): boolean {
+  if (!props.data || props.data.length === 0) return false
   for (let i = 0; i < props.data.length; i++) {
-    if ((props.data[i][key] ?? '') !== (originalData.value[i]?.[key] ?? '')) {
+    if ((props.data[i]?.[key] ?? '') !== (originalData.value[i]?.[key] ?? '')) {
       return true
     }
   }
@@ -232,8 +241,10 @@ function isEdited(key: string): boolean {
 }
 
 function isDuplicateValue(key: string): boolean {
+  if (!props.data || props.data.length === 0) return false
   const valueCount: Record<string, number> = {};
   for (const obj of props.data) {
+    if (!obj) continue
     const val = (obj[key] ?? '').trim();
     if (!val) continue;
     valueCount[val] = (valueCount[val] || 0) + 1;
@@ -338,6 +349,13 @@ function toAndroidStringsFile(data: Record<string, string>): string {
   return `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n${xmlContent}\n</resources>`
 }
 
+// Column resizing
+const columnWidths = ref<Record<string, string>>({})
+let isResizing = false
+let currentResizer: string | null = null
+let startX = 0
+let startWidth = 0
+
 // Column ordering
 const columnOrder = ref<number[]>([])
 const orderedFiles = computed(() => {
@@ -351,20 +369,23 @@ watch(() => props.files, () => {
 }, { immediate: true })
 
 function initializeColumns() {
-  columnOrder.value = props.files.map((_, index) => index)
+  if (props.files && props.files.length > 0) {
+    columnOrder.value = props.files.map((_, index) => index)
+  } else {
+    columnOrder.value = []
+  }
+  
   // Load saved column widths from localStorage
-  const savedWidths = localStorage.getItem('columnWidths')
-  if (savedWidths) {
-    columnWidths.value = JSON.parse(savedWidths)
+  try {
+    const savedWidths = localStorage.getItem('columnWidths')
+    if (savedWidths) {
+      columnWidths.value = JSON.parse(savedWidths)
+    }
+  } catch (error) {
+    console.warn('Failed to parse saved column widths:', error)
+    columnWidths.value = {}
   }
 }
-
-// Column resizing
-const columnWidths = ref<Record<string, string>>({})
-let isResizing = false
-let currentResizer: string | null = null
-let startX = 0
-let startWidth = 0
 
 // Key column width computation
 const keyColumnWidth = computed(() => {
@@ -435,9 +456,21 @@ function onDrop(_event: DragEvent, index: number) {
 
 const changedValues = ref<Set<string>>(new Set())
 
-function onValueChange(key: string, fileName: string) {
-  changedValues.value.add(key)
-  emit('change', { key, fileName })
+// Safe data access functions
+function getDataValue(idx: number, key: string): string {
+  const actualIdx = columnOrder.value[idx] ?? idx
+  if (!props.data || !props.data[actualIdx]) return ''
+  return props.data[actualIdx][key] ?? ''
+}
+
+function setDataValue(idx: number, key: string, value: string) {
+  const actualIdx = columnOrder.value[idx] ?? idx
+  if (props.data && props.data[actualIdx]) {
+    props.data[actualIdx][key] = value
+    changedValues.value.add(key)
+    const fileName = props.files[actualIdx]?.name || ''
+    emit('change', { key, fileName })
+  }
 }
 
 defineExpose({

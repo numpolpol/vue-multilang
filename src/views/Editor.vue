@@ -1,146 +1,146 @@
-<![CDATA[<template>]]>
-  &lt;div class="drawer lg:drawer-open h-screen"&gt;
-    &lt;input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" /&gt;
+<template>
+  <div class="drawer lg:drawer-open h-screen">
+    <input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" />
     
-    &lt;!-- Drawer side --&gt;
-    &lt;div class="drawer-side z-40"&gt;
-      &lt;label for="drawer" aria-label="close sidebar" class="drawer-overlay"&gt;&lt;/label&gt;
-      &lt;div class="menu p-4 w-80 min-h-full bg-base-200"&gt;
-        &lt;!-- Theme & Controls --&gt;
-        &lt;div class="space-y-4"&gt;
-          &lt;!-- App Title --&gt;
-          &lt;div class="text-xl font-bold"&gt;iOS/Android Editor&lt;/div&gt;
+    <!-- Drawer side -->
+    <div class="drawer-side z-40">
+      <label for="drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+      <div class="menu p-4 w-80 min-h-full bg-base-200">
+        <!-- Theme & Controls -->
+        <div class="space-y-4">
+          <!-- App Title -->
+          <div class="text-xl font-bold">iOS/Android Editor</div>
 
-          &lt;!-- Theme --&gt;
-          &lt;div class="form-control w-full"&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text font-semibold"&gt;Theme&lt;/span&gt;
-            &lt;/label&gt;
-            &lt;select v-model="theme" class="select select-bordered w-full" @change="updateTheme"&gt;
-              &lt;option value="light"&gt;Light&lt;/option&gt;
-              &lt;option value="dark"&gt;Dark&lt;/option&gt;
-              &lt;option value="forest"&gt;Forest&lt;/option&gt;
-              &lt;option value="zimablue"&gt;Zima Blue&lt;/option&gt;
-            &lt;/select&gt;
-          &lt;/div&gt;
+          <!-- Theme -->
+          <div class="form-control w-full">
+            <label class="label">
+              <span class="label-text font-semibold">Theme</span>
+            </label>
+            <select v-model="theme" class="select select-bordered w-full" @change="updateTheme">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="forest">Forest</option>
+              <option value="zimablue">Zima Blue</option>
+            </select>
+          </div>
 
-          &lt;!-- View Controls --&gt;
-          &lt;div class="divider"&gt;View Controls&lt;/div&gt;
+          <!-- View Controls -->
+          <div class="divider">View Controls</div>
           
-          &lt;!-- View Mode --&gt;
-          &lt;div class="form-control"&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text font-semibold"&gt;Display Mode&lt;/span&gt;
-            &lt;/label&gt;
-            &lt;div class="flex flex-col gap-2"&gt;
-              &lt;label class="label cursor-pointer justify-start gap-2"&gt;
-                &lt;input type="radio" class="radio radio-sm" :value="'all'" v-model="viewMode" /&gt;
-                &lt;span class="label-text"&gt;See All Keys&lt;/span&gt;
-              &lt;/label&gt;
-              &lt;label class="label cursor-pointer justify-start gap-2"&gt;
-                &lt;input type="radio" class="radio radio-sm" :value="'paging'" v-model="viewMode" /&gt;
-                &lt;span class="label-text"&gt;Group by Prefix&lt;/span&gt;
-              &lt;/label&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
+          <!-- View Mode -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">Display Mode</span>
+            </label>
+            <div class="flex flex-col gap-2">
+              <label class="label cursor-pointer justify-start gap-2">
+                <input type="radio" class="radio radio-sm" :value="'all'" v-model="viewMode" />
+                <span class="label-text">See All Keys</span>
+              </label>
+              <label class="label cursor-pointer justify-start gap-2">
+                <input type="radio" class="radio radio-sm" :value="'paging'" v-model="viewMode" />
+                <span class="label-text">Group by Prefix</span>
+              </label>
+            </div>
+          </div>
 
-          &lt;!-- Highlight Mode --&gt;
-          &lt;div class="form-control"&gt;
-            &lt;label class="label cursor-pointer justify-start gap-2"&gt;
-              &lt;input type="checkbox" class="toggle toggle-sm" v-model="highlightMode" /&gt;
-              &lt;span class="label-text"&gt;Highlight Changes&lt;/span&gt;
-            &lt;/label&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text-alt"&gt;Highlight edited, duplicate, or identical values&lt;/span&gt;
-            &lt;/label&gt;
-          &lt;/div&gt;
+          <!-- Highlight Mode -->
+          <div class="form-control">
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="toggle toggle-sm" v-model="highlightMode" />
+              <span class="label-text">Highlight Changes</span>
+            </label>
+            <label class="label">
+              <span class="label-text-alt">Highlight edited, duplicate, or identical values</span>
+            </label>
+          </div>
 
-          &lt;!-- Table Controls --&gt;
-          &lt;div class="divider"&gt;Table Controls&lt;/div&gt;
+          <!-- Table Controls -->
+          <div class="divider">Table Controls</div>
           
-          &lt;!-- Column Reset --&gt;
-          &lt;button class="btn btn-sm btn-block" @click="resetColumnWidths"&gt;
-            &lt;svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor"&gt;
-              &lt;path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /&gt;
-            &lt;/svg&gt;
+          <!-- Column Reset -->
+          <button class="btn btn-sm btn-block" @click="resetColumnWidths">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+            </svg>
             Reset Column Widths
-          &lt;/button&gt;
+          </button>
 
-          &lt;!-- Search --&gt;
-          &lt;div class="form-control"&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text font-semibold"&gt;Search&lt;/span&gt;
-              &lt;span class="label-text-alt"&gt;{{ filteredCount }} / {{ totalKeys }} keys&lt;/span&gt;
-            &lt;/label&gt;
-            &lt;div class="join w-full"&gt;
-              &lt;input 
+          <!-- Search -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">Search</span>
+              <span class="label-text-alt">{{ filteredCount }} / {{ totalKeys }} keys</span>
+            </label>
+            <div class="join w-full">
+              <input 
                 type="text" 
                 v-model="searchQuery" 
                 placeholder="Search keys or values..." 
                 class="input input-bordered input-sm join-item w-full" 
                 :class="{ 'input-error': noResults }"
-              /&gt;
-              &lt;button 
+              />
+              <button 
                 class="btn btn-sm join-item" 
                 :class="{ 'btn-error': noResults }"
                 @click="clearSearch"
                 v-if="searchQuery"
-              &gt;
-                &lt;svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"&gt;
-                  &lt;path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /&gt;
-                &lt;/svg&gt;
-              &lt;/button&gt;
-            &lt;/div&gt;
-            &lt;label class="label" v-if="noResults"&gt;
-              &lt;span class="label-text-alt text-error"&gt;No keys found&lt;/span&gt;
-            &lt;/label&gt;
-          &lt;/div&gt;
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <label class="label" v-if="noResults">
+              <span class="label-text-alt text-error">No keys found</span>
+            </label>
+          </div>
 
-          &lt;!-- Export Options --&gt;
-          &lt;div class="divider"&gt;Export Options&lt;/div&gt;
-          &lt;div class="flex flex-col gap-2"&gt;
-            &lt;button class="btn btn-primary btn-sm btn-block" @click="jsonTable?.openExportModal('all')"&gt;
+          <!-- Export Options -->
+          <div class="divider">Export Options</div>
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-primary btn-sm btn-block" @click="jsonTable?.openExportModal('all')">
               Export All
-            &lt;/button&gt;
-            &lt;button class="btn btn-accent btn-sm btn-block" @click="jsonTable?.openExportModal('changed')"&gt;
+            </button>
+            <button class="btn btn-accent btn-sm btn-block" @click="jsonTable?.openExportModal('changed')">
               Export Changed
-            &lt;/button&gt;
-            &lt;button class="btn btn-sm btn-block" @click="jsonTable?.openExportModal('original')"&gt;
+            </button>
+            <button class="btn btn-sm btn-block" @click="jsonTable?.openExportModal('original')">
               Keep Order
-            &lt;/button&gt;
-          &lt;/div&gt;
+            </button>
+          </div>
 
-          &lt;!-- Back Button --&gt;
-          &lt;div class="divider"&gt;&lt;/div&gt;
-          &lt;button class="btn btn-ghost btn-sm btn-block" @click="goBack"&gt;
+          <!-- Back Button -->
+          <div class="divider"></div>
+          <button class="btn btn-ghost btn-sm btn-block" @click="goBack">
             Back to Upload
-          &lt;/button&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+          </button>
+        </div>
+      </div>
+    </div>
     
-    &lt;!-- Page content --&gt;
-    &lt;div class="drawer-content"&gt;
-      &lt;!-- Navbar --&gt;
-      &lt;div class="navbar bg-base-100 shadow-lg rounded-box mb-6"&gt;
-        &lt;div class="navbar-start"&gt;
-          &lt;label for="drawer" class="btn btn-square btn-ghost drawer-button lg:hidden"&gt;
-            &lt;svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current"&gt;
-              &lt;path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"&gt;&lt;/path&gt;
-            &lt;/svg&gt;
-          &lt;/label&gt;
-          &lt;h1 class="text-2xl font-bold ml-2"&gt;iOS/Android Multi-file Editor&lt;/h1&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
+    <!-- Page content -->
+    <div class="drawer-content">
+      <!-- Navbar -->
+      <div class="navbar bg-base-100 shadow-lg rounded-box mb-6">
+        <div class="navbar-start">
+          <label for="drawer" class="btn btn-square btn-ghost drawer-button lg:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </label>
+          <h1 class="text-2xl font-bold ml-2">iOS/Android Multi-file Editor</h1>
+        </div>
+      </div>
 
-      &lt;div class="p-4"&gt;
-        &lt;JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="goBack" ref="jsonTable" /&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
+      <div class="p-4">
+        <JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="goBack" ref="jsonTable" />
+      </div>
+    </div>
+  </div>
+</template>
 
-&lt;script lang="ts" setup&gt;
+<script lang="ts" setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '../stores/files'
@@ -158,10 +158,10 @@ const router = useRouter()
 const filesStore = useFilesStore()
 const theme = ref(localStorage.getItem('theme') || 'light')
 const isDrawerOpen = ref(false)
-const jsonTable = ref&lt;JsonTableWithControls | null&gt;(null)
+const jsonTable = ref<JsonTableWithControls | null>(null)
 
 // View controls
-const viewMode = ref&lt;'all' | 'paging'&gt;('all')
+const viewMode = ref<'all' | 'paging'>('all')
 const highlightMode = ref(false)
 const searchQuery = ref('')
 
@@ -201,10 +201,17 @@ watch(searchQuery, (newValue) => {
 
 // Watch for filesStore changes to update totalKeys
 watch(
-  () =&gt; filesStore.stringsData,
-  (newData) =&gt; {
-    totalKeys.value = newData.reduce((sum, fileData) =&gt; sum + Object.keys(fileData).length, 0)
-    filteredCount.value = totalKeys.value
+  () => filesStore.stringsData,
+  (newData) => {
+    if (newData && newData.length > 0) {
+      const allKeys = new Set<string>()
+      newData.forEach(obj => Object.keys(obj || {}).forEach(k => allKeys.add(k)))
+      totalKeys.value = allKeys.size
+      filteredCount.value = totalKeys.value
+    } else {
+      totalKeys.value = 0
+      filteredCount.value = 0
+    }
   },
   { immediate: true }
 )
@@ -221,7 +228,7 @@ function clearSearch() {
 }
 
 function goBack() {
-  filesStore.setFiles([])
+  filesStore.reset()
   router.push('/')
 }
 
@@ -230,4 +237,4 @@ function resetColumnWidths() {
     jsonTable.value.resetColumnWidths()
   }
 }
-&lt;/script&gt;
+</script>
