@@ -24,70 +24,139 @@
       </div>
     </div>
     <!-- Table wrapper with horizontal scroll -->
-    <div class="flex-1 overflow-auto w-full px-4">
-      <table class="table w-full h-full">
-        <thead>
-          <tr>
-            <!-- Fixed key column -->
-            <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
-              <div class="flex items-center gap-2">
-                <span>Key</span>
-                <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
-              </div>
-            </th>
-            <!-- Fixed paste column -->
-            <th class="sticky" :style="{ left: `${keyColumnWidth}px`, width: '80px', minWidth: '80px' }">
-              <div class="flex items-center gap-2">
-                <span>Paste</span>
-              </div>
-            </th>
-            <!-- Draggable language columns -->
-            <th v-for="(file, index) in orderedFiles" 
-                :key="file.name"
-                :draggable="true"
-                class="relative"
-                :style="{ width: columnWidths[file.name] || '200px', minWidth: '150px' }"
-                @dragstart="startDrag($event, index)"
-                @dragover.prevent
-                @dragenter.prevent
-                @drop="onDrop($event, index)">
-              <div class="flex items-center gap-2">
-                <span>{{ file.name }}</span>
-                <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading" class="animate-pulse">
-            <td colspan="100%" class="text-center py-8">
-              <div class="loading loading-spinner"></div>
-              <div class="mt-2">Loading...</div>
-            </td>
-          </tr>
-          <tr v-else-if="filteredKeys.length === 0" class="hover:bg-transparent">
-            <td colspan="100%" class="text-center py-8 text-base-content/50">
-              No matching keys found
-            </td>
-          </tr>
-          <template v-else v-for="key in filteredKeys" :key="key">
-            <tr :class="rowClass(key)">
-              <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">{{ key }}</td>
-              <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
-                <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
-              </td>
-              <td v-for="(file, idx) in orderedFiles" :key="file.name">
-                <input 
-                  :value="getDataValue(idx, key)" 
-                  @input="setDataValue(idx, key, ($event.target as HTMLInputElement).value)"
-                  class="input input-bordered w-full" 
-                  :placeholder="'Empty'"
+    <div class="flex-1 overflow-auto w-full px-4" :class="mode === 'paging' ? 'flex gap-4' : ''">
+      <!-- Preview Images Panel (only in paging mode) - Moved to left side -->
+      <div v-if="mode === 'paging'" class="w-80 flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto">
+        <div class="space-y-4">
+          <h3 class="font-semibold text-lg">Preview Images</h3>
+          
+          <!-- Image Upload Area -->
+          <div class="space-y-2">
+            <label class="label">
+              <span class="label-text">Add Images for {{ selectedPage }} section</span>
+            </label>
+            <input 
+              type="file" 
+              multiple 
+              accept="image/*" 
+              class="file-input file-input-bordered file-input-sm w-full" 
+              @change="onPreviewImagesSelected"
+            />
+            <label class="label">
+              <span class="label-text-alt">Upload preview images to visualize this section</span>
+            </label>
+          </div>
+          
+          <!-- Uploaded Images Display -->
+          <div v-if="previewImages[selectedPage]?.length" class="space-y-3">
+            <div class="divider">Uploaded Images</div>
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+              <div 
+                v-for="(image, index) in previewImages[selectedPage]" 
+                :key="index"
+                class="relative group"
+              >
+                <img 
+                  :src="image.url" 
+                  :alt="image.name"
+                  class="object-contain border border-base-300 rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                  style="width: 200px; height: auto; max-height: 300px;"
+                  @click="openFullscreenImage(image)"
                 />
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    class="btn btn-sm btn-error btn-circle"
+                    @click="removePreviewImage(selectedPage, index)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="mt-1 text-xs text-base-content/70 truncate">
+                  {{ image.name }}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- No Images State -->
+          <div v-else class="text-center py-8 text-base-content/50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p class="text-sm">No preview images</p>
+            <p class="text-xs">Upload images to visualize this section</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Table container -->
+      <div :class="mode === 'paging' ? 'flex-1' : 'w-full'">
+        <table class="table w-full h-full">
+          <thead>
+            <tr>
+              <!-- Fixed key column -->
+              <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
+                <div class="flex items-center gap-2">
+                  <span>Key</span>
+                  <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
+                </div>
+              </th>
+              <!-- Fixed paste column -->
+              <th class="sticky" :style="{ left: `${keyColumnWidth}px`, width: '80px', minWidth: '80px' }">
+                <div class="flex items-center gap-2">
+                  <span>Paste</span>
+                </div>
+              </th>
+              <!-- Draggable language columns -->
+              <th v-for="(file, index) in orderedFiles" 
+                  :key="file.name"
+                  :draggable="true"
+                  class="relative"
+                  :style="{ width: columnWidths[file.name] || '200px', minWidth: '150px' }"
+                  @dragstart="startDrag($event, index)"
+                  @dragover.prevent
+                  @dragenter.prevent
+                  @drop="onDrop($event, index)">
+                <div class="flex items-center gap-2">
+                  <span>{{ file.name }}</span>
+                  <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading" class="animate-pulse">
+              <td colspan="100%" class="text-center py-8">
+                <div class="loading loading-spinner"></div>
+                <div class="mt-2">Loading...</div>
               </td>
             </tr>
-          </template>
-        </tbody>
-      </table>
+            <tr v-else-if="filteredKeys.length === 0" class="hover:bg-transparent">
+              <td colspan="100%" class="text-center py-8 text-base-content/50">
+                No matching keys found
+              </td>
+            </tr>
+            <template v-else v-for="key in filteredKeys" :key="key">
+              <tr :class="rowClass(key)">
+                <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">{{ key }}</td>
+                <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
+                  <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
+                </td>
+                <td v-for="(file, idx) in orderedFiles" :key="file.name">
+                  <input 
+                    :value="getDataValue(idx, key)" 
+                    @input="setDataValue(idx, key, ($event.target as HTMLInputElement).value)"
+                    class="input input-bordered w-full" 
+                    :placeholder="'Empty'"
+                  />
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </div>
     
     <!-- Export Modal -->
@@ -111,6 +180,31 @@
       </div>
       <form method="dialog" class="modal-backdrop">
         <button>close</button>
+      </form>
+    </dialog>
+
+    <!-- Fullscreen Image Modal -->
+    <dialog id="fullscreen_image_modal" class="modal">
+      <div class="modal-box w-11/12 max-w-5xl h-5/6 p-4">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-lg">{{ selectedFullscreenImage?.name || 'Image Preview' }}</h3>
+          <button class="btn btn-sm btn-circle btn-ghost" @click="closeFullscreenModal">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="flex justify-center items-center h-full">
+          <img 
+            v-if="selectedFullscreenImage"
+            :src="selectedFullscreenImage.url" 
+            :alt="selectedFullscreenImage.name"
+            class="max-w-full max-h-full object-contain"
+          />
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeFullscreenModal">close</button>
       </form>
     </dialog>
   </div>
@@ -139,6 +233,65 @@ const highlightMode = ref(false)
 const search = ref('')
 
 const loading = ref(false)
+
+// Preview images functionality
+interface PreviewImage {
+  name: string
+  url: string
+  file: File
+}
+
+const previewImages = ref<Record<string, PreviewImage[]>>({})
+
+function onPreviewImagesSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files || !selectedPage.value) return
+  
+  const files = Array.from(input.files)
+  const prefix = selectedPage.value
+  
+  if (!previewImages.value[prefix]) {
+    previewImages.value[prefix] = []
+  }
+  
+  files.forEach(file => {
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file)
+      previewImages.value[prefix].push({
+        name: file.name,
+        url,
+        file
+      })
+    }
+  })
+  
+  // Clear the input
+  input.value = ''
+}
+
+function removePreviewImage(prefix: string, index: number) {
+  if (previewImages.value[prefix]) {
+    const image = previewImages.value[prefix][index]
+    // Revoke the object URL to prevent memory leaks
+    URL.revokeObjectURL(image.url)
+    previewImages.value[prefix].splice(index, 1)
+  }
+}
+
+// Fullscreen image functionality
+const selectedFullscreenImage = ref<PreviewImage | null>(null)
+
+function openFullscreenImage(image: PreviewImage) {
+  selectedFullscreenImage.value = image
+  const modal = document.getElementById('fullscreen_image_modal') as HTMLDialogElement
+  modal.showModal()
+}
+
+function closeFullscreenModal() {
+  selectedFullscreenImage.value = null
+  const modal = document.getElementById('fullscreen_image_modal') as HTMLDialogElement
+  modal.close()
+}
 
 const allKeys = computed(() => {
   if (!props.data || props.data.length === 0) return []
@@ -187,6 +340,22 @@ watch(() => props.data, (newVal) => {
     originalData.value = newVal.map(obj => ({ ...obj }))
   }
 }, { deep: true })
+
+// Initialize selected page when mode changes to paging
+watch([mode, pagePrefixes], () => {
+  if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
+    selectedPage.value = pagePrefixes.value[0]
+  }
+})
+
+// Cleanup object URLs when component is destroyed
+onBeforeUnmount(() => {
+  Object.values(previewImages.value).forEach(images => {
+    images.forEach(image => {
+      URL.revokeObjectURL(image.url)
+    })
+  })
+})
 
 function isAllEqual(key: string): boolean {
   if (!props.data || props.data.length === 0) return false
