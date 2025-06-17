@@ -1,5 +1,5 @@
 <template>
-  <div class="drawer lg:drawer-open h-screen">
+  <div class="drawer h-screen">
     <input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" />
     
     <!-- Drawer side -->
@@ -8,9 +8,6 @@
       <div class="menu p-4 w-80 min-h-full bg-base-200">
         <!-- Theme & Controls -->
         <div class="space-y-4">
-          <!-- App Title -->
-          <div class="text-xl font-bold">iOS/Android Editor</div>
-
           <!-- Theme -->
           <div class="form-control w-full">
             <label class="label">
@@ -120,20 +117,27 @@
     </div>
     
     <!-- Page content -->
-    <div class="drawer-content">
+    <div class="drawer-content flex flex-col h-screen">
       <!-- Navbar -->
-      <div class="navbar bg-base-100 shadow-lg rounded-box mb-6">
+      <div class="navbar bg-base-100 shadow-lg flex-shrink-0">
         <div class="navbar-start">
-          <label for="drawer" class="btn btn-square btn-ghost drawer-button lg:hidden">
+          <label for="drawer" class="btn btn-square btn-ghost drawer-button">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </label>
           <h1 class="text-2xl font-bold ml-2">iOS/Android Multi-file Editor</h1>
         </div>
+        <div class="navbar-end">
+          <button class="btn btn-ghost btn-sm" @click="toggleDrawer" title="Toggle Sidebar">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <div class="p-4">
+      <div class="flex-1 overflow-hidden">
         <JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="goBack" ref="jsonTable" />
       </div>
     </div>
@@ -236,5 +240,9 @@ function resetColumnWidths() {
   if (jsonTable.value) {
     jsonTable.value.resetColumnWidths()
   }
+}
+
+function toggleDrawer() {
+  isDrawerOpen.value = !isDrawerOpen.value
 }
 </script>

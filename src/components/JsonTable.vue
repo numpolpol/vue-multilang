@@ -1,42 +1,22 @@
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="h-screen flex flex-col">
     <!-- Search & Controls -->
-    <div class="bg-base-200 rounded-box p-4">
+    <div class="bg-base-200 rounded-box p-4 flex-shrink-0">
       <!-- Search -->
       <div class="form-control">
         <div class="input-group">
-          <input v-model="search" type="text" placeholder="Search keys or values..." class="input input-bordered w-full" />
-          <button class="btn btn-square btn-ghost">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- View Mode & Highlight -->
-      <div class="flex flex-wrap gap-4 mt-4">
-        <div class="form-control">
-          <label class="label cursor-pointer gap-2">
-            <span class="label-text">See All Keys</span>
-            <input type="radio" v-model="mode" value="all" class="radio" />
-          </label>
-        </div>
-        <div class="form-control">
-          <label class="label cursor-pointer gap-2">
-            <span class="label-text">Group by Prefix</span>
-            <input type="radio" v-model="mode" value="paging" class="radio" />
-          </label>
-        </div>
-        <div class="form-control">
-          <label class="label cursor-pointer gap-2">
-            <span class="label-text">Highlight Changes</span>
-            <input type="checkbox" v-model="highlightMode" class="toggle" />
-          </label>
+                  <div class="flex items-center gap-2 w-full">
+                    <button class="btn btn-square btn-ghost">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                    <input v-model="search" type="text" placeholder="Search keys or values..." class="input input-bordered w-full" />
+                  </div>
         </div>
       </div>
     </div>
-    <div v-if="mode === 'paging'" class="tabs-paging">
+    <div v-if="mode === 'paging'" class="tabs-paging flex-shrink-0">
       <div class="tabs">
         <button v-for="prefix in pagePrefixes" :key="prefix" :class="['tab', { 'tab-active': selectedPage === prefix }]" @click="selectedPage = prefix">
           {{ prefix }}
@@ -44,8 +24,8 @@
       </div>
     </div>
     <!-- Table wrapper with horizontal scroll -->
-    <div class="w-full overflow-x-auto">
-      <table class="table w-full">
+    <div class="flex-1 overflow-auto">
+      <table class="table w-full h-full">>
         <thead>
           <tr>
             <!-- Fixed key column -->
@@ -133,22 +113,6 @@
         <button>close</button>
       </form>
     </dialog>
-
-    <!-- Fixed Export Buttons -->
-    <div class="fixed bottom-4 right-4 flex flex-col gap-2">
-      <button class="btn btn-primary" title="Export all files" @click="openExportModal('all')">
-        Export All
-      </button>
-      <button class="btn btn-accent" title="Export only changed values" @click="openExportModal('changed')">
-        Export Changed
-      </button>
-      <button class="btn" title="Export keeping original order" @click="openExportModal('original')">
-        Keep Order
-      </button>
-      <button class="btn btn-ghost" title="Go back to file selection" @click="emit('back')">
-        Back
-      </button>
-    </div>
   </div>
 </template>
 
@@ -599,21 +563,22 @@ td:nth-of-type(2) {
   display: inline-flex;
   gap: 0.5rem;
 }
-.bottom-4 {
-  bottom: 1rem;
+
+/* Full screen layout */
+.h-screen {
+  height: 100vh;
 }
-.right-4 {
-  right: 1rem;
+
+.flex-1 {
+  flex: 1;
 }
-.fixed {
-  position: fixed;
+
+.flex-shrink-0 {
+  flex-shrink: 0;
 }
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-.gap-2 {
-  gap: 0.5rem;
+
+.overflow-auto {
+  overflow: auto;
 }
 
 /* Column resizing */
