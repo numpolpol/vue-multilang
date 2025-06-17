@@ -1,20 +1,39 @@
 <template>
-  <div>
-    <div class="toolbar-search-top">
-      <input v-model="search" class="input input-bordered input-xs" placeholder="Search key or value..." />
-      <span class="toolbar-desc toolbar-desc-inline"> Search by key or value</span>
-    </div>
-    <div class="toolbar" style="align-items: flex-start;">
-      <div class="toolbar-group">
-        <span class="toolbar-label">View:</span>
-        <div>
-            <label class="toolbar-radio" title="Show all keys in a single table (See All)"><input type="radio" v-model="mode" value="all" /> See All</label>
-            <span class="toolbar-desc toolbar-desc-inline"> Show all keys in one page</span>
-            <label class="toolbar-radio" title="Group keys by prefix (Paging)"><input type="radio" v-model="mode" value="paging" /> Paging</label>
-            <span class="toolbar-desc toolbar-desc-inline"> Page keys by prefix (e.g. common_, home_)</span>
+  <div class="flex flex-col gap-4">
+    <!-- Search & Controls -->
+    <div class="bg-base-200 rounded-box p-4">
+      <!-- Search -->
+      <div class="form-control">
+        <div class="input-group">
+          <input v-model="search" type="text" placeholder="Search keys or values..." class="input input-bordered w-full" />
+          <button class="btn btn-square btn-ghost">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
         </div>
-        <label class="toolbar-checkbox" title="Highlight rows that are edited, duplicate, or identical in all languages"><input type="checkbox" v-model="highlightMode" /> Highlight</label>
-        <span class="toolbar-desc toolbar-desc-inline"> Highlight: edited (green), duplicate (yellow), or all-equal (light red)</span>
+      </div>
+
+      <!-- View Mode & Highlight -->
+      <div class="flex flex-wrap gap-4 mt-4">
+        <div class="form-control">
+          <label class="label cursor-pointer gap-2">
+            <span class="label-text">See All Keys</span>
+            <input type="radio" v-model="mode" value="all" class="radio" />
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer gap-2">
+            <span class="label-text">Group by Prefix</span>
+            <input type="radio" v-model="mode" value="paging" class="radio" />
+          </label>
+        </div>
+        <div class="form-control">
+          <label class="label cursor-pointer gap-2">
+            <span class="label-text">Highlight Changes</span>
+            <input type="checkbox" v-model="highlightMode" class="toggle" />
+          </label>
+        </div>
       </div>
     </div>
     <div v-if="mode === 'paging'" class="tabs-paging">
@@ -24,53 +43,72 @@
         </button>
       </div>
     </div>
-    <table class="table w-full">
-      <thead>
-        <tr>
-          <!-- Fixed key column -->
-          <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">
-            <div class="flex items-center gap-2">
-              <span>Key</span>
-              <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
-            </div>
-          </th>
-          <!-- Fixed paste column -->
-          <th class="sticky" :style="{ left: `${keyColumnWidth}px` }" style="width: 80px;">
-            <div class="flex items-center gap-2">
-              <span>Paste</span>
-            </div>
-          </th>
-          <!-- Draggable language columns -->
-          <th v-for="(file, index) in orderedFiles" 
-              :key="file.name"
-              :draggable="true"
-              class="relative"
-              :style="{ width: columnWidths[file.name] || '200px' }"
-              @dragstart="startDrag($event, index)"
-              @dragover.prevent
-              @dragenter.prevent
-              @drop="onDrop($event, index)">
-            <div class="flex items-center gap-2">
-              <span>{{ file.name }}</span>
-              <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
-            </div>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <template v-for="key in filteredKeys" :key="key">
-          <tr :class="rowClass(key)">
-            <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">{{ key }}</td>
-            <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
-              <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
-            </td>
-            <td v-for="(file, idx) in orderedFiles" :key="file.name">
-              <input v-model="props.data[columnOrder.value?.[idx] ?? idx][key]" class="input input-bordered w-full" :placeholder="'—'" />
+    <!-- Table wrapper with horizontal scroll -->
+    <div class="w-full overflow-x-auto">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <!-- Fixed key column -->
+            <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
+              <div class="flex items-center gap-2">
+                <span>Key</span>
+                <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
+              </div>
+            </th>
+            <!-- Fixed paste column -->
+            <th class="sticky" :style="{ left: `${keyColumnWidth}px`, width: '80px', minWidth: '80px' }">
+              <div class="flex items-center gap-2">
+                <span>Paste</span>
+              </div>
+            </th>
+            <!-- Draggable language columns -->
+            <th v-for="(file, index) in orderedFiles" 
+                :key="file.name"
+                :draggable="true"
+                class="relative"
+                :style="{ width: columnWidths[file.name] || '200px', minWidth: '150px' }"
+                @dragstart="startDrag($event, index)"
+                @dragover.prevent
+                @dragenter.prevent
+                @drop="onDrop($event, index)">
+              <div class="flex items-center gap-2">
+                <span>{{ file.name }}</span>
+                <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading" class="animate-pulse">
+            <td colspan="100%" class="text-center py-8">
+              <div class="loading loading-spinner"></div>
+              <div class="mt-2">Loading...</div>
             </td>
           </tr>
-        </template>
-      </tbody>
-    </table>
+          <tr v-else-if="filteredKeys.length === 0" class="hover:bg-transparent">
+            <td colspan="100%" class="text-center py-8 text-base-content/50">
+              No matching keys found
+            </td>
+          </tr>
+          <template v-else v-for="key in filteredKeys" :key="key">
+            <tr :class="rowClass(key)">
+              <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">{{ key }}</td>
+              <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
+                <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
+              </td>
+              <td v-for="(file, idx) in orderedFiles" :key="file.name">
+                <input 
+                  v-model="props.data[columnOrder?.[idx] ?? idx][key]" 
+                  class="input input-bordered w-full" 
+                  :placeholder="'—'"
+                  @input="onValueChange(key, file.name)"
+                />
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
     
     <!-- Export Modal -->
     <dialog id="export_modal" class="modal">
@@ -115,10 +153,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, defineProps, defineEmits, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount } from 'vue'
 
 const emit = defineEmits<{
+  (e: 'update:mode', value: 'all' | 'paging'): void
+  (e: 'update:search', value: string): void
+  (e: 'update:highlightMode', value: boolean): void
+  (e: 'change', payload: { key: string, fileName: string }): void
   (e: 'back'): void
+  (e: 'export', files: Record<string, Record<string, string>>): void
 }>()
 
 const props = defineProps<{
@@ -130,6 +173,8 @@ const mode = ref<'all' | 'paging'>('all')
 const selectedPage = ref('')
 const highlightMode = ref(false)
 const search = ref('')
+
+const loading = ref(false)
 
 const allKeys = computed(() => {
   const keySet = new Set<string>()
@@ -300,19 +345,7 @@ const orderedFiles = computed(() => {
   return columnOrder.value.map(index => props.files[index])
 })
 
-// Key column width computation
-const keyColumnWidth = computed(() => {
-  const width = columnWidths.value['key']
-  if (!width) return 200
-  return parseInt(width)
-})
-
 // Initialize column order
-onMounted(() => {
-  initializeColumns()
-})
-
-// Watch for files changes
 watch(() => props.files, () => {
   initializeColumns()
 }, { immediate: true })
@@ -326,34 +359,19 @@ function initializeColumns() {
   }
 }
 
-// Drag and drop functionality
-let draggedIndex = -1
-
-function startDrag(event: DragEvent, index: number) {
-  draggedIndex = index
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-  }
-}
-
-function onDrop(_event: DragEvent, index: number) {
-  if (draggedIndex === -1) return
-  
-  // Reorder columns
-  const newOrder = [...columnOrder.value]
-  const [removed] = newOrder.splice(draggedIndex, 1)
-  newOrder.splice(index, 0, removed)
-  columnOrder.value = newOrder
-  
-  draggedIndex = -1
-}
-
 // Column resizing
 const columnWidths = ref<Record<string, string>>({})
 let isResizing = false
 let currentResizer: string | null = null
 let startX = 0
 let startWidth = 0
+
+// Key column width computation
+const keyColumnWidth = computed(() => {
+  const width = columnWidths.value['key']
+  if (!width) return 200
+  return parseInt(width)
+})
 
 function startResizing(event: MouseEvent, columnKey: string) {
   isResizing = true
@@ -393,15 +411,47 @@ onBeforeUnmount(() => {
   document.removeEventListener('mouseup', stopResizing)
 })
 
-// Column width reset functionality
+// Drag and drop functionality
+let draggedIndex = -1
+
+function startDrag(event: DragEvent, index: number) {
+  draggedIndex = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function onDrop(_event: DragEvent, index: number) {
+  if (draggedIndex === -1) return
+  
+  // Reorder columns
+  const newOrder = [...columnOrder.value]
+  const [removed] = newOrder.splice(draggedIndex, 1)
+  newOrder.splice(index, 0, removed)
+  columnOrder.value = newOrder
+  
+  draggedIndex = -1
+}
+
+const changedValues = ref<Set<string>>(new Set())
+
+function onValueChange(key: string, fileName: string) {
+  changedValues.value.add(key)
+  emit('change', { key, fileName })
+}
+
+defineExpose({
+  mode,
+  highlightMode,
+  search,
+  resetColumnWidths,
+  openExportModal
+})
+
 function resetColumnWidths() {
   columnWidths.value = {}
   localStorage.removeItem('columnWidths')
 }
-
-defineExpose({
-  resetColumnWidths
-})
 </script>
 
 <style scoped>

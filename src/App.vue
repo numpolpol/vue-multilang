@@ -1,11 +1,11 @@
 <template>
   <div class="min-h-screen bg-base-200">
-    <Home />
+    <router-view></router-view>
   </div>
 </template>
 
 <script lang="ts" setup>
-import Home from './views/Home.vue'
+// No imports needed
 </script>
 
 <style>
