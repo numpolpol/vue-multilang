@@ -2,6 +2,17 @@
   <div class="h-screen flex flex-col w-full max-w-none json-table-container px-4">
     <!-- Search & Controls -->
     <div class="bg-base-200 flex-shrink-0 w-full px-4">
+      <!-- Mode Indicator -->
+      <div class="py-1 text-xs text-base-content/70">
+        Mode: {{ mode === 'all' ? 'All Keys View' : 'Page Sections View' }}
+        <span v-if="mode === 'paging' && selectedPage">
+          | Current: {{ selectedPage }}
+        </span>
+        <span v-if="highlightMode">
+          | Highlight: ON
+        </span>
+      </div>
+      
       <!-- Search -->
       <div class="form-control py-2 w-full">
         <div class="input-group">

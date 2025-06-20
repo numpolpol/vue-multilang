@@ -13,7 +13,50 @@
         </div>
       </div>
     </div>
+    <div class="navbar-center">
+      <!-- Display Mode Selector -->
+      <div class="flex items-center gap-6">
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text text-xs font-medium">View Mode</span>
+          </label>
+          <select 
+            :value="viewMode" 
+            @change="$emit('update:viewMode', ($event.target as HTMLSelectElement).value as 'all' | 'paging')"
+            class="select select-bordered select-sm w-32"
+          >
+            <option value="all">All Keys</option>
+            <option value="paging">Sections</option>
+          </select>
+        </div>
+        
+        <!-- Highlight Mode Toggle -->
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text text-xs font-medium">Highlight Changes</span>
+          </label>
+          <input 
+            type="checkbox" 
+            :checked="highlightMode"
+            @change="$emit('update:highlightMode', ($event.target as HTMLInputElement).checked)"
+            class="toggle toggle-sm toggle-primary" 
+          />
+        </div>
+        
+        <!-- Search Stats -->
+        <div v-if="searchQuery" class="text-xs">
+          <div class="font-medium text-primary">Search Active</div>
+          <div class="text-base-content/70">{{ filteredCount }} / {{ totalKeys }} keys</div>
+        </div>
+      </div>
+    </div>
     <div class="navbar-end">
+      <!-- Project Stats -->
+      <div class="text-xs text-base-content/70 mr-4">
+        <div v-if="totalKeys">{{ totalKeys }} keys total</div>
+        <div v-if="languageCount">{{ languageCount }} languages</div>
+      </div>
+      
       <button class="btn btn-ghost btn-sm" @click="$emit('toggleDrawer')" title="Toggle Sidebar">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -26,11 +69,19 @@
 <script lang="ts" setup>
 interface Props {
   projectName?: string
+  viewMode: 'all' | 'paging'
+  highlightMode: boolean
+  searchQuery?: string
+  filteredCount?: number
+  totalKeys?: number
+  languageCount?: number
 }
 
 defineProps<Props>()
 
 defineEmits<{
   toggleDrawer: []
+  'update:viewMode': [value: 'all' | 'paging']
+  'update:highlightMode': [value: boolean]
 }>()
 </script>

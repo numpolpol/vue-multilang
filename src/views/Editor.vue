@@ -5,15 +5,11 @@
     <!-- Drawer Sidebar -->
     <EditorSidebar
       :theme="theme"
-      :viewMode="viewMode"
-      :highlightMode="highlightMode"
       :searchQuery="searchQuery"
       :filteredCount="filteredCount"
       :totalKeys="totalKeys"
       :noResults="noResults"
       @updateTheme="updateTheme"
-      @update:viewMode="viewMode = $event"
-      @update:highlightMode="highlightMode = $event"
       @resetColumnWidths="resetColumnWidths"
       @update:searchQuery="searchQuery = $event"
       @clearSearch="clearSearch"
@@ -31,7 +27,15 @@
       <!-- Navbar -->
       <EditorNavbar 
         :projectName="filesStore.currentProject?.name"
-        @toggleDrawer="toggleDrawer" 
+        :viewMode="viewMode"
+        :highlightMode="highlightMode"
+        :searchQuery="searchQuery"
+        :filteredCount="filteredCount"
+        :totalKeys="totalKeys"
+        :languageCount="filesStore.files.length"
+        @toggleDrawer="toggleDrawer"
+        @update:viewMode="viewMode = $event"
+        @update:highlightMode="highlightMode = $event"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">

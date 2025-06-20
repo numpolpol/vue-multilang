@@ -6,14 +6,6 @@
         <!-- Theme Selector -->
         <ThemeSelector :theme="theme" @updateTheme="$emit('updateTheme', $event)" />
 
-        <!-- View Controls -->
-        <ViewControls 
-          :viewMode="viewMode" 
-          :highlightMode="highlightMode"
-          @update:viewMode="$emit('update:viewMode', $event)"
-          @update:highlightMode="$emit('update:highlightMode', $event)"
-        />
-
         <!-- File Management -->
         <div class="divider">File Management</div>
         
@@ -79,14 +71,11 @@
 
 <script lang="ts" setup>
 import ThemeSelector from './ThemeSelector.vue'
-import ViewControls from './ViewControls.vue'
 import SearchControls from './SearchControls.vue'
 import ExportControls from './ExportControls.vue'
 
 interface Props {
   theme: string
-  viewMode: 'all' | 'paging'
-  highlightMode: boolean
   searchQuery: string
   filteredCount: number
   totalKeys: number
@@ -97,8 +86,6 @@ defineProps<Props>()
 
 defineEmits<{
   updateTheme: [event: Event]
-  'update:viewMode': [value: 'all' | 'paging']
-  'update:highlightMode': [value: boolean]
   resetColumnWidths: []
   'update:searchQuery': [value: string]
   clearSearch: []
