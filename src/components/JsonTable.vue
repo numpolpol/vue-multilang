@@ -127,15 +127,28 @@
               <th v-for="(file, index) in orderedFiles" 
                   :key="file.name"
                   :draggable="true"
-                  class="relative"
+                  class="relative group"
                   :style="{ width: columnWidths[file.name] || '200px', minWidth: '150px' }"
                   @dragstart="startDrag($event, index)"
                   @dragover.prevent
                   @dragenter.prevent
                   @drop="onDrop($event, index)">
-                <div class="flex items-center gap-2">
-                  <span>{{ file.name }}</span>
-                  <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
+                <div class="flex items-center gap-2 justify-between">
+                  <div class="flex items-center gap-2">
+                    <span>{{ file.name }}</span>
+                    <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
+                  </div>
+                  <!-- Delete button (shows on hover) -->
+                  <button 
+                    v-if="orderedFiles.length > 1"
+                    class="btn btn-xs btn-error btn-circle opacity-0 group-hover:opacity-100 transition-opacity"
+                    @click.stop="$emit('removeLanguageColumn', index)"
+                    :title="`Remove ${file.name} column`"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               </th>
             </tr>
@@ -236,6 +249,7 @@ const emit = defineEmits<{
   (e: 'change', payload: { key: string, fileName: string }): void
   (e: 'back'): void
   (e: 'export', files: Record<string, Record<string, string>>): void
+  (e: 'removeLanguageColumn', index: number): void
 }>()
 
 const props = defineProps<{

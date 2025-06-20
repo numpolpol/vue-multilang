@@ -9,6 +9,8 @@
       :filteredCount="filteredCount"
       :totalKeys="totalKeys"
       :noResults="noResults"
+      :languageCount="filesStore.files.length"
+      :languages="filesStore.files.map(file => file.name.replace(/\.(strings|xml)$/, ''))"
       @updateTheme="updateTheme"
       @resetColumnWidths="resetColumnWidths"
       @update:searchQuery="searchQuery = $event"
@@ -18,6 +20,7 @@
       @exportOriginal="jsonTable?.openExportModal('original')"
       @goBack="goBack"
       @addLanguageColumn="addLanguageColumn"
+      @removeLanguageColumn="showRemoveLanguageDialog"
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
     />
@@ -39,7 +42,13 @@
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
-        <JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="goBack" ref="jsonTable" />
+        <JsonTable 
+          :data="filesStore.stringsData" 
+          :files="filesStore.files" 
+          @back="goBack" 
+          @removeLanguageColumn="removeLanguageColumn"
+          ref="jsonTable" 
+        />
       </div>
     </div>
   </div>
@@ -217,6 +226,57 @@ function saveProjectToFile() {
     setTimeout(() => {
       alert(`Project downloaded with ${imageCount} preview images included!`)
     }, 100)
+  }
+}
+
+function removeLanguageColumn(index: number) {
+  if (filesStore.files.length <= 1) {
+    alert('Cannot remove the last language column!')
+    return
+  }
+  
+  const fileName = filesStore.files[index]?.name || 'this language'
+  
+  if (confirm(`Are you sure you want to remove "${fileName}" column? This action cannot be undone.`)) {
+    // Create new arrays without the removed index
+    const newFiles = filesStore.files.filter((_, i) => i !== index)
+    const newData = filesStore.stringsData.filter((_, i) => i !== index)
+    
+    // Update store
+    filesStore.setFiles(newFiles)
+    filesStore.setStringsData(newData)
+    
+    // Update project if exists
+    if (filesStore.currentProject) {
+      filesStore.updateCurrentProject()
+    }
+    
+    alert(`"${fileName}" column has been removed successfully!`)
+  }
+}
+
+function showRemoveLanguageDialog() {
+  if (filesStore.files.length <= 1) {
+    alert('Cannot remove the last language column!')
+    return
+  }
+  
+  // Show selection dialog for which language to remove
+  const options = filesStore.files.map((file, index) => 
+    `${index + 1}. ${file.name.replace(/\.(strings|xml)$/, '')}`
+  ).join('\n')
+  
+  const selection = prompt(
+    `Which language would you like to remove?\n\nEnter the number (1-${filesStore.files.length}):\n\n${options}`
+  )
+  
+  if (selection) {
+    const index = parseInt(selection.trim()) - 1
+    if (index >= 0 && index < filesStore.files.length) {
+      removeLanguageColumn(index)
+    } else {
+      alert('Invalid selection! Please enter a valid number.')
+    }
   }
 }
 </script>

@@ -9,13 +9,37 @@
         <!-- File Management -->
         <div class="divider">File Management</div>
         
-        <!-- Add Language Column -->
-        <button class="btn btn-sm btn-block btn-success" @click="$emit('addLanguageColumn')">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Add Language Column
-        </button>
+        <!-- Current Languages -->
+        <div v-if="languageCount > 0" class="bg-base-100 rounded-lg p-3 mb-3">
+          <div class="text-xs font-semibold mb-2">Current Languages ({{ languageCount }})</div>
+          <div class="space-y-1">
+            <div v-for="(language, index) in languages" :key="index" class="text-xs flex items-center gap-2">
+              <div class="w-2 h-2 bg-primary rounded-full"></div>
+              <span>{{ language }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Language Column Management -->
+        <div class="flex gap-1">
+          <button class="btn btn-sm btn-success flex-1" @click="$emit('addLanguageColumn')">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add
+          </button>
+          <button 
+            class="btn btn-sm btn-error btn-outline flex-1" 
+            @click="$emit('removeLanguageColumn')"
+            :disabled="languageCount <= 1"
+            :title="languageCount <= 1 ? 'Cannot remove the last column' : 'Remove a language column'"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Remove
+          </button>
+        </div>
 
         <!-- Project Management -->
         <div class="divider">Project</div>
@@ -80,6 +104,8 @@ interface Props {
   filteredCount: number
   totalKeys: number
   noResults: boolean
+  languageCount: number
+  languages: string[]
 }
 
 defineProps<Props>()
@@ -94,6 +120,7 @@ defineEmits<{
   exportOriginal: []
   goBack: []
   addLanguageColumn: []
+  removeLanguageColumn: []
   saveProjectToLocalStorage: []
   saveProjectToFile: []
 }>()
