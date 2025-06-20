@@ -7,7 +7,7 @@
         </svg>
       </label>
       <div class="flex flex-col">
-        <h1 class="text-2xl font-bold">iOS/Android Multi-file Editor</h1>
+        <h1 class="text-2xl font-bold">Cybertron Multi-file Editor</h1>
         <div v-if="projectName" class="text-sm text-base-content/70">
           Project: {{ projectName }}
         </div>

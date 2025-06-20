@@ -80,6 +80,11 @@ onMounted(() => {
   if (!filesStore.files.length && !filesStore.currentProject) {
     router.push('/')
   }
+  
+  // Load preview images from current project if available
+  if (filesStore.currentProject?.previewImages) {
+    filesStore.setPreviewImages(filesStore.currentProject.previewImages)
+  }
 })
 
 // Watch for viewMode changes
@@ -189,13 +194,25 @@ function readFileContent(file: File): Promise<string> {
 
 function saveProjectToLocalStorage() {
   if (filesStore.saveProjectToLocalStorage()) {
-    alert('Project saved to local storage successfully!')
+    const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
+      total + (filesStore.previewImages[key]?.length || 0), 0
+    )
+    alert(`Project saved to local storage successfully!\n${imageCount} preview images included.`)
   } else {
     alert('Failed to save project. Please try again.')
   }
 }
 
 function saveProjectToFile() {
+  const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
+    total + (filesStore.previewImages[key]?.length || 0), 0
+  )
   filesStore.saveProjectToFile()
+  // Show a brief notification that images are included
+  if (imageCount > 0) {
+    setTimeout(() => {
+      alert(`Project downloaded with ${imageCount} preview images included!`)
+    }, 100)
+  }
 }
 </script>

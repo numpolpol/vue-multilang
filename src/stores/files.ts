@@ -5,6 +5,12 @@ export interface StringsFile {
   data: Record<string, string>
 }
 
+export interface PreviewImage {
+  name: string
+  url: string
+  data: string // base64 data for serialization
+}
+
 export interface Project {
   id: string
   name: string
@@ -12,6 +18,7 @@ export interface Project {
     name: string
     data: Record<string, string>
   }>
+  previewImages?: Record<string, PreviewImage[]>
   lastModified: number
   createdAt: number
 }
@@ -21,7 +28,8 @@ export const useFilesStore = defineStore('files', {
     files: [] as File[],
     stringsData: [] as Record<string, string>[],
     originalData: [] as Record<string, string>[],
-    currentProject: null as Project | null
+    currentProject: null as Project | null,
+    previewImages: {} as Record<string, PreviewImage[]>
   }),
   
   getters: {
@@ -59,6 +67,9 @@ export const useFilesStore = defineStore('files', {
           name: file.name.replace(/\.(strings|xml)$/, ''),
           data: this.stringsData[index] || {}
         }))
+        
+        // Update preview images
+        this.currentProject.previewImages = { ...this.previewImages }
       }
     },
 
@@ -137,6 +148,28 @@ export const useFilesStore = defineStore('files', {
       this.stringsData = []
       this.originalData = []
       this.currentProject = null
+      this.previewImages = {}
+    },
+
+    // Preview Images Actions
+    setPreviewImages(images: Record<string, PreviewImage[]>) {
+      this.previewImages = images
+    },
+
+    addPreviewImages(prefix: string, images: PreviewImage[]) {
+      if (!this.previewImages[prefix]) {
+        this.previewImages[prefix] = []
+      }
+      this.previewImages[prefix].push(...images)
+    },
+
+    removePreviewImage(prefix: string, index: number) {
+      if (this.previewImages[prefix]) {
+        this.previewImages[prefix].splice(index, 1)
+        if (this.previewImages[prefix].length === 0) {
+          delete this.previewImages[prefix]
+        }
+      }
     }
   }
 })

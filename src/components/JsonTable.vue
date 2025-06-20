@@ -29,6 +29,9 @@
       <div v-if="mode === 'paging'" class="w-80 flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto">
         <div class="space-y-4">
           <h3 class="font-semibold text-lg">Preview Images</h3>
+          <div class="text-xs text-base-content/70">
+            {{ Object.keys(previewImages).length }} sections with images
+          </div>
           
           <!-- Image Upload Area -->
           <div class="space-y-2">
@@ -212,6 +215,8 @@
 
 <script lang="ts" setup>
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount } from 'vue'
+import { useFilesStore } from '../stores/files'
+import type { PreviewImage } from '../stores/files'
 
 const emit = defineEmits<{
   (e: 'update:mode', value: 'all' | 'paging'): void
@@ -234,14 +239,11 @@ const search = ref('')
 
 const loading = ref(false)
 
-// Preview images functionality
-interface PreviewImage {
-  name: string
-  url: string
-  file: File
-}
+// Get store instance
+const filesStore = useFilesStore()
 
-const previewImages = ref<Record<string, PreviewImage[]>>({})
+// Use preview images from store
+const previewImages = computed(() => filesStore.previewImages)
 
 function onPreviewImagesSelected(event: Event) {
   const input = event.target as HTMLInputElement
@@ -250,18 +252,26 @@ function onPreviewImagesSelected(event: Event) {
   const files = Array.from(input.files)
   const prefix = selectedPage.value
   
-  if (!previewImages.value[prefix]) {
-    previewImages.value[prefix] = []
-  }
+  const newImages: PreviewImage[] = []
   
   files.forEach(file => {
     if (file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file)
-      previewImages.value[prefix].push({
-        name: file.name,
-        url,
-        file
-      })
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        const previewImage: PreviewImage = {
+          name: file.name,
+          url: dataUrl,
+          data: dataUrl
+        }
+        newImages.push(previewImage)
+        
+        if (newImages.length === files.filter(f => f.type.startsWith('image/')).length) {
+          // All files processed, add to store
+          filesStore.addPreviewImages(prefix, newImages)
+        }
+      }
+      reader.readAsDataURL(file)
     }
   })
   
@@ -270,12 +280,7 @@ function onPreviewImagesSelected(event: Event) {
 }
 
 function removePreviewImage(prefix: string, index: number) {
-  if (previewImages.value[prefix]) {
-    const image = previewImages.value[prefix][index]
-    // Revoke the object URL to prevent memory leaks
-    URL.revokeObjectURL(image.url)
-    previewImages.value[prefix].splice(index, 1)
-  }
+  filesStore.removePreviewImage(prefix, index)
 }
 
 // Fullscreen image functionality
@@ -348,13 +353,9 @@ watch([mode, pagePrefixes], () => {
   }
 })
 
-// Cleanup object URLs when component is destroyed
+// Cleanup is handled by the store now
 onBeforeUnmount(() => {
-  Object.values(previewImages.value).forEach(images => {
-    images.forEach(image => {
-      URL.revokeObjectURL(image.url)
-    })
-  })
+  // No cleanup needed since we're using data URLs stored in the store
 })
 
 function isAllEqual(key: string): boolean {

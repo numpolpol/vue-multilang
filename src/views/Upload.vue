@@ -130,6 +130,7 @@
                     <tr>
                       <th>Project Name</th>
                       <th>Languages</th>
+                      <th>Images</th>
                       <th>Last Modified</th>
                       <th>Actions</th>
                     </tr>
@@ -138,6 +139,7 @@
                     <tr v-for="(project, index) in savedProjects" :key="project.id">
                       <td class="font-medium">{{ project.name }}</td>
                       <td>{{ project.languages.length }} languages</td>
+                      <td>{{ getImageCount(project) }} images</td>
                       <td>{{ formatDate(project.lastModified) }}</td>
                       <td>
                         <div class="flex gap-2">
@@ -279,6 +281,11 @@ function loadProject(project: Project) {
   filesStore.setFiles(mockFiles)
   filesStore.setStringsData(stringsData)
   
+  // Load preview images if available
+  if (project.previewImages) {
+    filesStore.setPreviewImages(project.previewImages)
+  }
+  
   // Navigate to editor
   router.push('/editor')
 }
@@ -324,5 +331,12 @@ function loadProjectFromFile(event: Event) {
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString()
+}
+
+function getImageCount(project: Project): number {
+  if (!project.previewImages) return 0
+  return Object.keys(project.previewImages).reduce((total, key) => 
+    total + (project.previewImages![key]?.length || 0), 0
+  )
 }
 </script>
