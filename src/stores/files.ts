@@ -123,6 +123,45 @@ export const useFilesStore = defineStore('files', {
       }
     },
     
+    addKey(key: string, defaultValue: string = '') {
+      // Check if key already exists
+      if (this.allKeys.includes(key)) {
+        return false // Key already exists
+      }
+      
+      // Add key to all language files with default value
+      this.stringsData.forEach((data) => {
+        if (data) {
+          data[key] = defaultValue
+        }
+      })
+      
+      // Also add to original data for change tracking
+      this.originalData.forEach((data) => {
+        if (data) {
+          data[key] = defaultValue
+        }
+      })
+      
+      return true // Success
+    },
+    
+    removeKey(key: string) {
+      // Remove key from all language files
+      this.stringsData.forEach((data) => {
+        if (data && key in data) {
+          delete data[key]
+        }
+      })
+      
+      // Also remove from original data
+      this.originalData.forEach((data) => {
+        if (data && key in data) {
+          delete data[key]
+        }
+      })
+    },
+    
     isValueChanged(fileIndex: number, key: string): boolean {
       const current = this.stringsData[fileIndex]?.[key] ?? ''
       const original = this.originalData[fileIndex]?.[key] ?? ''

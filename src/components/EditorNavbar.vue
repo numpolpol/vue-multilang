@@ -51,6 +51,14 @@
       </div>
     </div>
     <div class="navbar-end">
+      <!-- Add Key Button -->
+      <button class="btn btn-primary btn-sm mr-4" @click="$emit('addKey')" title="Add New Key">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add Key
+      </button>
+      
       <!-- Project Stats -->
       <div class="text-xs text-base-content/70 mr-4">
         <div v-if="totalKeys">{{ totalKeys }} keys total</div>
@@ -83,5 +91,6 @@ defineEmits<{
   toggleDrawer: []
   'update:viewMode': [value: 'all' | 'paging']
   'update:highlightMode': [value: boolean]
+  addKey: []
 }>()
 </script>

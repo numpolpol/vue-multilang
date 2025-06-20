@@ -39,6 +39,7 @@
         @toggleDrawer="toggleDrawer"
         @update:viewMode="viewMode = $event"
         @update:highlightMode="highlightMode = $event"
+        @addKey="showAddKeyModal"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
@@ -47,10 +48,60 @@
           :files="filesStore.files" 
           @back="goBack" 
           @removeLanguageColumn="removeLanguageColumn"
+          @addKey="showAddKeyModal"
           ref="jsonTable" 
         />
       </div>
     </div>
+    
+    <!-- Add Key Modal -->
+    <dialog id="add_key_modal" class="modal">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Add New Key</h3>
+        <div class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Key Name</span>
+            </label>
+            <input 
+              v-model="newKeyName" 
+              type="text" 
+              placeholder="e.g., welcome_message or home_title"
+              class="input input-bordered w-full"
+              @keydown.enter="addNewKey"
+            />
+            <label class="label">
+              <span class="label-text-alt">Use underscore for grouping (e.g., home_title, settings_button)</span>
+            </label>
+          </div>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Default Value (optional)</span>
+            </label>
+            <input 
+              v-model="newKeyDefaultValue" 
+              type="text" 
+              placeholder="Default text for all languages"
+              class="input input-bordered w-full"
+              @keydown.enter="addNewKey"
+            />
+          </div>
+          
+          <div v-if="addKeyError" class="alert alert-error">
+            <span>{{ addKeyError }}</span>
+          </div>
+        </div>
+        
+        <div class="modal-action">
+          <button class="btn" @click="closeAddKeyModal">Cancel</button>
+          <button class="btn btn-primary" @click="addNewKey" :disabled="!newKeyName.trim()">Add Key</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeAddKeyModal">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -86,6 +137,11 @@ const searchQuery = ref('')
 const filteredCount = ref(0)
 const totalKeys = ref(0)
 const noResults = ref(false)
+
+// Add Key Modal
+const newKeyName = ref('')
+const newKeyDefaultValue = ref('')
+const addKeyError = ref('')
 
 // Navigation guard - redirect to upload if no files and no project
 onMounted(() => {
@@ -278,5 +334,49 @@ function showRemoveLanguageDialog() {
       alert('Invalid selection! Please enter a valid number.')
     }
   }
+}
+
+// Add Key Modal
+function showAddKeyModal() {
+  newKeyName.value = ''
+  newKeyDefaultValue.value = ''
+  addKeyError.value = ''
+  const modal = document.getElementById('add_key_modal') as HTMLDialogElement
+  if (modal) {
+    modal.showModal()
+  }
+}
+
+function closeAddKeyModal() {
+  const modal = document.getElementById('add_key_modal') as HTMLDialogElement
+  if (modal) {
+    modal.close()
+  }
+}
+
+function addNewKey() {
+  const keyName = newKeyName.value.trim()
+  const defaultValue = newKeyDefaultValue.value.trim()
+  
+  if (!keyName) {
+    addKeyError.value = 'Key Name is required.'
+    return
+  }
+  
+  // Check for duplicate keys using the store's allKeys getter
+  if (filesStore.allKeys.includes(keyName)) {
+    addKeyError.value = 'Key already exists. Please choose a different name.'
+    return
+  }
+  
+  // Use the store's addKey action
+  const success = filesStore.addKey(keyName, defaultValue)
+  
+  if (!success) {
+    addKeyError.value = 'Failed to add key. Please try again.'
+    return
+  }
+  
+  closeAddKeyModal()
 }
 </script>
