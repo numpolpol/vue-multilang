@@ -6,7 +6,12 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
         </svg>
       </label>
-      <h1 class="text-2xl font-bold ml-2">iOS/Android Multi-file Editor</h1>
+      <div class="flex flex-col">
+        <h1 class="text-2xl font-bold">iOS/Android Multi-file Editor</h1>
+        <div v-if="projectName" class="text-sm text-base-content/70">
+          Project: {{ projectName }}
+        </div>
+      </div>
     </div>
     <div class="navbar-end">
       <button class="btn btn-ghost btn-sm" @click="$emit('toggleDrawer')" title="Toggle Sidebar">
@@ -19,6 +24,12 @@
 </template>
 
 <script lang="ts" setup>
+interface Props {
+  projectName?: string
+}
+
+defineProps<Props>()
+
 defineEmits<{
   toggleDrawer: []
 }>()

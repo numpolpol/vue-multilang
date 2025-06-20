@@ -21,12 +21,18 @@
       @exportChanged="jsonTable?.openExportModal('changed')"
       @exportOriginal="jsonTable?.openExportModal('original')"
       @goBack="goBack"
+      @addLanguageColumn="addLanguageColumn"
+      @saveProjectToLocalStorage="saveProjectToLocalStorage"
+      @saveProjectToFile="saveProjectToFile"
     />
     
     <!-- Page content -->
     <div class="drawer-content flex flex-col h-screen p-0 m-0 w-full max-w-none">
       <!-- Navbar -->
-      <EditorNavbar @toggleDrawer="toggleDrawer" />
+      <EditorNavbar 
+        :projectName="filesStore.currentProject?.name"
+        @toggleDrawer="toggleDrawer" 
+      />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
         <JsonTable :data="filesStore.stringsData" :files="filesStore.files" @back="goBack" ref="jsonTable" />
@@ -39,6 +45,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '../stores/files'
+import { parseStrings } from '../utils/strings'
 import JsonTable from '../components/JsonTable.vue'
 import EditorSidebar from '../components/EditorSidebar.vue'
 import EditorNavbar from '../components/EditorNavbar.vue'
@@ -67,10 +74,10 @@ const filteredCount = ref(0)
 const totalKeys = ref(0)
 const noResults = ref(false)
 
-// Navigation guard - redirect to upload if no files
+// Navigation guard - redirect to upload if no files and no project
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', theme.value)
-  if (!filesStore.files.length) {
+  if (!filesStore.files.length && !filesStore.currentProject) {
     router.push('/')
   }
 })
@@ -137,5 +144,58 @@ function resetColumnWidths() {
 
 function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
+}
+
+function addLanguageColumn() {
+  // Show file input dialog
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.strings,.xml'
+  input.onchange = async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (!file) return
+    
+    try {
+      const content = await readFileContent(file)
+      const data = parseStrings(content)
+      
+      // Add to existing files
+      const newFiles = [...filesStore.files, file]
+      const newData = [...filesStore.stringsData, data]
+      
+      filesStore.setFiles(newFiles)
+      filesStore.setStringsData(newData)
+      
+      // Update project if exists
+      if (filesStore.currentProject) {
+        filesStore.updateCurrentProject()
+      }
+    } catch (error) {
+      console.error('Failed to parse file:', error)
+      alert('Failed to parse file. Please check the format.')
+    }
+  }
+  input.click()
+}
+
+function readFileContent(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsText(file)
+  })
+}
+
+function saveProjectToLocalStorage() {
+  if (filesStore.saveProjectToLocalStorage()) {
+    alert('Project saved to local storage successfully!')
+  } else {
+    alert('Failed to save project. Please try again.')
+  }
+}
+
+function saveProjectToFile() {
+  filesStore.saveProjectToFile()
 }
 </script>

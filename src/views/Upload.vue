@@ -37,54 +37,155 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </label>
-          <h1 class="text-2xl font-bold ml-2">iOS/Android Multi-file Editor</h1>
+          <h1 class="text-2xl font-bold ml-2">Project Manager</h1>
         </div>
       </div>
 
       <div class="p-4">
-        <div class="alert alert-info shadow-lg mb-6">
-          <div class="flex flex-col">
-            <div class="font-bold mb-2">How to use:</div>
-            <ol class="list-decimal list-inside space-y-2">
-              <li><span class="font-semibold">Choose Files:</span> Select multiple iOS <span class="font-semibold">.strings</span> or Android <span class="font-semibold">string.xml</span> files (one per language, same keys).</li>
-              <li><span class="font-semibold">Ready:</span> Click <span class="font-semibold">Ready</span> to load and edit all keys/values side-by-side.</li>
-              <li><span class="font-semibold">View:</span> Use <span class="font-semibold">See All</span>/<span class="font-semibold">Paging</span> to switch key views.</li>
-              <li><span class="font-semibold">Edit:</span> Edit values directly or use <span class="font-semibold">Paste</span> per row for quick input.</li>
-              <li><span class="font-semibold">Export:</span> Use floating buttons to export all, changed, or keep order.</li>
-              <li><span class="font-semibold">Back:</span> Use the floating <span class="font-semibold">Back</span> button to restart.</li>
-            </ol>
-            <div class="mt-4 text-sm">
-              <span class="font-bold">Tips:</span> All processing is local. Key column scrolls if long. Use the same keys in all files. Supports both iOS and Android formats.
+        <!-- Project Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- Create New Project -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create New Project
+              </h2>
+              <p class="text-base-content/70">Start a new multi-language editing project</p>
+              
+              <div class="form-control w-full mt-4">
+                <label class="label">
+                  <span class="label-text">Project Name</span>
+                </label>
+                <input 
+                  v-model="newProjectName" 
+                  type="text" 
+                  placeholder="Enter project name..." 
+                  class="input input-bordered w-full"
+                  @keyup.enter="createNewProject"
+                />
+              </div>
+              
+              <div class="card-actions justify-end mt-4">
+                <button 
+                  class="btn btn-primary" 
+                  :disabled="!newProjectName.trim()"
+                  @click="createNewProject"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Load Project -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Load Project
+              </h2>
+              <p class="text-base-content/70">Continue working on an existing project</p>
+              
+              <div class="space-y-3 mt-4">
+                <!-- Load from File -->
+                <div class="form-control w-full">
+                  <label class="label">
+                    <span class="label-text">Load from File</span>
+                  </label>
+                  <input 
+                    type="file" 
+                    accept=".json" 
+                    class="file-input file-input-bordered w-full"
+                    @change="loadProjectFromFile"
+                  />
+                </div>
+                
+                <!-- Load from Local Storage -->
+                <div class="divider">OR</div>
+                <button 
+                  class="btn btn-outline btn-secondary w-full" 
+                  @click="showSavedProjects"
+                >
+                  Load from Saved Projects
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="card bg-base-100 shadow-xl p-6">
-          <div class="form-control w-full">
-            <label class="label">
-              <span class="label-text font-semibold">Select Files</span>
-            </label>
-            <input type="file" multiple accept=".strings,.xml" class="file-input file-input-bordered w-full" @change="onFilesSelected" />
-            <label class="label">
-              <span class="label-text-alt">Select multiple .strings or .xml files</span>
-            </label>
-          </div>
-          
-          <div v-if="files.length > 0" class="mt-4">
-            <div class="font-semibold mb-2">Selected Files:</div>
-            <div class="bg-base-200 rounded-lg p-3">
-              <ul class="list-disc list-inside space-y-1">
-                <li v-for="file in files" :key="file.name" class="text-sm">
-                  {{ file.name }}
-                </li>
-              </ul>
+        <!-- Saved Projects -->
+        <div v-if="showSaved && savedProjects.length > 0" class="mt-8">
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h3 class="card-title">Saved Projects</h3>
+              <div class="overflow-x-auto">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Project Name</th>
+                      <th>Languages</th>
+                      <th>Last Modified</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(project, index) in savedProjects" :key="project.id">
+                      <td class="font-medium">{{ project.name }}</td>
+                      <td>{{ project.languages.length }} languages</td>
+                      <td>{{ formatDate(project.lastModified) }}</td>
+                      <td>
+                        <div class="flex gap-2">
+                          <button 
+                            class="btn btn-sm btn-primary" 
+                            @click="loadProject(project)"
+                          >
+                            Load
+                          </button>
+                          <button 
+                            class="btn btn-sm btn-error" 
+                            @click="deleteProject(index)"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div class="mt-6 flex justify-end">
-            <button class="btn btn-primary" :disabled="files.length === 0" @click="startEditing">
-              Start Editing
-            </button>
+        <!-- No Saved Projects -->
+        <div v-else-if="showSaved && savedProjects.length === 0" class="mt-8">
+          <div class="alert alert-info">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>No saved projects found. Create a new project to get started!</span>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-8">
+          <div class="alert alert-info shadow-lg">
+            <div class="flex flex-col">
+              <div class="font-bold mb-2">How to use:</div>
+              <ol class="list-decimal list-inside space-y-2">
+                <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session.</li>
+                <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
+                <li><span class="font-semibold">Add Languages:</span> In the editor, you can add language columns and upload files for each language.</li>
+                <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
+                <li><span class="font-semibold">Export:</span> Export your translations to iOS .strings or Android XML format.</li>
+              </ol>
+            </div>
           </div>
         </div>
       </div>
@@ -95,14 +196,22 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useFilesStore } from '../stores/files'
-import { parseStrings } from '../utils/strings'
+import { useFilesStore, type Project } from '../stores/files'
 
 const router = useRouter()
 const filesStore = useFilesStore()
-const files = ref<File[]>([])
 const theme = ref(localStorage.getItem('theme') || 'light')
 const isDrawerOpen = ref(false)
+
+// Project management
+const newProjectName = ref('')
+const savedProjects = ref<Project[]>([])
+const showSaved = ref(false)
+
+onMounted(() => {
+  document.documentElement.setAttribute('data-theme', theme.value)
+  loadSavedProjects()
+})
 
 function updateTheme(event: Event) {
   const newTheme = (event.target as HTMLSelectElement).value
@@ -111,36 +220,109 @@ function updateTheme(event: Event) {
   theme.value = newTheme
 }
 
-onMounted(() => {
-  document.documentElement.setAttribute('data-theme', theme.value)
-})
-
-function onFilesSelected(e: Event) {
-  const input = e.target as HTMLInputElement
-  if (!input.files) return
-  files.value = Array.from(input.files)
-  filesStore.setFiles(files.value)
-  // Parse .strings files
-  const readers = files.value.map(
-    (file) =>
-      new Promise<Record<string, string>>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          try {
-            resolve(parseStrings(reader.result as string))
-          } catch {
-            resolve({})
-          }
-        }
-        reader.readAsText(file)
-      })
-  )
-  Promise.all(readers).then((parsed) => {
-    filesStore.setStringsData(parsed)
-  })
+function loadSavedProjects() {
+  try {
+    const saved = localStorage.getItem('savedProjects')
+    if (saved) {
+      savedProjects.value = JSON.parse(saved)
+    }
+  } catch (error) {
+    console.warn('Failed to load saved projects:', error)
+    savedProjects.value = []
+  }
 }
 
-function startEditing() {
+function createNewProject() {
+  if (!newProjectName.value.trim()) return
+  
+  const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
+  // Create new project with empty state
+  const newProject: Project = {
+    id: projectId,
+    name: newProjectName.value.trim(),
+    languages: [],
+    lastModified: Date.now(),
+    createdAt: Date.now()
+  }
+  
+  // Set current project in store
+  filesStore.setCurrentProject(newProject)
+  
+  // Navigate to editor
   router.push('/editor')
+}
+
+function showSavedProjects() {
+  loadSavedProjects()
+  showSaved.value = true
+}
+
+function loadProject(project: Project) {
+  // Set project in store
+  filesStore.setCurrentProject(project)
+  
+  // Convert project data to files format for backward compatibility
+  const mockFiles: File[] = []
+  const stringsData: Record<string, string>[] = []
+  
+  project.languages.forEach((lang) => {
+    // Create mock file
+    const blob = new Blob([''], { type: 'text/plain' })
+    const file = new File([blob], `${lang.name}.strings`, { type: 'text/plain' })
+    mockFiles.push(file)
+    
+    // Add language data
+    stringsData.push(lang.data)
+  })
+  
+  filesStore.setFiles(mockFiles)
+  filesStore.setStringsData(stringsData)
+  
+  // Navigate to editor
+  router.push('/editor')
+}
+
+function deleteProject(index: number) {
+  const project = savedProjects.value[index]
+  if (!project) return
+  
+  if (confirm(`Are you sure you want to delete project "${project.name}"?`)) {
+    savedProjects.value.splice(index, 1)
+    localStorage.setItem('savedProjects', JSON.stringify(savedProjects.value))
+  }
+}
+
+function loadProjectFromFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  
+  const file = input.files[0]
+  const reader = new FileReader()
+  
+  reader.onload = () => {
+    try {
+      const projectData = JSON.parse(reader.result as string)
+      
+      // Validate project structure
+      if (projectData.id && projectData.name && projectData.languages) {
+        loadProject(projectData)
+      } else {
+        alert('Invalid project file format!')
+      }
+    } catch (error) {
+      console.error('Failed to parse project file:', error)
+      alert('Failed to load project file!')
+    }
+  }
+  
+  reader.readAsText(file)
+  
+  // Clear the input
+  input.value = ''
+}
+
+function formatDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleString()
 }
 </script>
