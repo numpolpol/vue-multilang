@@ -43,7 +43,7 @@
 
       <div class="p-4">
         <!-- Project Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           <!-- Create New Project -->
           <div class="card bg-base-100 shadow-xl">
@@ -76,6 +76,41 @@
                   @click="createNewProject"
                 >
                   Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Create from Snippet -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Create from Snippet
+              </h2>
+              <p class="text-base-content/70">Paste iOS .strings code to create a project</p>
+              
+              <div class="form-control w-full mt-4">
+                <label class="label">
+                  <span class="label-text">Project Name</span>
+                </label>
+                <input 
+                  v-model="snippetProjectName" 
+                  type="text" 
+                  placeholder="Enter project name..." 
+                  class="input input-bordered w-full"
+                />
+              </div>
+              
+              <div class="card-actions justify-end mt-4">
+                <button 
+                  class="btn btn-accent" 
+                  :disabled="!snippetProjectName.trim()"
+                  @click="showSnippetModal"
+                >
+                  Create from Code
                 </button>
               </div>
             </div>
@@ -193,12 +228,100 @@
       </div>
     </div>
   </div>
+
+  <!-- Snippet Modal -->
+  <dialog id="snippet_modal" class="modal">
+    <div class="modal-box w-11/12 max-w-4xl">
+      <h3 class="font-bold text-lg">Create Project from iOS .strings Code</h3>
+      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings code below</p>
+      
+      <div class="form-control w-full mt-4">
+        <label class="label">
+          <span class="label-text">iOS .strings Code</span>
+        </label>
+        <textarea 
+          v-model="snippetCode"
+          class="textarea textarea-bordered h-64 font-mono text-sm" 
+          placeholder='"register_foreigner_title" = "TODO";
+"register_foreigner_subtitle" = "Please fill in your details below.";
+"register_foreigner_passport_label" = "Passport Number";
+"register_foreigner_nationality_label" = "Nationality";'
+        ></textarea>
+        <label class="label">
+          <span class="label-text-alt">{{ parsedKeysCount }} keys detected</span>
+        </label>
+      </div>
+      
+      <div class="modal-action">
+        <button class="btn" @click="closeSnippetModal">Cancel</button>
+        <button 
+          class="btn btn-primary" 
+          :disabled="!snippetCode.trim() || parsedKeysCount === 0"
+          @click="showLanguageConfirmModal"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Language Confirmation Modal -->
+  <dialog id="language_confirm_modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Confirm Language</h3>
+      <p class="py-2">What language are these strings in?</p>
+      
+      <div class="form-control w-full mt-4">
+        <label class="label">
+          <span class="label-text">Language</span>
+        </label>
+        <select v-model="selectedLanguage" class="select select-bordered w-full">
+          <option value="en">English</option>
+          <option value="th">Thai</option>
+          <option value="km">Khmer</option>
+          <option value="my">Myanmar</option>
+          <option value="ja">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="zh">Chinese</option>
+          <option value="vi">Vietnamese</option>
+          <option value="id">Indonesian</option>
+          <option value="ms">Malay</option>
+          <option value="tl">Filipino</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      
+      <div v-if="selectedLanguage === 'other'" class="form-control w-full mt-2">
+        <label class="label">
+          <span class="label-text">Custom Language Code</span>
+        </label>
+        <input 
+          v-model="customLanguageCode"
+          type="text" 
+          placeholder="e.g., fr, de, es" 
+          class="input input-bordered w-full"
+        />
+      </div>
+      
+      <div class="modal-action">
+        <button class="btn" @click="closeLanguageConfirmModal">Back</button>
+        <button 
+          class="btn btn-primary" 
+          :disabled="selectedLanguage === 'other' && !customLanguageCode.trim()"
+          @click="createProjectFromSnippet"
+        >
+          Create Project
+        </button>
+      </div>
+    </div>
+  </dialog>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore, type Project } from '../stores/files'
+import { parseStrings } from '../utils/strings'
 
 const router = useRouter()
 const filesStore = useFilesStore()
@@ -209,6 +332,23 @@ const isDrawerOpen = ref(false)
 const newProjectName = ref('')
 const savedProjects = ref<Project[]>([])
 const showSaved = ref(false)
+
+// Snippet functionality
+const snippetProjectName = ref('')
+const snippetCode = ref('')
+const selectedLanguage = ref('en')
+const customLanguageCode = ref('')
+
+// Computed property to count parsed keys
+const parsedKeysCount = computed(() => {
+  if (!snippetCode.value.trim()) return 0
+  try {
+    const parsed = parseStrings(snippetCode.value)
+    return Object.keys(parsed).length
+  } catch {
+    return 0
+  }
+})
 
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', theme.value)
@@ -316,5 +456,92 @@ function getImageCount(project: Project): number {
   return Object.keys(project.previewImages).reduce((total, key) => 
     total + (project.previewImages![key]?.length || 0), 0
   )
+}
+
+// Snippet modal functions
+function showSnippetModal() {
+  if (!snippetProjectName.value.trim()) return
+  
+  // Reset snippet form
+  snippetCode.value = ''
+  selectedLanguage.value = 'en'
+  customLanguageCode.value = ''
+  
+  const modal = document.getElementById('snippet_modal') as HTMLDialogElement
+  modal.showModal()
+}
+
+function closeSnippetModal() {
+  const modal = document.getElementById('snippet_modal') as HTMLDialogElement
+  modal.close()
+}
+
+function showLanguageConfirmModal() {
+  if (!snippetCode.value.trim() || parsedKeysCount.value === 0) return
+  
+  const snippetModal = document.getElementById('snippet_modal') as HTMLDialogElement
+  snippetModal.close()
+  
+  const languageModal = document.getElementById('language_confirm_modal') as HTMLDialogElement
+  languageModal.showModal()
+}
+
+function closeLanguageConfirmModal() {
+  const languageModal = document.getElementById('language_confirm_modal') as HTMLDialogElement
+  languageModal.close()
+  
+  // Reopen snippet modal
+  const snippetModal = document.getElementById('snippet_modal') as HTMLDialogElement
+  snippetModal.showModal()
+}
+
+function createProjectFromSnippet() {
+  try {
+    // Parse the snippet code
+    const parsedData = parseStrings(snippetCode.value)
+    
+    if (Object.keys(parsedData).length === 0) {
+      alert('No valid .strings data found in the snippet!')
+      return
+    }
+    
+    // Determine language code
+    const langCode = selectedLanguage.value === 'other' 
+      ? customLanguageCode.value.trim()
+      : selectedLanguage.value
+    
+    if (!langCode) {
+      alert('Please specify a language code!')
+      return
+    }
+    
+    // Create project
+    const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    const newProject: Project = {
+      id: projectId,
+      name: snippetProjectName.value.trim(),
+      languages: [{
+        name: langCode,
+        data: parsedData
+      }],
+      lastModified: Date.now(),
+      createdAt: Date.now()
+    }
+    
+    // Load the project
+    filesStore.loadProject(newProject)
+    
+    // Close modal
+    const languageModal = document.getElementById('language_confirm_modal') as HTMLDialogElement
+    languageModal.close()
+    
+    // Navigate to editor
+    router.push('/editor')
+    
+  } catch (error) {
+    console.error('Failed to parse .strings code:', error)
+    alert('Failed to parse .strings code. Please check the format.')
+  }
 }
 </script>
