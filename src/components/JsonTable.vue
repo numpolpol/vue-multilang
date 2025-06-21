@@ -8,6 +8,9 @@
         <span v-if="mode === 'paging' && selectedPage">
           | Current: {{ selectedPage }}
         </span>
+        <span v-if="mode === 'paging'">
+          | {{ pagePrefixes.length }} sections available
+        </span>
         <span v-if="highlightMode">
           | Highlight: ON
         </span>
@@ -36,9 +39,15 @@
         </div>
       </div>
     </div>
-    <div v-if="mode === 'paging'" class="tabs-paging flex-shrink-0 px-4">
-      <div class="tabs">
-        <button v-for="prefix in pagePrefixes" :key="prefix" :class="['tab', { 'tab-active': selectedPage === prefix }]" @click="selectedPage = prefix">
+    <div v-if="mode === 'paging'" class="tabs-paging flex-shrink-0 px-4 pb-2">
+      <div class="tabs w-full">
+        <button 
+          v-for="prefix in pagePrefixes" 
+          :key="prefix" 
+          :class="['tab', { 'tab-active': selectedPage === prefix }]" 
+          @click="selectedPage = prefix"
+          :title="`Switch to ${prefix} section`"
+        >
           {{ prefix }}
         </button>
       </div>
@@ -824,13 +833,19 @@ td:nth-of-type(2) {
   margin-top: 1.5rem;
   display: flex;
   justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
 }
 .tabs {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: max-content;
+  padding-bottom: 0.5rem;
 }
 .tab {
-  padding: 0.25rem 1.1rem;
+  padding: 0.4rem 1.2rem;
   border: 1px solid #ccc;
   border-bottom: none;
   background: #f9f9f9;
@@ -839,6 +854,14 @@ td:nth-of-type(2) {
   color: #222;
   font-size: 0.98em;
   transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: max-content;
+  margin-bottom: 0.25rem;
+}
+.tab:hover {
+  background: #e9e9e9;
+  color: #111;
 }
 .tab-active {
   background: #fff;
