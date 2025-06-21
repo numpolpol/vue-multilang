@@ -55,15 +55,15 @@
     <!-- Table wrapper with horizontal scroll -->
     <div class="flex-1 overflow-auto w-full px-4" :class="mode === 'paging' ? 'flex gap-4' : ''">
       <!-- Preview Images Panel (only in paging mode) - Moved to left side -->
-      <div v-if="mode === 'paging'" class="w-80 flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto">
-        <div class="space-y-4">
+      <div v-if="mode === 'paging'" class="w-80 flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto flex flex-col h-full">
+        <div class="space-y-4 flex flex-col h-full">
           <h3 class="font-semibold text-lg">Preview Images</h3>
           <div class="text-xs text-base-content/70">
             {{ Object.keys(previewImages).length }} sections with images
           </div>
           
           <!-- Image Upload Area -->
-          <div class="space-y-2">
+          <div class="space-y-2 flex-shrink-0">
             <label class="label">
               <span class="label-text">Add Images for {{ selectedPage }} section</span>
             </label>
@@ -80,9 +80,9 @@
           </div>
           
           <!-- Uploaded Images Display -->
-          <div v-if="previewImages[selectedPage]?.length" class="space-y-3">
+          <div v-if="previewImages[selectedPage]?.length" class="space-y-3 flex-1 flex flex-col">
             <div class="divider">Uploaded Images</div>
-            <div class="space-y-3 max-h-96 overflow-y-auto">
+            <div class="space-y-3 flex-1 overflow-y-auto">
               <div 
                 v-for="(image, index) in previewImages[selectedPage]" 
                 :key="index"
@@ -91,8 +91,8 @@
                 <img 
                   :src="image.url" 
                   :alt="image.name"
-                  class="object-contain border border-base-300 rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                  style="width: 200px; height: auto; max-height: 300px;"
+                  class="object-contain border border-base-300 rounded-lg cursor-pointer hover:opacity-80 transition-opacity w-full"
+                  style="height: 200px;"
                   @click="openFullscreenImage(image)"
                 />
                 <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -113,7 +113,7 @@
           </div>
           
           <!-- No Images State -->
-          <div v-else class="text-center py-8 text-base-content/50">
+          <div v-else class="text-center py-8 text-base-content/50 flex-1 flex flex-col justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
