@@ -26,7 +26,7 @@ export interface Project {
   languages: Array<{
     name: string
     data: Record<string, string>
-  }>
+  }> | LanguageColumn[] // Support both legacy and new structure
   previewImages?: Record<string, PreviewImage[]>
   lastModified: number
   createdAt: number
@@ -149,12 +149,71 @@ export const useFilesStore = defineStore('files', {
     },
     
     addKeyToAllLanguages(key: string, defaultValue: string = '') {
+      // Ensure we have at least one language
+      if (this.languages.length === 0) {
+        console.warn('No languages available to add key to')
+        return
+      }
+      
       this.languages.forEach(lang => {
         if (!lang.data[key]) {
           lang.data[key] = defaultValue
         }
       })
       this.syncLanguagesToFiles()
+      
+      console.log('Added key to all languages:', key, 'Languages count:', this.languages.length)
+    },
+    
+    deleteKeyFromAllLanguages(key: string) {
+      // Remove the key from all languages
+      this.languages.forEach(lang => {
+        if (lang.data[key] !== undefined) {
+          delete lang.data[key]
+        }
+      })
+      this.syncLanguagesToFiles()
+      
+      console.log('Deleted key from all languages:', key)
+    },
+    
+    addLanguage(language: LanguageColumn) {
+      this.languages.push(language)
+      this.syncLanguagesToFiles()
+    },
+    
+    addFile(file: File, data: Record<string, string>) {
+      this.files.push(file)
+      this.stringsData.push(data)
+      this.originalData.push({ ...data })
+    },
+    
+    createDefaultLanguage() {
+      if (this.languages.length === 0) {
+        // Create default English language with a mock file
+        const defaultContent = '// Default English strings file created automatically\n'
+        const mockFile = new File([defaultContent], 'en.strings', { type: 'text/plain' })
+        
+        // Add to new language structure
+        this.addLanguage({
+          code: 'en',
+          name: 'English',
+          data: {},
+          hasFile: true,
+          fileType: 'strings'
+        })
+        
+        // Add to legacy files structure for compatibility
+        this.addFile(mockFile, {})
+        
+        // Update current project if it exists
+        if (this.currentProject) {
+          this.currentProject.languages = [...this.languages]
+          this.updateCurrentProject()
+        }
+        
+        console.log('Created default English language with strings file')
+      }
     },
     
     updateKeyValue(languageCode: string, key: string, value: string) {
@@ -435,35 +494,34 @@ export const useFilesStore = defineStore('files', {
       this.files = []
       this.stringsData = []
       
-      // Reset languages to default state
-      this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
-        ...lang,
-        data: {},
-        hasFile: false,
-        fileType: undefined
-      }))
+      // Clear languages first
+      this.languages = []
       
       // Load project data into language-column structure
       project.languages.forEach((projectLang) => {        
-        // Update language-column structure
-        const langCode = projectLang.name.replace(/\.(strings|xml)$/, '')
-        const existingLangIndex = this.languages.findIndex(lang => 
-          lang.code === langCode || lang.name.toLowerCase() === langCode.toLowerCase()
-        )
-        
-        if (existingLangIndex >= 0) {
-          // Update existing language column
-          this.languages[existingLangIndex] = {
-            ...this.languages[existingLangIndex],
-            data: { ...projectLang.data },
-            hasFile: true,
-            fileType: 'strings'
-          }
-        } else {
-          // Add new language column
+        // Check if it's new LanguageColumn structure or legacy structure
+        if ('code' in projectLang && 'hasFile' in projectLang) {
+          // New LanguageColumn structure
+          const langCol = projectLang as LanguageColumn
           this.languages.push({
-            code: langCode,
-            name: langCode.charAt(0).toUpperCase() + langCode.slice(1),
+            code: langCol.code,
+            name: langCol.name,
+            data: { ...langCol.data },
+            hasFile: langCol.hasFile,
+            fileType: langCol.fileType
+          })
+        } else {
+          // Legacy structure - convert to new structure
+          const langCode = projectLang.name.toLowerCase().replace(/\.(strings|xml)$/, '')
+          const code = langCode === 'english' ? 'en' : 
+                      langCode === 'thai' ? 'th' :
+                      langCode === 'khmer' ? 'km' :
+                      langCode === 'myanmar' ? 'my' : 
+                      langCode
+          
+          this.languages.push({
+            code: code,
+            name: projectLang.name,
             data: { ...projectLang.data },
             hasFile: true,
             fileType: 'strings'
@@ -478,6 +536,8 @@ export const useFilesStore = defineStore('files', {
       
       // Sync language-column structure to legacy structure for compatibility
       this.syncLanguagesToFiles()
+      
+      console.log('Loaded project:', project.name, 'Languages:', this.languages)
     },
   }
 })

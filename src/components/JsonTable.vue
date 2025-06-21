@@ -148,17 +148,18 @@
               </th>
               <!-- Language columns using LanguageColumnHeader -->
               <LanguageColumnHeader
-                v-for="(language, index) in orderedLanguages" 
+                v-for="language in orderedLanguages" 
                 :key="language.code"
                 :language="language"
                 :column-width="columnWidths[language.code] || '200px'"
-                :draggable="true"
-                @dragstart="startDrag($event, index)"
-                @dragover.prevent
-                @dragenter.prevent
-                @drop="onDrop($event, index)"
                 @resize="onLanguageColumnResize"
               />
+              <!-- Delete column -->
+              <th class="w-16 min-w-16">
+                <div class="flex items-center justify-center">
+                  <span class="text-xs">Delete</span>
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -197,6 +198,18 @@
                     class="input input-bordered w-full" 
                     :placeholder="`Enter ${language.name} text...`"
                   />
+                </td>
+                <!-- Delete button -->
+                <td class="w-16 min-w-16">
+                  <button 
+                    class="btn btn-xs btn-error btn-circle"
+                    @click="onDeleteKey(key)"
+                    title="Delete this key"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             </template>
@@ -510,6 +523,21 @@ async function onPaste(key: string) {
   }
 }
 
+// Delete key functionality
+function onDeleteKey(key: string) {
+  if (confirm(`Are you sure you want to delete the key "${key}"? This will remove it from all languages.`)) {
+    // If it's a merged key, we need to delete all individual keys
+    if (isMergedKey(key)) {
+      const allMergedKeys = getAllKeysFromMergedKey(key)
+      allMergedKeys.forEach((individualKey: string) => {
+        filesStore.deleteKeyFromAllLanguages(individualKey)
+      })
+    } else {
+      filesStore.deleteKeyFromAllLanguages(key)
+    }
+  }
+}
+
 // Export functionality
 const exportPlatform = ref<'ios' | 'android'>('ios')
 const exportMode = ref<'all' | 'changed' | 'original'>('all')
@@ -681,28 +709,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', stopResizing)
 })
-
-// Drag and drop functionality
-let draggedIndex = -1
-
-function startDrag(event: DragEvent, index: number) {
-  draggedIndex = index
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-  }
-}
-
-function onDrop(_event: DragEvent, index: number) {
-  if (draggedIndex === -1) return
-  
-  // Reorder columns
-  const newOrder = [...columnOrder.value]
-  const [removed] = newOrder.splice(draggedIndex, 1)
-  newOrder.splice(index, 0, removed)
-  columnOrder.value = newOrder
-  
-  draggedIndex = -1
-}
 
 // Safe data access functions
 function setLanguageDataValue(languageCode: string, key: string, value: string) {
@@ -933,15 +939,6 @@ td:nth-of-type(2) {
 .resizer:hover,
 .resizing {
   background: rgba(0, 0, 0, 0.2);
-}
-
-/* Draggable columns */
-th[draggable=true] {
-  cursor: move;
-}
-
-th[draggable=true]:hover {
-  background: rgba(0, 0, 0, 0.05);
 }
 
 /* Sticky columns */

@@ -43,7 +43,7 @@
 
       <div class="p-4">
         <!-- Project Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           
           <!-- Create New Project -->
           <div class="card bg-base-100 shadow-xl">
@@ -111,6 +111,41 @@
                   @click="showSnippetModal"
                 >
                   Create from Code
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Create from Keys -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-info">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Create from Keys
+              </h2>
+              <p class="text-base-content/70">Paste a list of keys to create a project</p>
+              
+              <div class="form-control w-full mt-4">
+                <label class="label">
+                  <span class="label-text">Project Name</span>
+                </label>
+                <input 
+                  v-model="keysProjectName" 
+                  type="text" 
+                  placeholder="Enter project name..." 
+                  class="input input-bordered w-full"
+                />
+              </div>
+              
+              <div class="card-actions justify-end mt-4">
+                <button 
+                  class="btn btn-info" 
+                  :disabled="!keysProjectName.trim()"
+                  @click="showKeysModal"
+                >
+                  Create from Keys
                 </button>
               </div>
             </div>
@@ -213,9 +248,10 @@
             <div class="flex flex-col">
               <div class="font-bold mb-2">How to use:</div>
               <ol class="list-decimal list-inside space-y-2">
-                <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session.</li>
+                <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session with all 4 languages (Thai, English, Khmer, Myanmar).</li>
+                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings code to create a project with existing translations in one language.</li>
+                <li><span class="font-semibold">Create from Keys:</span> Paste a list of translation keys to create a project with all 4 languages and empty values ready for translation.</li>
                 <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
-                <li><span class="font-semibold">Add Languages:</span> In the editor, you can add language columns and upload files for each language.</li>
                 <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
                 <li><span class="font-semibold">Export:</span> Export your translations to iOS .strings or Android XML format.</li>
               </ol>
@@ -312,12 +348,62 @@
       </div>
     </div>
   </dialog>
+
+  <!-- Keys Modal -->
+  <dialog id="keys_modal" class="modal">
+    <div class="modal-box w-11/12 max-w-4xl">
+      <h3 class="font-bold text-lg">Create Project from Keys List</h3>
+      <p class="py-2 text-sm text-base-content/70">Paste or type your keys below (one per line or comma-separated)</p>
+      
+      <div class="form-control w-full mt-4">
+        <label class="label">
+          <span class="label-text">Keys List</span>
+        </label>
+        <textarea 
+          v-model="keysList"
+          class="textarea textarea-bordered h-64 font-mono text-sm" 
+          placeholder="login_title
+login_username_placeholder
+login_password_placeholder
+login_button_text
+register_title
+
+Or comma-separated:
+login_title, login_username, login_password, register_title"
+        ></textarea>
+        <label class="label">
+          <span class="label-text-alt">{{ keysListCount }} valid keys detected</span>
+        </label>
+      </div>
+      
+      <div class="alert alert-info mt-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <div class="font-bold">Keys Format:</div>
+          <div class="text-sm">Keys must contain only letters, numbers, and underscores. They must start with a letter or underscore.</div>
+        </div>
+      </div>
+      
+      <div class="modal-action">
+        <button class="btn" @click="closeKeysModal">Cancel</button>
+        <button 
+          class="btn btn-info" 
+          :disabled="!keysList.trim() || keysListCount === 0"
+          @click="createProjectFromKeys"
+        >
+          Create Project ({{ keysListCount }} keys)
+        </button>
+      </div>
+    </div>
+  </dialog>
 </template>
 
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useFilesStore, type Project } from '../stores/files'
+import { useFilesStore, type Project, type LanguageColumn } from '../stores/files'
 import { parseStrings } from '../utils/strings'
 
 const router = useRouter()
@@ -335,6 +421,10 @@ const snippetCode = ref('')
 const selectedLanguage = ref('en')
 const customLanguageCode = ref('')
 
+// Keys functionality
+const keysProjectName = ref('')
+const keysList = ref('')
+
 // Computed property to count parsed keys
 const parsedKeysCount = computed(() => {
   if (!snippetCode.value.trim()) return 0
@@ -344,6 +434,16 @@ const parsedKeysCount = computed(() => {
   } catch {
     return 0
   }
+})
+
+// Computed property to count keys from keys list
+const keysListCount = computed(() => {
+  if (!keysList.value.trim()) return 0
+  const keys = keysList.value
+    .split(/[\n,]/)
+    .map(key => key.trim())
+    .filter(key => key.length > 0 && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key))
+  return keys.length
 })
 
 // Computed property to sort saved projects by lastModified (newest first)
@@ -380,17 +480,65 @@ function createNewProject() {
   
   const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   
-  // Create new project with empty state
+  // Create all 4 default languages with common keys
+  const initialLanguages: LanguageColumn[] = [
+    {
+      code: 'th',
+      name: 'Thai',
+      data: {
+        'common_welcome': '',
+        'common_ok': '',
+        'common_cancel': ''
+      },
+      hasFile: true,
+      fileType: 'strings'
+    },
+    {
+      code: 'en',
+      name: 'English', 
+      data: {
+        'common_welcome': '',
+        'common_ok': '',
+        'common_cancel': ''
+      },
+      hasFile: true,
+      fileType: 'strings'
+    },
+    {
+      code: 'km',
+      name: 'Khmer',
+      data: {
+        'common_welcome': '',
+        'common_ok': '',
+        'common_cancel': ''
+      },
+      hasFile: true,
+      fileType: 'strings'
+    },
+    {
+      code: 'my',
+      name: 'Myanmar',
+      data: {
+        'common_welcome': '',
+        'common_ok': '',
+        'common_cancel': ''
+      },
+      hasFile: true,
+      fileType: 'strings'
+    }
+  ]
+  
+  // Create new project with all 4 languages and initial keys
   const newProject: Project = {
     id: projectId,
     name: newProjectName.value.trim(),
-    languages: [],
+    languages: initialLanguages,
     lastModified: Date.now(),
     createdAt: Date.now()
   }
   
-  // Set current project in store
-  filesStore.setCurrentProject(newProject)
+  // Load the project into store (this will sync languages to store properly)
+  filesStore.loadProject(newProject)
   
   // Navigate to editor
   router.push('/editor')
@@ -543,6 +691,99 @@ function createProjectFromSnippet() {
   } catch (error) {
     console.error('Failed to parse .strings code:', error)
     alert('Failed to parse .strings code. Please check the format.')
+  }
+}
+
+// Keys modal functions
+function showKeysModal() {
+  if (!keysProjectName.value.trim()) return
+  
+  // Reset keys form
+  keysList.value = ''
+  
+  const modal = document.getElementById('keys_modal') as HTMLDialogElement
+  modal.showModal()
+}
+
+function closeKeysModal() {
+  const modal = document.getElementById('keys_modal') as HTMLDialogElement
+  modal.close()
+}
+
+function createProjectFromKeys() {
+  try {
+    // Parse keys from input
+    const keys = keysList.value
+      .split(/[\n,]/)
+      .map(key => key.trim())
+      .filter(key => key.length > 0 && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key))
+    
+    if (keys.length === 0) {
+      alert('No valid keys found!')
+      return
+    }
+    
+    // Create project with all 4 languages and the specified keys
+    const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Create data object with all keys having empty values
+    const keysData: Record<string, string> = {}
+    keys.forEach(key => {
+      keysData[key] = ''
+    })
+    
+    const initialLanguages: LanguageColumn[] = [
+      {
+        code: 'th',
+        name: 'Thai',
+        data: { ...keysData },
+        hasFile: true,
+        fileType: 'strings'
+      },
+      {
+        code: 'en',
+        name: 'English',
+        data: { ...keysData },
+        hasFile: true,
+        fileType: 'strings'
+      },
+      {
+        code: 'km',
+        name: 'Khmer',
+        data: { ...keysData },
+        hasFile: true,
+        fileType: 'strings'
+      },
+      {
+        code: 'my',
+        name: 'Myanmar',
+        data: { ...keysData },
+        hasFile: true,
+        fileType: 'strings'
+      }
+    ]
+    
+    const newProject: Project = {
+      id: projectId,
+      name: keysProjectName.value.trim(),
+      languages: initialLanguages,
+      lastModified: Date.now(),
+      createdAt: Date.now()
+    }
+    
+    // Load the project
+    filesStore.loadProject(newProject)
+    
+    // Close modal
+    const modal = document.getElementById('keys_modal') as HTMLDialogElement
+    modal.close()
+    
+    // Navigate to editor
+    router.push('/editor')
+    
+  } catch (error) {
+    console.error('Failed to create project from keys:', error)
+    alert('Failed to create project from keys. Please check the format.')
   }
 }
 </script>

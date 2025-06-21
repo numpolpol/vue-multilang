@@ -63,9 +63,27 @@
     
     <!-- Add Key Modal -->
     <dialog id="add_key_modal" class="modal">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Add New Key</h3>
-        <div class="space-y-4">
+      <div class="modal-box w-11/12 max-w-2xl">
+        <h3 class="font-bold text-lg mb-4">Add New Keys</h3>
+        
+        <!-- Mode Selector -->
+        <div class="tabs tabs-boxed mb-4">
+          <button 
+            :class="['tab', { 'tab-active': addKeyMode === 'single' }]" 
+            @click="addKeyMode = 'single'"
+          >
+            Single Key
+          </button>
+          <button 
+            :class="['tab', { 'tab-active': addKeyMode === 'bulk' }]" 
+            @click="addKeyMode = 'bulk'"
+          >
+            Bulk Keys
+          </button>
+        </div>
+
+        <!-- Single Key Mode -->
+        <div v-if="addKeyMode === 'single'" class="space-y-4">
           <div class="form-control">
             <label class="label">
               <span class="label-text">Key Name</span>
@@ -94,15 +112,66 @@
               @keydown.enter="addNewKey"
             />
           </div>
-          
-          <div v-if="addKeyError" class="alert alert-error">
-            <span>{{ addKeyError }}</span>
+        </div>
+
+        <!-- Bulk Keys Mode -->
+        <div v-if="addKeyMode === 'bulk'" class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Key Names (one per line or comma-separated)</span>
+            </label>
+            <textarea 
+              v-model="bulkKeyNames" 
+              class="textarea textarea-bordered h-32"
+              placeholder="common_ok
+common_cancel
+common_confirm
+
+Or comma-separated:
+common_ok, common_cancel, common_confirm"
+            ></textarea>
+            <label class="label">
+              <span class="label-text-alt">{{ parsedBulkKeys.length }} keys detected</span>
+            </label>
           </div>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Default Value for All Keys (optional)</span>
+            </label>
+            <input 
+              v-model="bulkDefaultValue" 
+              type="text" 
+              placeholder="Default text for all keys and all languages"
+              class="input input-bordered w-full"
+            />
+          </div>
+
+          <!-- Preview -->
+          <div v-if="parsedBulkKeys.length > 0" class="bg-base-200 rounded-lg p-3">
+            <div class="text-sm font-medium mb-2">Preview keys to be added:</div>
+            <div class="text-xs space-y-1 max-h-32 overflow-y-auto">
+              <div v-for="key in parsedBulkKeys" :key="key" class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-primary rounded-full"></div>
+                <span class="font-mono">{{ key }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="addKeyError" class="alert alert-error mt-4">
+          <span>{{ addKeyError }}</span>
         </div>
         
         <div class="modal-action">
           <button class="btn" @click="closeAddKeyModal">Cancel</button>
-          <button class="btn btn-primary" @click="addNewKey" :disabled="!newKeyName.trim()">Add Key</button>
+          <button 
+            class="btn btn-primary" 
+            @click="addKeyMode === 'single' ? addNewKey() : addBulkKeys()" 
+            :disabled="addKeyMode === 'single' ? !newKeyName.trim() : parsedBulkKeys.length === 0"
+          >
+            {{ addKeyMode === 'single' ? 'Add Key' : `Add ${parsedBulkKeys.length} Keys` }}
+          </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -113,7 +182,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '../stores/files'
 import { parseStrings } from '../utils/strings'
@@ -157,6 +226,23 @@ const noResults = ref(false)
 const newKeyName = ref('')
 const newKeyDefaultValue = ref('')
 const addKeyError = ref('')
+const addKeyMode = ref<'single' | 'bulk'>('single')
+const bulkKeyNames = ref('')
+const bulkDefaultValue = ref('')
+
+// Computed property for parsing bulk keys
+const parsedBulkKeys = computed(() => {
+  if (!bulkKeyNames.value.trim()) return []
+  
+  // Split by newlines or commas and clean up
+  const keys = bulkKeyNames.value
+    .split(/[\n,]/)
+    .map(key => key.trim())
+    .filter(key => key.length > 0)
+    .filter((key, index, arr) => arr.indexOf(key) === index) // Remove duplicates
+  
+  return keys
+})
 
 // Navigation guard - redirect to upload if no files and no project
 onMounted(() => {
@@ -409,6 +495,9 @@ function showAddKeyModal() {
   newKeyName.value = ''
   newKeyDefaultValue.value = ''
   addKeyError.value = ''
+  addKeyMode.value = 'single'
+  bulkKeyNames.value = ''
+  bulkDefaultValue.value = ''
   const modal = document.getElementById('add_key_modal') as HTMLDialogElement
   if (modal) {
     modal.showModal()
@@ -429,6 +518,11 @@ function addNewKey() {
   if (!keyName) {
     addKeyError.value = 'Key Name is required.'
     return
+  }
+  
+  // Ensure we have at least one language before adding keys
+  if (filesStore.languages.length === 0) {
+    filesStore.createDefaultLanguage()
   }
   
   // Check for duplicate keys using the new language structure
@@ -453,6 +547,62 @@ function addNewKey() {
     }
   }
   
+  // Force reactivity update
+  nextTick(() => {
+    console.log('Added key:', keyName, 'All keys now:', filesStore.allKeysFromLanguages)
+  })
+  
   closeAddKeyModal()
+}
+
+function addBulkKeys() {
+  const keys = parsedBulkKeys.value
+  const defaultValue = bulkDefaultValue.value.trim()
+  
+  if (keys.length === 0) {
+    addKeyError.value = 'Please enter at least one key name.'
+    return
+  }
+  
+  // Ensure we have at least one language before adding keys
+  if (filesStore.languages.length === 0) {
+    filesStore.createDefaultLanguage()
+  }
+  
+  // Check for duplicate keys
+  const allKeys = filesStore.hasLanguageFiles 
+    ? filesStore.allKeysFromLanguages 
+    : filesStore.allKeys
+  
+  const duplicates = keys.filter(key => allKeys.includes(key))
+  if (duplicates.length > 0) {
+    addKeyError.value = `The following keys already exist: ${duplicates.join(', ')}`
+    return
+  }
+  
+  // Add all keys
+  let successCount = 0
+  if (filesStore.hasLanguageFiles) {
+    keys.forEach(key => {
+      filesStore.addKeyToAllLanguages(key, defaultValue)
+      successCount++
+    })
+  } else {
+    // Fallback to legacy structure
+    keys.forEach(key => {
+      const success = filesStore.addKey(key, defaultValue)
+      if (success) successCount++
+    })
+  }
+  
+  if (successCount === keys.length) {
+    // Force reactivity update
+    nextTick(() => {
+      console.log('Added bulk keys:', keys, 'All keys now:', filesStore.allKeysFromLanguages)
+    })
+    closeAddKeyModal()
+  } else {
+    addKeyError.value = `Only ${successCount} out of ${keys.length} keys were added successfully.`
+  }
 }
 </script>
