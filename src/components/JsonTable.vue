@@ -262,12 +262,14 @@ const emit = defineEmits<{
 const props = defineProps<{
   data: Record<string, string>[]
   files: File[]
+  skipColumns?: number
 }>()
 
 const mode = ref<'all' | 'paging'>('all')
 const selectedPage = ref('')
 const highlightMode = ref(false)
 const search = ref('')
+const skipColumns = ref(props.skipColumns || 0)
 
 const loading = ref(false)
 
@@ -378,6 +380,11 @@ watch(() => props.data, (newVal) => {
   }
 }, { deep: true })
 
+// Watch for skipColumns prop changes
+watch(() => props.skipColumns, (newVal) => {
+  skipColumns.value = newVal || 0
+}, { immediate: true })
+
 // Initialize selected page when mode changes to paging
 watch([mode, pagePrefixes], () => {
   if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
@@ -431,6 +438,15 @@ if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length 
   selectedPage.value = pagePrefixes.value[0]
 }
 
+/**
+ * Paste functionality with configurable column skipping
+ * When pasting tabular data (e.g., from Google Sheets), users can configure
+ * how many leading columns to skip. This is useful when the source data
+ * has extra columns that shouldn't be included in the translation.
+ * 
+ * Example: If source has "Name | Category | English | Thai | Khmer"
+ * and you want only "English | Thai | Khmer", set skipColumns to 2
+ */
 async function onPaste(key: string) {
   try {
     const text = await navigator.clipboard.readText();
@@ -438,6 +454,13 @@ async function onPaste(key: string) {
     if (values.length < props.files.length) {
       values = text.split(/\r?\n/);
     }
+    
+    // Skip the specified number of columns
+    const skipCount = skipColumns.value || 0;
+    if (skipCount > 0 && values.length > skipCount) {
+      values = values.slice(skipCount);
+    }
+    
     for (let i = 0; i < props.files.length; i++) {
       if (values[i] !== undefined) {
         props.data[i][key] = values[i].trim();
@@ -643,6 +666,7 @@ defineExpose({
   mode,
   highlightMode,
   search,
+  skipColumns,
   resetColumnWidths,
   openExportModal
 })

@@ -43,6 +43,25 @@
           />
         </div>
         
+        <!-- Skip Columns Configuration -->
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text text-xs font-medium">Skip Columns</span>
+          </label>
+          <select 
+            :value="skipColumns" 
+            @change="$emit('update:skipColumns', parseInt(($event.target as HTMLSelectElement).value))"
+            class="select select-bordered select-sm w-24"
+          >
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        
         <!-- Search Stats -->
         <div v-if="searchQuery" class="text-xs">
           <div class="font-medium text-primary">Search Active</div>
@@ -83,6 +102,7 @@ interface Props {
   filteredCount?: number
   totalKeys?: number
   languageCount?: number
+  skipColumns: number
 }
 
 defineProps<Props>()
@@ -91,6 +111,7 @@ defineEmits<{
   toggleDrawer: []
   'update:viewMode': [value: 'all' | 'paging']
   'update:highlightMode': [value: boolean]
+  'update:skipColumns': [value: number]
   addKey: []
 }>()
 </script>

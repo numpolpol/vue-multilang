@@ -32,6 +32,7 @@
         :projectName="filesStore.currentProject?.name"
         :viewMode="viewMode"
         :highlightMode="highlightMode"
+        :skipColumns="skipColumns"
         :searchQuery="searchQuery"
         :filteredCount="filteredCount"
         :totalKeys="totalKeys"
@@ -39,6 +40,7 @@
         @toggleDrawer="toggleDrawer"
         @update:viewMode="viewMode = $event"
         @update:highlightMode="highlightMode = $event"
+        @update:skipColumns="skipColumns = $event"
         @addKey="showAddKeyModal"
       />
 
@@ -46,6 +48,7 @@
         <JsonTable 
           :data="filesStore.stringsData" 
           :files="filesStore.files" 
+          :skipColumns="skipColumns"
           @back="goBack" 
           @removeLanguageColumn="removeLanguageColumn"
           @addKey="showAddKeyModal"
@@ -118,6 +121,7 @@ interface JsonTableWithControls {
   mode: 'all' | 'paging'
   highlightMode: boolean
   search: string
+  skipColumns: number
   resetColumnWidths: () => void
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
 }
@@ -132,6 +136,7 @@ const jsonTable = ref<JsonTableWithControls | null>(null)
 const viewMode = ref<'all' | 'paging'>('all')
 const highlightMode = ref(false)
 const searchQuery = ref('')
+const skipColumns = ref(0)
 
 // Computed properties for search results
 const filteredCount = ref(0)
@@ -174,6 +179,13 @@ watch(highlightMode, (newValue) => {
 watch(searchQuery, (newValue) => {
   if (jsonTable.value) {
     jsonTable.value.search = newValue
+  }
+})
+
+// Watch for skipColumns changes
+watch(skipColumns, (newValue) => {
+  if (jsonTable.value) {
+    jsonTable.value.skipColumns = newValue
   }
 })
 
