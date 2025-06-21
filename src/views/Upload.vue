@@ -1,108 +1,219 @@
-<![CDATA[<template>]]>
-  &lt;div class="drawer lg:drawer-open h-screen"&gt;
-    &lt;input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" /&gt;
+<template>
+  <div class="drawer h-screen">
+    <input id="drawer" type="checkbox" class="drawer-toggle" v-model="isDrawerOpen" />
     
-    &lt;!-- Drawer side --&gt;
-    &lt;div class="drawer-side z-40"&gt;
-      &lt;label for="drawer" aria-label="close sidebar" class="drawer-overlay"&gt;&lt;/label&gt;
-      &lt;div class="menu p-4 w-80 min-h-full bg-base-200"&gt;
-        &lt;!-- Theme & Controls --&gt;
-        &lt;div class="space-y-4"&gt;
-          &lt;!-- App Title --&gt;
-          &lt;div class="text-xl font-bold"&gt;iOS/Android Editor&lt;/div&gt;
+    <!-- Drawer side -->
+    <div class="drawer-side z-40">
+      <label for="drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+      <div class="menu p-4 w-80 min-h-full bg-base-200">
+        <!-- Theme & Controls -->
+        <div class="space-y-4">
+          <!-- App Title -->
+          <div class="text-xl font-bold">iOS/Android Editor</div>
 
-          &lt;!-- Theme --&gt;
-          &lt;div class="form-control w-full"&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text font-semibold"&gt;Theme&lt;/span&gt;
-            &lt;/label&gt;
-            &lt;select v-model="theme" class="select select-bordered w-full" @change="updateTheme"&gt;
-              &lt;option value="light"&gt;Light&lt;/option&gt;
-              &lt;option value="dark"&gt;Dark&lt;/option&gt;
-              &lt;option value="forest"&gt;Forest&lt;/option&gt;
-              &lt;option value="zimablue"&gt;Zima Blue&lt;/option&gt;
-            &lt;/select&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+          <!-- Theme -->
+          <div class="form-control w-full">
+            <label class="label">
+              <span class="label-text font-semibold">Theme</span>
+            </label>
+            <select v-model="theme" class="select select-bordered w-full" @change="updateTheme">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="forest">Forest</option>
+              <option value="zimablue">Zima Blue</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
     
-    &lt;!-- Page content --&gt;
-    &lt;div class="drawer-content"&gt;
-      &lt;!-- Navbar --&gt;
-      &lt;div class="navbar bg-base-100 shadow-lg rounded-box mb-6"&gt;
-        &lt;div class="navbar-start"&gt;
-          &lt;label for="drawer" class="btn btn-square btn-ghost drawer-button lg:hidden"&gt;
-            &lt;svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current"&gt;
-              &lt;path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"&gt;&lt;/path&gt;
-            &lt;/svg&gt;
-          &lt;/label&gt;
-          &lt;h1 class="text-2xl font-bold ml-2"&gt;iOS/Android Multi-file Editor&lt;/h1&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
+    <!-- Page content -->
+    <div class="drawer-content">
+      <!-- Navbar -->
+      <div class="navbar bg-base-100 shadow-lg rounded-box mb-6">
+        <div class="navbar-start">
+          <label for="drawer" class="btn btn-square btn-ghost drawer-button lg:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </label>
+          <h1 class="text-2xl font-bold ml-2">Project Manager</h1>
+        </div>
+      </div>
 
-      &lt;div class="p-4"&gt;
-        &lt;div class="alert alert-info shadow-lg mb-6"&gt;
-          &lt;div class="flex flex-col"&gt;
-            &lt;div class="font-bold mb-2"&gt;How to use:&lt;/div&gt;
-            &lt;ol class="list-decimal list-inside space-y-2"&gt;
-              &lt;li&gt;&lt;span class="font-semibold"&gt;Choose Files:&lt;/span&gt; Select multiple iOS &lt;span class="font-semibold"&gt;.strings&lt;/span&gt; or Android &lt;span class="font-semibold"&gt;string.xml&lt;/span&gt; files (one per language, same keys).&lt;/li&gt;
-              &lt;li&gt;&lt;span class="font-semibold"&gt;Ready:&lt;/span&gt; Click &lt;span class="font-semibold"&gt;Ready&lt;/span&gt; to load and edit all keys/values side-by-side.&lt;/li&gt;
-              &lt;li&gt;&lt;span class="font-semibold"&gt;View:&lt;/span&gt; Use &lt;span class="font-semibold"&gt;See All&lt;/span&gt;/&lt;span class="font-semibold"&gt;Paging&lt;/span&gt; to switch key views.&lt;/li&gt;
-              &lt;li&gt;&lt;span class="font-semibold"&gt;Edit:&lt;/span&gt; Edit values directly or use &lt;span class="font-semibold"&gt;Paste&lt;/span&gt; per row for quick input.&lt;/li&gt;
-              &lt;li&gt;&lt;span class="font-semibold"&gt;Export:&lt;/span&gt; Use floating buttons to export all, changed, or keep order.&lt;/li&gt;
-              &lt;li&gt;&lt;span class="font-semibold"&gt;Back:&lt;/span&gt; Use the floating &lt;span class="font-semibold"&gt;Back&lt;/span&gt; button to restart.&lt;/li&gt;
-            &lt;/ol&gt;
-            &lt;div class="mt-4 text-sm"&gt;
-              &lt;span class="font-bold"&gt;Tips:&lt;/span&gt; All processing is local. Key column scrolls if long. Use the same keys in all files. Supports both iOS and Android formats.
-            &lt;/div&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-
-        &lt;div class="card bg-base-100 shadow-xl p-6"&gt;
-          &lt;div class="form-control w-full"&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text font-semibold"&gt;Select Files&lt;/span&gt;
-            &lt;/label&gt;
-            &lt;input type="file" multiple accept=".strings,.xml" class="file-input file-input-bordered w-full" @change="onFilesSelected" /&gt;
-            &lt;label class="label"&gt;
-              &lt;span class="label-text-alt"&gt;Select multiple .strings or .xml files&lt;/span&gt;
-            &lt;/label&gt;
-          &lt;/div&gt;
+      <div class="p-4">
+        <!-- Project Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          &lt;div v-if="files.length > 0" class="mt-4"&gt;
-            &lt;div class="font-semibold mb-2"&gt;Selected Files:&lt;/div&gt;
-            &lt;div class="bg-base-200 rounded-lg p-3"&gt;
-              &lt;ul class="list-disc list-inside space-y-1"&gt;
-                &lt;li v-for="file in files" :key="file.name" class="text-sm"&gt;
-                  {{ file.name }}
-                &lt;/li&gt;
-              &lt;/ul&gt;
-            &lt;/div&gt;
-          &lt;/div&gt;
+          <!-- Create New Project -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create New Project
+              </h2>
+              <p class="text-base-content/70">Start a new multi-language editing project</p>
+              
+              <div class="form-control w-full mt-4">
+                <label class="label">
+                  <span class="label-text">Project Name</span>
+                </label>
+                <input 
+                  v-model="newProjectName" 
+                  type="text" 
+                  placeholder="Enter project name..." 
+                  class="input input-bordered w-full"
+                  @keyup.enter="createNewProject"
+                />
+              </div>
+              
+              <div class="card-actions justify-end mt-4">
+                <button 
+                  class="btn btn-primary" 
+                  :disabled="!newProjectName.trim()"
+                  @click="createNewProject"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
 
-          &lt;div class="mt-6 flex justify-end"&gt;
-            &lt;button class="btn btn-primary" :disabled="files.length === 0" @click="startEditing"&gt;
-              Start Editing
-            &lt;/button&gt;
-          &lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
+          <!-- Load Project -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Load Project
+              </h2>
+              <p class="text-base-content/70">Continue working on an existing project</p>
+              
+              <div class="space-y-3 mt-4">
+                <!-- Load from File -->
+                <div class="form-control w-full">
+                  <label class="label">
+                    <span class="label-text">Load from File</span>
+                  </label>
+                  <input 
+                    type="file" 
+                    accept=".json" 
+                    class="file-input file-input-bordered w-full"
+                    @change="loadProjectFromFile"
+                  />
+                </div>
+                
+                <!-- Load from Local Storage -->
+                <div class="divider">OR</div>
+                <button 
+                  class="btn btn-outline btn-secondary w-full" 
+                  @click="showSavedProjects"
+                >
+                  Load from Saved Projects
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-&lt;script lang="ts" setup&gt;
+        <!-- Saved Projects -->
+        <div v-if="showSaved && savedProjects.length > 0" class="mt-8">
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h3 class="card-title">Saved Projects</h3>
+              <div class="overflow-x-auto">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Project Name</th>
+                      <th>Languages</th>
+                      <th>Images</th>
+                      <th>Last Modified</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(project, index) in savedProjects" :key="project.id">
+                      <td class="font-medium">{{ project.name }}</td>
+                      <td>{{ project.languages.length }} languages</td>
+                      <td>{{ getImageCount(project) }} images</td>
+                      <td>{{ formatDate(project.lastModified) }}</td>
+                      <td>
+                        <div class="flex gap-2">
+                          <button 
+                            class="btn btn-sm btn-primary" 
+                            @click="loadProject(project)"
+                          >
+                            Load
+                          </button>
+                          <button 
+                            class="btn btn-sm btn-error" 
+                            @click="deleteProject(index)"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No Saved Projects -->
+        <div v-else-if="showSaved && savedProjects.length === 0" class="mt-8">
+          <div class="alert alert-info">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>No saved projects found. Create a new project to get started!</span>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-8">
+          <div class="alert alert-info shadow-lg">
+            <div class="flex flex-col">
+              <div class="font-bold mb-2">How to use:</div>
+              <ol class="list-decimal list-inside space-y-2">
+                <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session.</li>
+                <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
+                <li><span class="font-semibold">Add Languages:</span> In the editor, you can add language columns and upload files for each language.</li>
+                <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
+                <li><span class="font-semibold">Export:</span> Export your translations to iOS .strings or Android XML format.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useFilesStore } from '../stores/files'
-import { parseStrings } from '../utils/strings'
+import { useFilesStore, type Project } from '../stores/files'
 
 const router = useRouter()
 const filesStore = useFilesStore()
-const files = ref&lt;File[]&gt;([])
 const theme = ref(localStorage.getItem('theme') || 'light')
 const isDrawerOpen = ref(false)
+
+// Project management
+const newProjectName = ref('')
+const savedProjects = ref<Project[]>([])
+const showSaved = ref(false)
+
+onMounted(() => {
+  document.documentElement.setAttribute('data-theme', theme.value)
+  loadSavedProjects()
+})
 
 function updateTheme(event: Event) {
   const newTheme = (event.target as HTMLSelectElement).value
@@ -111,36 +222,121 @@ function updateTheme(event: Event) {
   theme.value = newTheme
 }
 
-onMounted(() => {
-  document.documentElement.setAttribute('data-theme', theme.value)
-})
-
-function onFilesSelected(e: Event) {
-  const input = e.target as HTMLInputElement
-  if (!input.files) return
-  files.value = Array.from(input.files)
-  filesStore.setFiles(files.value)
-  // Parse .strings files
-  const readers = files.value.map(
-    (file) =&gt;
-      new Promise&lt;Record&lt;string, string&gt;&gt;((resolve) =&gt; {
-        const reader = new FileReader()
-        reader.onload = () =&gt; {
-          try {
-            resolve(parseStrings(reader.result as string))
-          } catch {
-            resolve({})
-          }
-        }
-        reader.readAsText(file)
-      })
-  )
-  Promise.all(readers).then((parsed) =&gt; {
-    filesStore.setStringsData(parsed)
-  })
+function loadSavedProjects() {
+  try {
+    const saved = localStorage.getItem('savedProjects')
+    if (saved) {
+      savedProjects.value = JSON.parse(saved)
+    }
+  } catch (error) {
+    console.warn('Failed to load saved projects:', error)
+    savedProjects.value = []
+  }
 }
 
-function startEditing() {
+function createNewProject() {
+  if (!newProjectName.value.trim()) return
+  
+  const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
+  // Create new project with empty state
+  const newProject: Project = {
+    id: projectId,
+    name: newProjectName.value.trim(),
+    languages: [],
+    lastModified: Date.now(),
+    createdAt: Date.now()
+  }
+  
+  // Set current project in store
+  filesStore.setCurrentProject(newProject)
+  
+  // Navigate to editor
   router.push('/editor')
 }
-&lt;/script&gt;
+
+function showSavedProjects() {
+  loadSavedProjects()
+  showSaved.value = true
+}
+
+function loadProject(project: Project) {
+  // Set project in store
+  filesStore.setCurrentProject(project)
+  
+  // Convert project data to files format for backward compatibility
+  const mockFiles: File[] = []
+  const stringsData: Record<string, string>[] = []
+  
+  project.languages.forEach((lang) => {
+    // Create mock file
+    const blob = new Blob([''], { type: 'text/plain' })
+    const file = new File([blob], `${lang.name}.strings`, { type: 'text/plain' })
+    mockFiles.push(file)
+    
+    // Add language data
+    stringsData.push(lang.data)
+  })
+  
+  filesStore.setFiles(mockFiles)
+  filesStore.setStringsData(stringsData)
+  
+  // Load preview images if available
+  if (project.previewImages) {
+    filesStore.setPreviewImages(project.previewImages)
+  }
+  
+  // Navigate to editor
+  router.push('/editor')
+}
+
+function deleteProject(index: number) {
+  const project = savedProjects.value[index]
+  if (!project) return
+  
+  if (confirm(`Are you sure you want to delete project "${project.name}"?`)) {
+    savedProjects.value.splice(index, 1)
+    localStorage.setItem('savedProjects', JSON.stringify(savedProjects.value))
+  }
+}
+
+function loadProjectFromFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  
+  const file = input.files[0]
+  const reader = new FileReader()
+  
+  reader.onload = () => {
+    try {
+      const projectData = JSON.parse(reader.result as string)
+      
+      // Validate project structure
+      if (projectData.id && projectData.name && projectData.languages) {
+        loadProject(projectData)
+      } else {
+        alert('Invalid project file format!')
+      }
+    } catch (error) {
+      console.error('Failed to parse project file:', error)
+      alert('Failed to load project file!')
+    }
+  }
+  
+  reader.readAsText(file)
+  
+  // Clear the input
+  input.value = ''
+}
+
+function formatDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleString()
+}
+
+function getImageCount(project: Project): number {
+  if (!project.previewImages) return 0
+  return Object.keys(project.previewImages).reduce((total, key) => 
+    total + (project.previewImages![key]?.length || 0), 0
+  )
+}
+</script>

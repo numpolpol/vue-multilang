@@ -1,0 +1,40 @@
+{
+  "id": "project_test_1735001400000",
+  "name": "Test Project with Images",
+  "languages": [
+    {
+      "name": "en",
+      "data": {
+        "welcome": "Welcome",
+        "hello": "Hello World",
+        "settings": "Settings"
+      }
+    },
+    {
+      "name": "th", 
+      "data": {
+        "welcome": "ยินดีต้อนรับ",
+        "hello": "สวัสดีชาวโลก",
+        "settings": "การตั้งค่า"
+      }
+    }
+  ],
+  "previewImages": {
+    "welcome": [
+      {
+        "name": "welcome-screen.png",
+        "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+        "data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+      }
+    ],
+    "settings": [
+      {
+        "name": "settings-screen.png", 
+        "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+        "data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+      }
+    ]
+  },
+  "lastModified": 1735001400000,
+  "createdAt": 1735001400000
+}

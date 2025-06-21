@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="register_foreigner_title">การลงทะเบียน</string>
+    <string name="register_foreigner_subtitle">กรุณากรอกรายละเอียดด้านล่าง</string>
+    <string name="register_foreigner_passport_label">หมายเลขหนังสือเดินทาง</string>
+    <string name="register_foreigner_nationality_label">สัญชาติ</string>
+    <string name="register_foreigner_visa_label">ประเภทวีซ่า</string>
+    <string name="register_foreigner_expiry_label">วันหมดอายุวีซ่า</string>
+    <string name="register_foreigner_upload_passport_button">อัปโหลดหนังสือเดินทาง</string>
+    <string name="register_foreigner_upload_visa_button">อัปโหลดวีซ่า</string>
+    <string name="register_foreigner_submit_button">ส่งการลงทะเบียน</string>
+    <string name="register_foreigner_cancel_button">ยกเลิก</string>
+    <string name="android_specific_key">Android Specific Text</string>
+    <string name="another_android_key">อีกคีย์สำหรับ Android</string>
+</resources>

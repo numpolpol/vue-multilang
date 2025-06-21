@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="register_foreigner_title">TODO</string>
+    <string name="register_foreigner_subtitle">Please fill in your details below.</string>
+    <string name="register_foreigner_passport_label">Passport Number</string>
+    <string name="register_foreigner_nationality_label">Nationality</string>
+    <string name="register_foreigner_visa_label">Visa Type</string>
+    <string name="register_foreigner_expiry_label">Visa Expiry Date</string>
+    <string name="register_foreigner_upload_passport_button">Upload Passport</string>
+    <string name="register_foreigner_upload_visa_button">Upload Visa</string>
+    <string name="register_foreigner_submit_button">Submit Registration</string>
+    <string name="register_foreigner_cancel_button">Cancel</string>
+    <string name="extra_android_key">Android Specific Key</string>
+    <string name="another_android_key">Another Android Key</string>
+</resources>
