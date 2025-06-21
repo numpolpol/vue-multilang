@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="android_ok">OK</string>
+    <string name="android_cancel">Cancel</string>
+    <string name="welcome_message">Welcome</string>
+    <string name="save_btn">Save</string>
+    <string name="success_text">Success</string>
+</resources>

@@ -10,7 +10,9 @@ describe('EditorNavbar', () => {
     searchQuery: '',
     filteredCount: 10,
     totalKeys: 15,
-    languageCount: 3
+    languageCount: 3,
+    skipColumns: 0,
+    dualKeysMode: false
   }
 
   it('renders project name when provided', () => {

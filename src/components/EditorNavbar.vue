@@ -62,6 +62,19 @@
           </select>
         </div>
         
+        <!-- Multi Key Mode Toggle -->
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text text-xs font-medium">Multi Keys (Auto-merge matching values)</span>
+          </label>
+          <input 
+            type="checkbox" 
+            :checked="dualKeysMode"
+            @change="$emit('update:dualKeysMode', ($event.target as HTMLInputElement).checked)"
+            class="toggle toggle-sm toggle-accent" 
+          />
+        </div>
+        
         <!-- Search Stats -->
         <div v-if="searchQuery" class="text-xs">
           <div class="font-medium text-primary">Search Active</div>
@@ -103,6 +116,7 @@ interface Props {
   totalKeys?: number
   languageCount?: number
   skipColumns: number
+  dualKeysMode: boolean
 }
 
 defineProps<Props>()
@@ -112,6 +126,7 @@ defineEmits<{
   'update:viewMode': [value: 'all' | 'paging']
   'update:highlightMode': [value: boolean]
   'update:skipColumns': [value: number]
+  'update:dualKeysMode': [value: boolean]
   addKey: []
 }>()
 </script>

@@ -33,6 +33,7 @@
         :viewMode="viewMode"
         :highlightMode="highlightMode"
         :skipColumns="skipColumns"
+        :dualKeysMode="dualKeysMode"
         :searchQuery="searchQuery"
         :filteredCount="filteredCount"
         :totalKeys="totalKeys"
@@ -41,6 +42,7 @@
         @update:viewMode="viewMode = $event"
         @update:highlightMode="highlightMode = $event"
         @update:skipColumns="skipColumns = $event"
+        @update:dualKeysMode="dualKeysMode = $event"
         @addKey="showAddKeyModal"
       />
 
@@ -49,6 +51,7 @@
           :data="filesStore.stringsData" 
           :files="filesStore.files" 
           :skipColumns="skipColumns"
+          :dualKeysMode="dualKeysMode"
           @back="goBack" 
           @removeLanguageColumn="removeLanguageColumn"
           @addKey="showAddKeyModal"
@@ -137,6 +140,7 @@ const viewMode = ref<'all' | 'paging'>('all')
 const highlightMode = ref(false)
 const searchQuery = ref('')
 const skipColumns = ref(0)
+const dualKeysMode = ref(false)
 
 // Computed properties for search results
 const filteredCount = ref(0)
@@ -189,6 +193,12 @@ watch(skipColumns, (newValue) => {
   }
 })
 
+// Watch for dualKeysMode changes
+watch(dualKeysMode, (newValue) => {
+  filesStore.setUseDualKeys(newValue)
+  // TODO: Re-process files when dual keys mode is toggled
+})
+
 // Watch for filesStore changes to update totalKeys
 watch(
   () => filesStore.stringsData,
@@ -237,40 +247,80 @@ function addLanguageColumn() {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.strings,.xml'
+  input.multiple = true // Allow multiple file selection
   input.onchange = async (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0]
-    if (!file) return
+    const files = Array.from((e.target as HTMLInputElement).files || [])
+    if (!files.length) return
     
     try {
-      const content = await readFileContent(file)
-      const data = parseStrings(content)
-      
-      // Add to existing files
-      const newFiles = [...filesStore.files, file]
-      const newData = [...filesStore.stringsData, data]
-      
-      filesStore.setFiles(newFiles)
-      filesStore.setStringsData(newData)
-      
-      // Update project if exists
-      if (filesStore.currentProject) {
-        filesStore.updateCurrentProject()
+      if (dualKeysMode.value) {
+        // Process files with dual key support
+        await processDualKeyFiles(files)
+      } else {
+        // Process files individually (existing behavior)
+        for (const file of files) {
+          await processSingleFile(file)
+        }
       }
     } catch (error) {
-      console.error('Failed to parse file:', error)
-      alert('Failed to parse file. Please check the format.')
+      console.error('Failed to process files:', error)
+      alert('Failed to parse one or more files. Please check the format.')
     }
   }
   input.click()
 }
 
-function readFileContent(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsText(file)
-  })
+async function processDualKeyFiles(files: File[]) {
+  const { groupFilesByLanguage, processFileGroups } = await import('../utils/strings')
+  
+  // Group files by language
+  const groups = groupFilesByLanguage(files)
+  
+  // Process file groups with key merging enabled
+  const { files: processedFiles, data: processedData, mergedKeys } = await processFileGroups(groups, true)
+  
+  // Update store with processed data
+  const newFiles = [...filesStore.files, ...processedFiles]
+  const newData = [...filesStore.stringsData, ...processedData]
+  
+  filesStore.setFiles(newFiles)
+  filesStore.setStringsData(newData)
+  filesStore.setFileGroups(groups)
+  
+  // Store merged keys information for UI display
+  if (mergedKeys && mergedKeys.length > 0) {
+    console.log('Merged keys:', mergedKeys)
+    // You could add this to the store if you want to show merged keys info in the UI
+  }
+  
+  // Update project if exists
+  if (filesStore.currentProject) {
+    filesStore.updateCurrentProject()
+  }
+  
+  const mergeMessage = mergedKeys && mergedKeys.length > 0 
+    ? ` ${mergedKeys.length} keys were merged based on matching values.`
+    : ''
+  
+  alert(`Processed ${groups.length} language groups. ${groups.filter(g => g.hasBothFiles).length} have both .strings and .xml files.${mergeMessage}`)
+}
+
+async function processSingleFile(file: File) {
+  const { readFileContent } = await import('../utils/strings')
+  const content = await readFileContent(file)
+  const data = parseStrings(content)
+  
+  // Add to existing files
+  const newFiles = [...filesStore.files, file]
+  const newData = [...filesStore.stringsData, data]
+  
+  filesStore.setFiles(newFiles)
+  filesStore.setStringsData(newData)
+  
+  // Update project if exists
+  if (filesStore.currentProject) {
+    filesStore.updateCurrentProject()
+  }
 }
 
 function saveProjectToLocalStorage() {
@@ -375,18 +425,26 @@ function addNewKey() {
     return
   }
   
-  // Check for duplicate keys using the store's allKeys getter
-  if (filesStore.allKeys.includes(keyName)) {
+  // Check for duplicate keys using the new language structure
+  const allKeys = filesStore.hasLanguageFiles 
+    ? filesStore.allKeysFromLanguages 
+    : filesStore.allKeys
+    
+  if (allKeys.includes(keyName)) {
     addKeyError.value = 'Key already exists. Please choose a different name.'
     return
   }
   
-  // Use the store's addKey action
-  const success = filesStore.addKey(keyName, defaultValue)
-  
-  if (!success) {
-    addKeyError.value = 'Failed to add key. Please try again.'
-    return
+  // Add key to all languages
+  if (filesStore.hasLanguageFiles) {
+    filesStore.addKeyToAllLanguages(keyName, defaultValue)
+  } else {
+    // Fallback to legacy structure
+    const success = filesStore.addKey(keyName, defaultValue)
+    if (!success) {
+      addKeyError.value = 'Failed to add key. Please try again.'
+      return
+    }
   }
   
   closeAddKeyModal()

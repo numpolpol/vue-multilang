@@ -11,6 +11,9 @@
         <span v-if="highlightMode">
           | Highlight: ON
         </span>
+        <span v-if="props.dualKeysMode">
+          | Multi Key Mode: ON
+        </span>
       </div>
       
       <!-- Search -->
@@ -120,6 +123,11 @@
               <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
                 <div class="flex items-center gap-2">
                   <span>Key</span>
+                    <!-- Multi key mode indicator -->
+                    <div v-if="props.dualKeysMode" 
+                       class="badge badge-accent badge-xs">
+                    🔗
+                    </div>
                   <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
                 </div>
               </th>
@@ -129,34 +137,19 @@
                   <span>Paste</span>
                 </div>
               </th>
-              <!-- Draggable language columns -->
-              <th v-for="(file, index) in orderedFiles" 
-                  :key="file.name"
-                  :draggable="true"
-                  class="relative group"
-                  :style="{ width: columnWidths[file.name] || '200px', minWidth: '150px' }"
-                  @dragstart="startDrag($event, index)"
-                  @dragover.prevent
-                  @dragenter.prevent
-                  @drop="onDrop($event, index)">
-                <div class="flex items-center gap-2 justify-between">
-                  <div class="flex items-center gap-2">
-                    <span>{{ file.name }}</span>
-                    <div class="resizer" @mousedown="startResizing($event, file.name)"></div>
-                  </div>
-                  <!-- Delete button (shows on hover) -->
-                  <button 
-                    v-if="orderedFiles.length > 1"
-                    class="btn btn-xs btn-error btn-circle opacity-0 group-hover:opacity-100 transition-opacity"
-                    @click.stop="$emit('removeLanguageColumn', index)"
-                    :title="`Remove ${file.name} column`"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </th>
+              <!-- Language columns using LanguageColumnHeader -->
+              <LanguageColumnHeader
+                v-for="(language, index) in orderedLanguages" 
+                :key="language.code"
+                :language="language"
+                :column-width="columnWidths[language.code] || '200px'"
+                :draggable="true"
+                @dragstart="startDrag($event, index)"
+                @dragover.prevent
+                @dragenter.prevent
+                @drop="onDrop($event, index)"
+                @resize="onLanguageColumnResize"
+              />
             </tr>
           </thead>
           <tbody>
@@ -173,16 +166,27 @@
             </tr>
             <template v-else v-for="key in filteredKeys" :key="key">
               <tr :class="rowClass(key)">
-                <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">{{ key }}</td>
+                <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">
+                  <div v-if="isMergedKey(key)" class="space-y-1">
+                    <div class="text-sm font-medium">
+                      {{ getMergedKeyPrimary(key) }}
+                    </div>
+                    <div v-if="getMergedKeySecondary(key)" class="text-xs text-secondary">
+                      ({{ getMergedKeySecondary(key) }})
+                    </div>
+                    <div class="badge badge-accent badge-xs">multi-key</div>
+                  </div>
+                  <div v-else>{{ key }}</div>
+                </td>
                 <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
                   <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
                 </td>
-                <td v-for="(file, idx) in orderedFiles" :key="file.name">
+                <td v-for="language in orderedLanguages" :key="language.code">
                   <input 
-                    :value="getDataValue(idx, key)" 
-                    @input="setDataValue(idx, key, ($event.target as HTMLInputElement).value)"
+                    :value="language.data[key] || ''" 
+                    @input="setLanguageDataValue(language.code, key, ($event.target as HTMLInputElement).value)"
                     class="input input-bordered w-full" 
-                    :placeholder="'Empty'"
+                    :placeholder="`Enter ${language.name} text...`"
                   />
                 </td>
               </tr>
@@ -247,6 +251,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount } from 'vue'
 import { useFilesStore } from '../stores/files'
 import type { PreviewImage } from '../stores/files'
+import LanguageColumnHeader from './LanguageColumnHeader.vue'
 
 const emit = defineEmits<{
   (e: 'update:mode', value: 'all' | 'paging'): void
@@ -263,6 +268,7 @@ const props = defineProps<{
   data: Record<string, string>[]
   files: File[]
   skipColumns?: number
+  dualKeysMode?: boolean
 }>()
 
 const mode = ref<'all' | 'paging'>('all')
@@ -333,6 +339,12 @@ function closeFullscreenModal() {
 }
 
 const allKeys = computed(() => {
+  // Use language data from store instead of props.data
+  if (filesStore.hasLanguageFiles) {
+    return filesStore.allKeysFromLanguages
+  }
+  
+  // Fallback to legacy structure
   if (!props.data || props.data.length === 0) return []
   const keySet = new Set<string>()
   props.data.forEach(obj => {
@@ -451,7 +463,7 @@ async function onPaste(key: string) {
   try {
     const text = await navigator.clipboard.readText();
     let values = text.split('\t');
-    if (values.length < props.files.length) {
+    if (values.length < orderedLanguages.value.length) {
       values = text.split(/\r?\n/);
     }
     
@@ -461,9 +473,11 @@ async function onPaste(key: string) {
       values = values.slice(skipCount);
     }
     
-    for (let i = 0; i < props.files.length; i++) {
+    // Update language data instead of props.data
+    for (let i = 0; i < orderedLanguages.value.length; i++) {
       if (values[i] !== undefined) {
-        props.data[i][key] = values[i].trim();
+        const language = orderedLanguages.value[i]
+        filesStore.updateKeyValue(language.code, key, values[i].trim())
       }
     }
   } catch (e) {
@@ -547,10 +561,32 @@ let startWidth = 0
 
 // Column ordering
 const columnOrder = ref<number[]>([])
-const orderedFiles = computed(() => {
-  if (columnOrder.value.length === 0) return props.files
-  return columnOrder.value.map(index => props.files[index])
+// Column ordering for languages
+const languageOrder = ref<number[]>([])
+const orderedLanguages = computed(() => {
+  const languages = filesStore.languages
+  if (languageOrder.value.length === 0) return languages
+  return languageOrder.value.map(index => languages[index])
 })
+
+// Initialize language order
+watch(() => filesStore.languages, () => {
+  initializeLanguageColumns()
+}, { immediate: true })
+
+function initializeLanguageColumns() {
+  if (filesStore.languages && filesStore.languages.length > 0) {
+    languageOrder.value = filesStore.languages.map((_, index) => index)
+  } else {
+    languageOrder.value = []
+  }
+}
+
+function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
+  startResizing(data.event, data.language)
+}
+
+// Event handlers for LanguageColumnHeader (removed unused ones)
 
 // Initialize column order
 watch(() => props.files, () => {
@@ -643,23 +679,27 @@ function onDrop(_event: DragEvent, index: number) {
   draggedIndex = -1
 }
 
-const changedValues = ref<Set<string>>(new Set())
-
 // Safe data access functions
-function getDataValue(idx: number, key: string): string {
-  const actualIdx = columnOrder.value[idx] ?? idx
-  if (!props.data || !props.data[actualIdx]) return ''
-  return props.data[actualIdx][key] ?? ''
+function setLanguageDataValue(languageCode: string, key: string, value: string) {
+  filesStore.updateKeyValue(languageCode, key, value)
+  emit('change', { key, fileName: languageCode })
 }
 
-function setDataValue(idx: number, key: string, value: string) {
-  const actualIdx = columnOrder.value[idx] ?? idx
-  if (props.data && props.data[actualIdx]) {
-    props.data[actualIdx][key] = value
-    changedValues.value.add(key)
-    const fileName = props.files[actualIdx]?.name || ''
-    emit('change', { key, fileName })
-  }
+// Helper functions for merged keys
+function isMergedKey(key: string): boolean {
+  return key.includes(' + ')
+}
+
+function getMergedKeyPrimary(key: string): string {
+  if (!isMergedKey(key)) return key
+  return key.split(' + ')[0] || key
+}
+
+function getMergedKeySecondary(key: string): string {
+  if (!isMergedKey(key)) return ''
+  const parts = key.split(' + ')
+  // Return all keys except the first one (primary key)
+  return parts.slice(1).join(' + ') || ''
 }
 
 defineExpose({
@@ -871,5 +911,31 @@ td, th {
 .json-table-container .table {
   width: 100% !important;
   max-width: none !important;
+}
+
+/* Dual key mode badge styling */
+.badge.badge-accent.badge-xs {
+  padding: 0.125rem 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Tooltip z-index override to ensure tooltips appear on top of everything */
+.tooltip:before,
+.tooltip:after {
+  z-index: 9999 !important;
+}
+
+.tooltip {
+  z-index: 9999 !important;
+}
+
+/* Ensure tooltip content is always visible */
+.tooltip:hover:before,
+.tooltip:hover:after {
+  z-index: 10000 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 </style>

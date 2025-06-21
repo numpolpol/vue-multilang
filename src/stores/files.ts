@@ -1,4 +1,13 @@
 import { defineStore } from 'pinia'
+import type { FileGroup } from '../utils/strings'
+
+export interface LanguageColumn {
+  code: string
+  name: string
+  data: Record<string, string>
+  hasFile: boolean
+  fileType?: 'strings' | 'xml'
+}
 
 export interface StringsFile {
   file: File
@@ -23,13 +32,27 @@ export interface Project {
   createdAt: number
 }
 
+// Default language columns
+const DEFAULT_LANGUAGES: LanguageColumn[] = [
+  { code: 'th', name: 'Thai', data: {}, hasFile: false },
+  { code: 'en', name: 'English', data: {}, hasFile: false },
+  { code: 'km', name: 'Khmer', data: {}, hasFile: false },
+  { code: 'my', name: 'Myanmar', data: {}, hasFile: false }
+]
+
 export const useFilesStore = defineStore('files', {
   state: () => ({
+    // New language-column based structure
+    languages: [...DEFAULT_LANGUAGES] as LanguageColumn[],
+    
+    // Legacy structure (keep for compatibility)
     files: [] as File[],
     stringsData: [] as Record<string, string>[],
     originalData: [] as Record<string, string>[],
     currentProject: null as Project | null,
-    previewImages: {} as Record<string, PreviewImage[]>
+    previewImages: {} as Record<string, PreviewImage[]>,
+    fileGroups: [] as FileGroup[], // Track file groups for dual key support
+    useDualKeys: false // Flag to indicate if dual key merging is active
   }),
   
   getters: {
@@ -40,10 +63,93 @@ export const useFilesStore = defineStore('files', {
         Object.keys(obj).forEach(k => keySet.add(k))
       )
       return Array.from(keySet).sort()
-    }
+    },
+    
+    // New getters for language-column structure
+    allKeysFromLanguages: (state) => {
+      const keySet = new Set<string>()
+      state.languages.forEach(lang => 
+        Object.keys(lang.data).forEach(k => keySet.add(k))
+      )
+      return Array.from(keySet).sort()
+    },
+    
+    hasLanguageFiles: (state) => state.languages.some(lang => lang.hasFile)
   },
   
   actions: {
+    // New actions for language-column structure
+    async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml') {
+      const { parseStrings } = await import('../utils/strings')
+      const content = await this.readFileContent(file)
+      const data = parseStrings(content)
+      
+      const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
+      if (langIndex !== -1) {
+        // Merge new data with existing data (replace keys that exist)
+        this.languages[langIndex].data = { ...this.languages[langIndex].data, ...data }
+        this.languages[langIndex].hasFile = true
+        this.languages[langIndex].fileType = fileType
+        
+        // Update legacy structure for compatibility
+        this.syncLanguagesToFiles()
+      }
+    },
+    
+    syncLanguagesToFiles() {
+      // Sync language-column structure to legacy files structure
+      this.files = []
+      this.stringsData = []
+      
+      this.languages.forEach(lang => {
+        if (lang.hasFile) {
+          // Create a mock file for compatibility
+          const mockFile = new File([''], `${lang.code}.${lang.fileType || 'strings'}`)
+          this.files.push(mockFile)
+          this.stringsData.push({ ...lang.data })
+        }
+      })
+      
+      this.originalData = this.stringsData.map(data => ({ ...data }))
+    },
+    
+    clearLanguageData(languageCode: string) {
+      const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
+      if (langIndex !== -1) {
+        this.languages[langIndex].data = {}
+        this.languages[langIndex].hasFile = false
+        this.languages[langIndex].fileType = undefined
+        this.syncLanguagesToFiles()
+      }
+    },
+    
+    addKeyToAllLanguages(key: string, defaultValue: string = '') {
+      this.languages.forEach(lang => {
+        if (!lang.data[key]) {
+          lang.data[key] = defaultValue
+        }
+      })
+      this.syncLanguagesToFiles()
+    },
+    
+    updateKeyValue(languageCode: string, key: string, value: string) {
+      const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
+      if (langIndex !== -1) {
+        this.languages[langIndex].data[key] = value
+        this.syncLanguagesToFiles()
+      }
+    },
+    
+    // Helper function
+    async readFileContent(file: File): Promise<string> {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(file)
+      })
+    },
+
     setFiles(files: File[]) {
       this.files = files
     },
@@ -117,6 +223,15 @@ export const useFilesStore = defineStore('files', {
       URL.revokeObjectURL(url)
     },
     
+    setFileGroups(groups: FileGroup[]) {
+      this.fileGroups = groups
+      this.useDualKeys = groups.some(group => group.hasBothFiles)
+    },
+
+    setUseDualKeys(useDualKeys: boolean) {
+      this.useDualKeys = useDualKeys
+    },
+
     updateValue(fileIndex: number, key: string, value: string) {
       if (this.stringsData[fileIndex]) {
         this.stringsData[fileIndex][key] = value
