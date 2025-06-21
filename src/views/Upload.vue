@@ -143,19 +143,16 @@
                 
                 <!-- Load from Local Storage -->
                 <div class="divider">OR</div>
-                <button 
-                  class="btn btn-outline btn-secondary w-full" 
-                  @click="showSavedProjects"
-                >
-                  Load from Saved Projects
-                </button>
+                <div class="text-sm text-base-content/70 mb-2">
+                  Saved projects are shown below
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Saved Projects -->
-        <div v-if="showSaved && savedProjects.length > 0" class="mt-8">
+        <div v-if="savedProjects.length > 0" class="mt-8">
           <div class="card bg-base-100 shadow-xl">
             <div class="card-body">
               <h3 class="card-title">Saved Projects</h3>
@@ -171,7 +168,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(project, index) in savedProjects" :key="project.id">
+                    <tr v-for="(project, index) in sortedSavedProjects" :key="project.id">
                       <td class="font-medium">{{ project.name }}</td>
                       <td>{{ project.languages.length }} languages</td>
                       <td>{{ getImageCount(project) }} images</td>
@@ -201,7 +198,7 @@
         </div>
 
         <!-- No Saved Projects -->
-        <div v-else-if="showSaved && savedProjects.length === 0" class="mt-8">
+        <div v-else-if="savedProjects.length === 0" class="mt-8">
           <div class="alert alert-info">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -331,7 +328,6 @@ const isDrawerOpen = ref(false)
 // Project management
 const newProjectName = ref('')
 const savedProjects = ref<Project[]>([])
-const showSaved = ref(false)
 
 // Snippet functionality
 const snippetProjectName = ref('')
@@ -348,6 +344,11 @@ const parsedKeysCount = computed(() => {
   } catch {
     return 0
   }
+})
+
+// Computed property to sort saved projects by lastModified (newest first)
+const sortedSavedProjects = computed(() => {
+  return [...savedProjects.value].sort((a, b) => b.lastModified - a.lastModified)
 })
 
 onMounted(() => {
@@ -395,11 +396,6 @@ function createNewProject() {
   router.push('/editor')
 }
 
-function showSavedProjects() {
-  loadSavedProjects()
-  showSaved.value = true
-}
-
 function loadProject(project: Project) {
   // Use the store's loadProject method which properly syncs both structures
   filesStore.loadProject(project)
@@ -409,12 +405,17 @@ function loadProject(project: Project) {
 }
 
 function deleteProject(index: number) {
-  const project = savedProjects.value[index]
+  // Find the project by ID since we're using sorted array
+  const project = sortedSavedProjects.value[index]
   if (!project) return
   
   if (confirm(`Are you sure you want to delete project "${project.name}"?`)) {
-    savedProjects.value.splice(index, 1)
-    localStorage.setItem('savedProjects', JSON.stringify(savedProjects.value))
+    // Find the original index in the unsorted array
+    const originalIndex = savedProjects.value.findIndex(p => p.id === project.id)
+    if (originalIndex !== -1) {
+      savedProjects.value.splice(originalIndex, 1)
+      localStorage.setItem('savedProjects', JSON.stringify(savedProjects.value))
+    }
   }
 }
 
