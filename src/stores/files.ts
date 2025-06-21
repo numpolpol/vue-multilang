@@ -478,12 +478,6 @@ export const useFilesStore = defineStore('files', {
       
       // Sync language-column structure to legacy structure for compatibility
       this.syncLanguagesToFiles()
-      
-      console.log('Project loaded:', {
-        languagesWithFiles: this.languages.filter(l => l.hasFile).length,
-        stringsDataLength: this.stringsData.length,
-        filesLength: this.files.length
-      })
     },
   }
 })
