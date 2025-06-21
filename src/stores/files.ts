@@ -244,11 +244,22 @@ export const useFilesStore = defineStore('files', {
       if (this.currentProject) {
         this.currentProject.lastModified = Date.now()
         
-        // Update project languages with current data
-        this.currentProject.languages = this.files.map((file, index) => ({
-          name: file.name.replace(/\.(strings|xml)$/, ''),
-          data: this.stringsData[index] || {}
-        }))
+        // Update project languages with current data from language-column structure
+        if (this.hasLanguageFiles) {
+          // Use the new language-column structure if available
+          this.currentProject.languages = this.languages
+            .filter(lang => lang.hasFile)
+            .map(lang => ({
+              name: lang.code,
+              data: { ...lang.data }
+            }))
+        } else {
+          // Fallback to legacy structure
+          this.currentProject.languages = this.files.map((file, index) => ({
+            name: file.name.replace(/\.(strings|xml)$/, ''),
+            data: this.stringsData[index] || {}
+          }))
+        }
         
         // Update preview images
         this.currentProject.previewImages = { ...this.previewImages }
@@ -379,6 +390,20 @@ export const useFilesStore = defineStore('files', {
       this.originalData = []
       this.currentProject = null
       this.previewImages = {}
+      
+      // Reset languages to default state
+      this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
+        ...lang,
+        data: {},
+        hasFile: false,
+        fileType: undefined
+      }))
+      
+      // Reset dual key mode state
+      this.useDualKeys = false
+      this.mergedKeys = []
+      this.mergedData = []
+      this.fileGroups = []
     },
 
     // Preview Images Actions
@@ -400,6 +425,65 @@ export const useFilesStore = defineStore('files', {
           delete this.previewImages[prefix]
         }
       }
-    }
+    },
+
+    loadProject(project: Project) {
+      // Set the current project
+      this.currentProject = project
+      
+      // Clear existing data
+      this.files = []
+      this.stringsData = []
+      
+      // Reset languages to default state
+      this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
+        ...lang,
+        data: {},
+        hasFile: false,
+        fileType: undefined
+      }))
+      
+      // Load project data into language-column structure
+      project.languages.forEach((projectLang) => {        
+        // Update language-column structure
+        const langCode = projectLang.name.replace(/\.(strings|xml)$/, '')
+        const existingLangIndex = this.languages.findIndex(lang => 
+          lang.code === langCode || lang.name.toLowerCase() === langCode.toLowerCase()
+        )
+        
+        if (existingLangIndex >= 0) {
+          // Update existing language column
+          this.languages[existingLangIndex] = {
+            ...this.languages[existingLangIndex],
+            data: { ...projectLang.data },
+            hasFile: true,
+            fileType: 'strings'
+          }
+        } else {
+          // Add new language column
+          this.languages.push({
+            code: langCode,
+            name: langCode.charAt(0).toUpperCase() + langCode.slice(1),
+            data: { ...projectLang.data },
+            hasFile: true,
+            fileType: 'strings'
+          })
+        }
+      })
+      
+      // Load preview images if available
+      if (project.previewImages) {
+        this.previewImages = { ...project.previewImages }
+      }
+      
+      // Sync language-column structure to legacy structure for compatibility
+      this.syncLanguagesToFiles()
+      
+      console.log('Project loaded:', {
+        languagesWithFiles: this.languages.filter(l => l.hasFile).length,
+        stringsDataLength: this.stringsData.length,
+        filesLength: this.files.length
+      })
+    },
   }
 })

@@ -261,30 +261,8 @@ function showSavedProjects() {
 }
 
 function loadProject(project: Project) {
-  // Set project in store
-  filesStore.setCurrentProject(project)
-  
-  // Convert project data to files format for backward compatibility
-  const mockFiles: File[] = []
-  const stringsData: Record<string, string>[] = []
-  
-  project.languages.forEach((lang) => {
-    // Create mock file
-    const blob = new Blob([''], { type: 'text/plain' })
-    const file = new File([blob], `${lang.name}.strings`, { type: 'text/plain' })
-    mockFiles.push(file)
-    
-    // Add language data
-    stringsData.push(lang.data)
-  })
-  
-  filesStore.setFiles(mockFiles)
-  filesStore.setStringsData(stringsData)
-  
-  // Load preview images if available
-  if (project.previewImages) {
-    filesStore.setPreviewImages(project.previewImages)
-  }
+  // Use the store's loadProject method which properly syncs both structures
+  filesStore.loadProject(project)
   
   // Navigate to editor
   router.push('/editor')
