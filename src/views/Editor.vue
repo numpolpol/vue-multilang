@@ -43,7 +43,8 @@
         @update:highlightMode="highlightMode = $event"
         @update:skipColumns="skipColumns = $event"
         @update:dualKeysMode="dualKeysMode = $event"
-        @addKey="showAddKeyModal"
+        @saveProject="saveProjectToLocalStorage"
+        @exportProject="jsonTable?.openExportModal('all')"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">

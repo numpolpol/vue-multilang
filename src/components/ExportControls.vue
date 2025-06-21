@@ -16,7 +16,7 @@
     <!-- Back Button -->
     <div class="divider"></div>
     <button class="btn btn-ghost btn-sm btn-block" @click="$emit('goBack')">
-      Back to Upload
+      Exit
     </button>
   </div>
 </template>

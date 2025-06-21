@@ -6,20 +6,6 @@
         <!-- Theme Selector -->
         <ThemeSelector :theme="theme" @updateTheme="$emit('updateTheme', $event)" />
 
-        <!-- File Management -->
-        <div class="divider">File Management</div>
-        
-        <!-- Current Languages -->
-        <div v-if="languageCount > 0" class="bg-base-100 rounded-lg p-3 mb-3">
-          <div class="text-xs font-semibold mb-2">Current Languages ({{ languageCount }})</div>
-          <div class="space-y-1">
-            <div v-for="(language, index) in languages" :key="index" class="text-xs flex items-center gap-2">
-              <div class="w-2 h-2 bg-primary rounded-full"></div>
-              <span>{{ language }}</span>
-            </div>
-          </div>
-        </div>
-        
         <!-- Language Column Management -->
         <div class="flex gap-1">
           <button class="btn btn-sm btn-success flex-1" @click="$emit('addLanguageColumn')">
