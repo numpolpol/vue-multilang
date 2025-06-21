@@ -183,7 +183,7 @@
                 </td>
                 <td v-for="language in orderedLanguages" :key="language.code">
                   <input 
-                    :value="language.data[key] || ''" 
+                    :value="getDisplayValue(language, key)" 
                     @input="setLanguageDataValue(language.code, key, ($event.target as HTMLInputElement).value)"
                     class="input input-bordered w-full" 
                     :placeholder="`Enter ${language.name} text...`"
@@ -341,7 +341,13 @@ function closeFullscreenModal() {
 const allKeys = computed(() => {
   // Use language data from store instead of props.data
   if (filesStore.hasLanguageFiles) {
-    return filesStore.allKeysFromLanguages
+    if (props.dualKeysMode) {
+      // Use merged keys when dual key mode is enabled
+      return filesStore.allKeysFromLanguages
+    } else {
+      // Normal mode - get all unique keys
+      return filesStore.allKeysFromLanguages
+    }
   }
   
   // Fallback to legacy structure
@@ -473,11 +479,21 @@ async function onPaste(key: string) {
       values = values.slice(skipCount);
     }
     
-    // Update language data instead of props.data
+    // Update language data
     for (let i = 0; i < orderedLanguages.value.length; i++) {
       if (values[i] !== undefined) {
         const language = orderedLanguages.value[i]
-        filesStore.updateKeyValue(language.code, key, values[i].trim())
+        const value = values[i].trim()
+        
+        // ถ้าเป็น merged key ต้องอัพเดททุก key ที่ถูกรวมไว้
+        if (isMergedKey(key)) {
+          const allMergedKeys = getAllKeysFromMergedKey(key)
+          allMergedKeys.forEach((individualKey: string) => {
+            filesStore.updateKeyValue(language.code, individualKey, value)
+          })
+        } else {
+          filesStore.updateKeyValue(language.code, key, value)
+        }
       }
     }
   } catch (e) {
@@ -681,8 +697,24 @@ function onDrop(_event: DragEvent, index: number) {
 
 // Safe data access functions
 function setLanguageDataValue(languageCode: string, key: string, value: string) {
-  filesStore.updateKeyValue(languageCode, key, value)
-  emit('change', { key, fileName: languageCode })
+  // ถ้าเป็น merged key ต้องอัพเดททุก key ที่ถูกรวมไว้
+  if (isMergedKey(key)) {
+    // ดึงทุก key ที่ถูกรวมไว้
+    const allMergedKeys = getAllKeysFromMergedKey(key)
+    
+    // อัพเดททุก key
+    allMergedKeys.forEach(individualKey => {
+      filesStore.updateKeyValue(languageCode, individualKey, value)
+    })
+    
+    // ส่ง event สำหรับ primary key
+    const primaryKey = getMergedKeyPrimary(key)
+    emit('change', { key: primaryKey, fileName: languageCode })
+  } else {
+    // กรณี key ปกติ
+    filesStore.updateKeyValue(languageCode, key, value)
+    emit('change', { key, fileName: languageCode })
+  }
 }
 
 // Helper functions for merged keys
@@ -700,6 +732,21 @@ function getMergedKeySecondary(key: string): string {
   const parts = key.split(' + ')
   // Return all keys except the first one (primary key)
   return parts.slice(1).join(' + ') || ''
+}
+
+function getAllKeysFromMergedKey(key: string): string[] {
+  if (!isMergedKey(key)) return [key]
+  return key.split(' + ')
+}
+
+function getDisplayValue(language: any, key: string): string {
+  // ถ้าเป็น merged key ให้ใช้ primary key เพื่อดึงค่า
+  if (isMergedKey(key)) {
+    const primaryKey = getMergedKeyPrimary(key)
+    return language.data[primaryKey] || ''
+  }
+  // กรณี key ปกติ
+  return language.data[key] || ''
 }
 
 defineExpose({

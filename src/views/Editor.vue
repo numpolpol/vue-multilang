@@ -142,6 +142,11 @@ const searchQuery = ref('')
 const skipColumns = ref(0)
 const dualKeysMode = ref(false)
 
+// Watch dualKeysMode changes and sync with store
+watch(dualKeysMode, (newValue) => {
+  filesStore.setDualKeysMode(newValue)
+}, { immediate: true })
+
 // Computed properties for search results
 const filteredCount = ref(0)
 const totalKeys = ref(0)

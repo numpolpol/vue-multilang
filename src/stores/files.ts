@@ -52,7 +52,11 @@ export const useFilesStore = defineStore('files', {
     currentProject: null as Project | null,
     previewImages: {} as Record<string, PreviewImage[]>,
     fileGroups: [] as FileGroup[], // Track file groups for dual key support
-    useDualKeys: false // Flag to indicate if dual key merging is active
+    useDualKeys: false, // Flag to indicate if dual key merging is active
+    
+    // Multi-key mode state
+    mergedKeys: [] as string[],
+    mergedData: [] as Record<string, string>[]
   }),
   
   getters: {
@@ -67,11 +71,27 @@ export const useFilesStore = defineStore('files', {
     
     // New getters for language-column structure
     allKeysFromLanguages: (state) => {
+      const hasLanguageFiles = state.languages.some(lang => lang.hasFile)
+      
+      if (state.useDualKeys && hasLanguageFiles) {
+        // For dual key mode, we need to process in an action instead of getter
+        // because getters should be synchronous
+        return state.mergedKeys || []
+      }
+      
+      // Normal mode without merging
       const keySet = new Set<string>()
       state.languages.forEach(lang => 
         Object.keys(lang.data).forEach(k => keySet.add(k))
       )
       return Array.from(keySet).sort()
+    },
+    
+    // Get merged data for dual key mode
+    mergedLanguageData: (state) => {
+      return state.mergedData || state.languages
+        .filter(lang => lang.hasFile)
+        .map(lang => lang.data)
     },
     
     hasLanguageFiles: (state) => state.languages.some(lang => lang.hasFile)
@@ -111,6 +131,11 @@ export const useFilesStore = defineStore('files', {
       })
       
       this.originalData = this.stringsData.map(data => ({ ...data }))
+      
+      // Reprocess merged keys if dual key mode is enabled
+      if (this.useDualKeys) {
+        this.processMergedKeys()
+      }
     },
     
     clearLanguageData(languageCode: string) {
@@ -137,6 +162,57 @@ export const useFilesStore = defineStore('files', {
       if (langIndex !== -1) {
         this.languages[langIndex].data[key] = value
         this.syncLanguagesToFiles()
+      }
+    },
+    
+    // Toggle dual keys mode
+    setDualKeysMode(enabled: boolean) {
+      this.useDualKeys = enabled
+      if (enabled) {
+        this.processMergedKeys()
+      } else {
+        this.mergedKeys = []
+        this.mergedData = []
+      }
+    },
+    
+    // Process merged keys for dual key mode
+    async processMergedKeys() {
+      const hasLanguageFiles = this.languages.some(lang => lang.hasFile)
+      
+      if (!this.useDualKeys || !hasLanguageFiles) {
+        this.mergedKeys = []
+        this.mergedData = []
+        return
+      }
+      
+      try {
+        const { findMergeableKeys, applyKeyMerging } = await import('../utils/strings')
+        const languageData = this.languages
+          .filter(lang => lang.hasFile)
+          .map(lang => lang.data)
+        
+        if (languageData.length > 0) {
+          const keyMappings = findMergeableKeys(languageData)
+          const mockFiles = this.languages
+            .filter(lang => lang.hasFile)
+            .map(lang => new File([''], `${lang.code}.${lang.fileType || 'strings'}`))
+          
+          const { data: mergedData } = applyKeyMerging(mockFiles, languageData, keyMappings)
+          
+          // Update state
+          this.mergedData = mergedData
+          
+          const keySet = new Set<string>()
+          mergedData.forEach((obj: Record<string, string>) => 
+            Object.keys(obj).forEach(k => keySet.add(k))
+          )
+          this.mergedKeys = Array.from(keySet).sort()
+        }
+      } catch (error) {
+        console.error('Failed to process merged keys:', error)
+        this.mergedKeys = []
+        this.mergedData = []
       }
     },
     
