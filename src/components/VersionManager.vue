@@ -1,94 +1,91 @@
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <!-- Version Management Header -->
     <div class="flex items-center justify-between">
-      <h3 class="text-lg font-semibold">Project Versions</h3>
+      <h3 class="text-sm font-semibold">Project Versions</h3>
       <button 
         @click="showCreateVersionModal = true"
-        class="btn btn-primary btn-sm"
+        class="btn btn-primary btn-xs text-xs"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Create Version
+        Create
       </button>
     </div>
 
     <!-- Current Version Info -->
-    <div v-if="currentVersionInfo" class="alert alert-info">
-      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+    <div v-if="currentVersionInfo" class="alert alert-info py-2 px-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-      <div>
-        <div class="font-semibold">Current Version: {{ currentVersionInfo.name }}</div>
-        <div class="text-sm">{{ formatDate(currentVersionInfo.timestamp) }}</div>
+      <div class="text-xs">
+        <div class="font-semibold">Current: {{ currentVersionInfo.name }}</div>
+        <div class="text-xs opacity-70">{{ formatDate(currentVersionInfo.timestamp) }}</div>
       </div>
     </div>
 
     <!-- Versions List -->
     <div class="space-y-2">
-      <h4 class="font-medium">All Versions ({{ versions.length }})</h4>
+      <h4 class="text-xs font-medium">All Versions ({{ versions.length }})</h4>
       
-      <div v-if="versions.length === 0" class="text-center py-8 text-base-content/50">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div v-if="versions.length === 0" class="text-center py-4 text-base-content/50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-1 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
-        <p>No versions created yet</p>
-        <p class="text-xs">Create a version to save the current state</p>
+        <p class="text-xs">No versions created yet</p>
       </div>
 
-      <div v-else class="space-y-2">
+      <div v-else class="space-y-1 max-h-64 overflow-y-auto">
         <div 
           v-for="version in sortedVersions" 
           :key="version.id"
-          class="card bg-base-200 shadow-sm"
+          class="card bg-base-100 shadow-sm border border-base-300"
         >
-          <div class="card-body p-4">
+          <div class="card-body p-2">
             <div class="flex items-center justify-between">
-              <div class="flex-1">
-                <div class="flex items-center gap-2">
-                  <h5 class="font-semibold">{{ version.name }}</h5>
-                  <div v-if="version.id === currentVersionId" class="badge badge-primary badge-sm">Current</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1">
+                  <h5 class="text-xs font-semibold truncate">{{ version.name }}</h5>
+                  <div v-if="version.id === currentVersionId" class="badge badge-primary badge-xs">Current</div>
                 </div>
-                <div class="text-sm text-base-content/70">{{ formatDate(version.timestamp) }}</div>
-                <div v-if="version.description" class="text-sm mt-1">{{ version.description }}</div>
+                <div class="text-xs text-base-content/70">{{ formatDate(version.timestamp) }}</div>
+                <div v-if="version.description" class="text-xs mt-1 truncate">{{ version.description }}</div>
               </div>
               
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
                 <!-- Load Version Button -->
                 <button 
                   @click="loadVersion(version.id)"
                   :disabled="version.id === currentVersionId"
-                  class="btn btn-sm btn-outline"
+                  class="btn btn-xs btn-outline"
                   title="Load this version"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                   </svg>
-                  Load
                 </button>
                 
                 <!-- Compare Button -->
                 <button 
                   @click="selectVersionForComparison(version.id)"
-                  class="btn btn-sm btn-secondary"
+                  class="btn btn-xs btn-secondary"
                   :class="{ 'btn-active': selectedVersions.includes(version.id) }"
                   title="Select for comparison"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Compare
                 </button>
                 
                 <!-- Delete Button -->
                 <button 
                   @click="deleteVersion(version.id)"
                   :disabled="version.id === currentVersionId"
-                  class="btn btn-sm btn-error btn-outline"
+                  class="btn btn-xs btn-error btn-outline"
                   title="Delete version"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -100,41 +97,42 @@
     </div>
 
     <!-- Compare Section -->
-    <div v-if="selectedVersions.length > 0" class="card bg-base-300">
-      <div class="card-body p-4">
+    <!-- Version Comparison -->
+    <div v-if="selectedVersions.length > 0" class="card bg-base-300 mt-2">
+      <div class="card-body p-2">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="font-medium">Version Comparison</h4>
-            <div class="text-sm text-base-content/70">
-              Selected: {{ selectedVersions.length }}/2 versions
+            <h4 class="text-xs font-medium">Version Comparison</h4>
+            <div class="text-xs text-base-content/70">
+              Selected: {{ selectedVersions.length }}/2
             </div>
           </div>
           
-          <div class="flex gap-2">
+          <div class="flex gap-1">
             <button 
               @click="selectedVersions = []"
-              class="btn btn-sm btn-ghost"
+              class="btn btn-xs btn-ghost"
             >
               Clear
             </button>
             <button 
               @click="showComparison"
               :disabled="selectedVersions.length !== 2"
-              class="btn btn-sm btn-primary"
+              class="btn btn-xs btn-primary"
             >
-              Compare Versions
+              Compare
             </button>
           </div>
         </div>
         
-        <div v-if="selectedVersions.length === 2" class="mt-2 text-sm">
-          <div class="flex items-center gap-2">
-            <span class="badge badge-outline">Before:</span>
-            <span>{{ getVersionName(selectedVersions[0]) }}</span>
+        <div v-if="selectedVersions.length === 2" class="mt-1 text-xs space-y-1">
+          <div class="flex items-center gap-1">
+            <span class="badge badge-outline badge-xs">Before:</span>
+            <span class="truncate">{{ getVersionName(selectedVersions[0]) }}</span>
           </div>
-          <div class="flex items-center gap-2 mt-1">
-            <span class="badge badge-outline">After:</span>
-            <span>{{ getVersionName(selectedVersions[1]) }}</span>
+          <div class="flex items-center gap-1">
+            <span class="badge badge-outline badge-xs">After:</span>
+            <span class="truncate">{{ getVersionName(selectedVersions[1]) }}</span>
           </div>
         </div>
       </div>
