@@ -2,6 +2,9 @@
   <div class="space-y-4">
     <div class="divider">Export Options</div>
     <div class="flex flex-col gap-2">
+      <button class="btn btn-primary btn-sm btn-block" @click="$emit('exportAll')">
+        Export All
+      </button>
       <button class="btn btn-accent btn-sm btn-block" @click="$emit('exportChanged')">
         Export Changed
       </button>
@@ -20,6 +23,7 @@
 
 <script lang="ts" setup>
 defineEmits<{
+  exportAll: []
   exportChanged: []
   exportOriginal: []
   goBack: []

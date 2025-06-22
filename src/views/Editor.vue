@@ -19,8 +19,6 @@
       @exportChanged="jsonTable?.openExportModal('changed')"
       @exportOriginal="jsonTable?.openExportModal('original')"
       @goBack="goBack"
-      @addLanguageColumn="addLanguageColumn"
-      @removeLanguageColumn="showRemoveLanguageDialog"
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
     />
@@ -54,7 +52,6 @@
           :skipColumns="skipColumns"
           :dualKeysMode="dualKeysMode"
           @back="goBack" 
-          @removeLanguageColumn="removeLanguageColumn"
           @addKey="showAddKeyModal"
           ref="jsonTable" 
         />
@@ -185,7 +182,6 @@ common_ok, common_cancel, common_confirm"
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '../stores/files'
-import { parseStrings } from '../utils/strings'
 import JsonTable from '../components/JsonTable.vue'
 import EditorSidebar from '../components/EditorSidebar.vue'
 import EditorNavbar from '../components/EditorNavbar.vue'
@@ -334,87 +330,6 @@ function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
 }
 
-function addLanguageColumn() {
-  // Show file input dialog
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.strings,.xml'
-  input.multiple = true // Allow multiple file selection
-  input.onchange = async (e) => {
-    const files = Array.from((e.target as HTMLInputElement).files || [])
-    if (!files.length) return
-    
-    try {
-      if (dualKeysMode.value) {
-        // Process files with dual key support
-        await processDualKeyFiles(files)
-      } else {
-        // Process files individually (existing behavior)
-        for (const file of files) {
-          await processSingleFile(file)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to process files:', error)
-      alert('Failed to parse one or more files. Please check the format.')
-    }
-  }
-  input.click()
-}
-
-async function processDualKeyFiles(files: File[]) {
-  const { groupFilesByLanguage, processFileGroups } = await import('../utils/strings')
-  
-  // Group files by language
-  const groups = groupFilesByLanguage(files)
-  
-  // Process file groups with key merging enabled
-  const { files: processedFiles, data: processedData, mergedKeys } = await processFileGroups(groups, true)
-  
-  // Update store with processed data
-  const newFiles = [...filesStore.files, ...processedFiles]
-  const newData = [...filesStore.stringsData, ...processedData]
-  
-  filesStore.setFiles(newFiles)
-  filesStore.setStringsData(newData)
-  filesStore.setFileGroups(groups)
-  
-  // Store merged keys information for UI display
-  if (mergedKeys && mergedKeys.length > 0) {
-    console.log('Merged keys:', mergedKeys)
-    // You could add this to the store if you want to show merged keys info in the UI
-  }
-  
-  // Update project if exists
-  if (filesStore.currentProject) {
-    filesStore.updateCurrentProject()
-  }
-  
-  const mergeMessage = mergedKeys && mergedKeys.length > 0 
-    ? ` ${mergedKeys.length} keys were merged based on matching values.`
-    : ''
-  
-  alert(`Processed ${groups.length} language groups. ${groups.filter(g => g.hasBothFiles).length} have both .strings and .xml files.${mergeMessage}`)
-}
-
-async function processSingleFile(file: File) {
-  const { readFileContent } = await import('../utils/strings')
-  const content = await readFileContent(file)
-  const data = parseStrings(content)
-  
-  // Add to existing files
-  const newFiles = [...filesStore.files, file]
-  const newData = [...filesStore.stringsData, data]
-  
-  filesStore.setFiles(newFiles)
-  filesStore.setStringsData(newData)
-  
-  // Update project if exists
-  if (filesStore.currentProject) {
-    filesStore.updateCurrentProject()
-  }
-}
-
 function saveProjectToLocalStorage() {
   if (filesStore.saveProjectToLocalStorage()) {
     const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
@@ -436,57 +351,6 @@ function saveProjectToFile() {
     setTimeout(() => {
       alert(`Project downloaded with ${imageCount} preview images included!`)
     }, 100)
-  }
-}
-
-function removeLanguageColumn(index: number) {
-  if (filesStore.files.length <= 1) {
-    alert('Cannot remove the last language column!')
-    return
-  }
-  
-  const fileName = filesStore.files[index]?.name || 'this language'
-  
-  if (confirm(`Are you sure you want to remove "${fileName}" column? This action cannot be undone.`)) {
-    // Create new arrays without the removed index
-    const newFiles = filesStore.files.filter((_, i) => i !== index)
-    const newData = filesStore.stringsData.filter((_, i) => i !== index)
-    
-    // Update store
-    filesStore.setFiles(newFiles)
-    filesStore.setStringsData(newData)
-    
-    // Update project if exists
-    if (filesStore.currentProject) {
-      filesStore.updateCurrentProject()
-    }
-    
-    alert(`"${fileName}" column has been removed successfully!`)
-  }
-}
-
-function showRemoveLanguageDialog() {
-  if (filesStore.files.length <= 1) {
-    alert('Cannot remove the last language column!')
-    return
-  }
-  
-  // Show selection dialog for which language to remove
-  const options = filesStore.files.map((file, index) => 
-    `${index + 1}. ${file.name.replace(/\.(strings|xml)$/, '')}`
-  ).join('\n')
-  
-  const selection = prompt(
-    `Which language would you like to remove?\n\nEnter the number (1-${filesStore.files.length}):\n\n${options}`
-  )
-  
-  if (selection) {
-    const index = parseInt(selection.trim()) - 1
-    if (index >= 0 && index < filesStore.files.length) {
-      removeLanguageColumn(index)
-    } else {
-      alert('Invalid selection! Please enter a valid number.')
-    }
   }
 }
 
