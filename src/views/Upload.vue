@@ -486,9 +486,9 @@ function createNewProject() {
       code: 'th',
       name: 'Thai',
       data: {
-        'common_welcome': '',
-        'common_ok': '',
-        'common_cancel': ''
+        'common_welcome': 'ยินดีต้อนรับ',
+        'common_ok': 'ตกลง',
+        'common_cancel': 'ยกเลิก'
       },
       hasFile: true,
       fileType: 'strings'
@@ -497,9 +497,9 @@ function createNewProject() {
       code: 'en',
       name: 'English', 
       data: {
-        'common_welcome': '',
-        'common_ok': '',
-        'common_cancel': ''
+        'common_welcome': 'Welcome',
+        'common_ok': 'OK',
+        'common_cancel': 'Cancel'
       },
       hasFile: true,
       fileType: 'strings'
@@ -508,9 +508,9 @@ function createNewProject() {
       code: 'km',
       name: 'Khmer',
       data: {
-        'common_welcome': '',
-        'common_ok': '',
-        'common_cancel': ''
+        'common_welcome': 'សូមស្វាគមន៍',
+        'common_ok': 'យល់ព្រម',
+        'common_cancel': 'បោះបង់'
       },
       hasFile: true,
       fileType: 'strings'
@@ -519,9 +519,9 @@ function createNewProject() {
       code: 'my',
       name: 'Myanmar',
       data: {
-        'common_welcome': '',
-        'common_ok': '',
-        'common_cancel': ''
+        'common_welcome': 'ကြိုဆိုပါတယ်',
+        'common_ok': 'OK',
+        'common_cancel': 'ပယ်ဖျက်'
       },
       hasFile: true,
       fileType: 'strings'
