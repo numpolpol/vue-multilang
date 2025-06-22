@@ -440,6 +440,14 @@ const imageContainerRef = ref<HTMLElement | null>(null)
 // Get store instance
 const filesStore = useFilesStore()
 
+// Helper function to extract page prefix from key (allows dashes in prefix)
+function getPagePrefix(key: string): string {
+  // Find the first underscore and take everything before it as the prefix
+  const underscoreIndex = key.indexOf('_')
+  if (underscoreIndex === -1) return key // If no underscore, the whole key is the prefix
+  return key.substring(0, underscoreIndex)
+}
+
 // Use preview images from store
 const previewImages = computed(() => filesStore.previewImages)
 
@@ -519,7 +527,7 @@ function closeFullscreenModal() {
 // Get current page keys for annotation
 const currentPageKeys = computed(() => {
   if (!selectedImagePrefix.value) return []
-  return visibleKeys.value.filter(key => key.startsWith(selectedImagePrefix.value + '_'))
+  return visibleKeys.value.filter(key => getPagePrefix(key) === selectedImagePrefix.value)
 })
 
 // Drag and drop functionality for key annotations
@@ -621,7 +629,7 @@ const allKeys = computed(() => {
 const pagePrefixes = computed(() => {
   const prefixes = new Set<string>()
   allKeys.value.forEach(key => {
-    const prefix = key.split('_')[0]
+    const prefix = getPagePrefix(key)
     if (prefix) prefixes.add(prefix)
   })
   return Array.from(prefixes)
@@ -630,7 +638,7 @@ const pagePrefixes = computed(() => {
 const visibleKeys = computed(() => {
   if (mode.value === 'all') return allKeys.value
   if (!selectedPage.value) return []
-  return allKeys.value.filter(key => key.startsWith(selectedPage.value + '_'))
+  return allKeys.value.filter(key => getPagePrefix(key) === selectedPage.value)
 })
 
 const filteredKeys = computed(() => {
