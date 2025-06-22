@@ -5,6 +5,10 @@
       <!-- Mode Indicator -->
       <div class="py-1 text-xs text-base-content/70">
         Mode: {{ mode === 'all' ? 'All Keys View' : 'Page Sections View' }}
+        | {{ filteredKeys.length }} rows
+        <span v-if="search.trim()">
+          (filtered from {{ visibleKeys.length }})
+        </span>
         <span v-if="mode === 'paging' && selectedPage">
           | Current: {{ selectedPage }}
         </span>
@@ -153,6 +157,7 @@
                 :language="language"
                 :column-width="columnWidths[language.code] || '200px'"
                 @resize="onLanguageColumnResize"
+                @export="onLanguageColumnExport"
               />
               <!-- Delete column -->
               <th class="w-16 min-w-16">
@@ -605,6 +610,71 @@ function toAndroidStringsFile(data: Record<string, string>): string {
   return `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n${xmlContent}\n</resources>`
 }
 
+function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' = 'ios') {
+  // Find the language data
+  const language = orderedLanguages.value.find(lang => lang.code === languageCode)
+  if (!language) {
+    alert(`Language ${languageCode} not found`)
+    return
+  }
+
+  // Get the filtered keys data for this language
+  const columnData: Record<string, string> = {}
+  filteredKeys.value.forEach(key => {
+    if (isMergedKey(key)) {
+      const primaryKey = getMergedKeyPrimary(key)
+      columnData[primaryKey] = language.data[primaryKey] || ''
+    } else {
+      columnData[key] = language.data[key] || ''
+    }
+  })
+
+  if (Object.keys(columnData).length === 0) {
+    alert('No data to export for this column')
+    return
+  }
+
+  // Create filename with current filter info
+  let filename = `${languageCode}`
+  if (search.value.trim()) {
+    filename += `_filtered`
+  }
+  if (mode.value === 'paging' && selectedPage.value) {
+    filename += `_${selectedPage.value}`
+  }
+
+  // Generate content based on format
+  let content: string
+  let mimeType: string
+
+  if (format === 'ios') {
+    content = toStringsFile(columnData)
+    filename += '.strings'
+    mimeType = 'text/plain;charset=utf-8'
+  } else if (format === 'android') {
+    content = toAndroidStringsFile(columnData)
+    filename += '.xml'
+    mimeType = 'application/xml;charset=utf-8'
+  } else {
+    alert('Unsupported export format')
+    return
+  }
+
+  // Download the file
+  const blob = new Blob([content], { type: mimeType })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  link.style.visibility = 'hidden'
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  
+  URL.revokeObjectURL(url)
+}
+
 // Column resizing
 const columnWidths = ref<Record<string, string>>({})
 let isResizing = false
@@ -637,6 +707,10 @@ function initializeLanguageColumns() {
 
 function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
   startResizing(data.event, data.language)
+}
+
+function onLanguageColumnExport(data: { language: string, format: 'ios' | 'android' }) {
+  exportLanguageColumn(data.language, data.format)
 }
 
 // Event handlers for LanguageColumnHeader (removed unused ones)

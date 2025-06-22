@@ -20,14 +20,30 @@
           <label class="label pb-1">
             <span class="label-text text-xs font-medium">View Mode</span>
           </label>
-          <select 
-            :value="viewMode" 
-            @change="$emit('update:viewMode', ($event.target as HTMLSelectElement).value as 'all' | 'paging')"
-            class="select select-bordered select-sm w-32"
-          >
-            <option value="all">All Keys</option>
-            <option value="paging">Sections</option>
-          </select>
+          <div class="bg-base-200 rounded-lg p-2 flex gap-2">
+            <label class="cursor-pointer flex items-center gap-2">
+              <input 
+                type="radio" 
+                name="viewMode" 
+                value="all" 
+                :checked="viewMode === 'all'"
+                @change="$emit('update:viewMode', 'all')"
+                class="radio radio-sm radio-primary" 
+              />
+              <span class="text-sm">All Keys</span>
+            </label>
+            <label class="cursor-pointer flex items-center gap-2">
+              <input 
+                type="radio" 
+                name="viewMode" 
+                value="paging" 
+                :checked="viewMode === 'paging'"
+                @change="$emit('update:viewMode', 'paging')"
+                class="radio radio-sm radio-primary" 
+              />
+              <span class="text-sm">Sections</span>
+            </label>
+          </div>
         </div>
         
         <!-- Highlight Mode Toggle -->

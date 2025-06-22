@@ -12,6 +12,13 @@
       <div class="flex items-center gap-1">
         <button 
           class="btn btn-xs btn-outline"
+          @click="exportColumn"
+          :title="`Export ${language.name} column`"
+        >
+          💾
+        </button>
+        <button 
+          class="btn btn-xs btn-outline"
           @click="openUploadModal"
           :title="`Upload file for ${language.name}`"
         >
@@ -150,10 +157,38 @@
         <button @click="closeUploadModal">close</button>
       </form>
     </dialog>
+
+    <!-- Export Format Selection Modal -->
+    <dialog :id="`export_modal_${language.code}`" class="modal">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Export {{ language.name }} Column</h3>
+        <p class="text-sm text-base-content/70 mb-4">Choose the export format for this column's data.</p>
+        
+        <!-- Platform Selection -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text">Export Format</span>
+          </label>
+          <select v-model="exportFormat" class="select select-bordered w-full">
+            <option value="ios">iOS (.strings)</option>
+            <option value="android">Android (strings.xml)</option>
+          </select>
+        </div>
+        
+        <div class="modal-action">
+          <button class="btn" @click="closeExportModal">Cancel</button>
+          <button class="btn btn-primary" @click="confirmExport">Export</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeExportModal">close</button>
+      </form>
+    </dialog>
   </th>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useFilesStore } from '../stores/files'
 import type { LanguageColumn } from '../stores/files'
 
@@ -164,11 +199,15 @@ interface Props {
 
 interface Emits {
   (e: 'resize', data: { language: string, event: MouseEvent }): void
+  (e: 'export', data: { language: string, format: 'ios' | 'android' }): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const filesStore = useFilesStore()
+
+// Export format selection
+const exportFormat = ref<'ios' | 'android'>('ios')
 
 async function onFileSelected(event: Event, fileType: 'strings' | 'xml') {
   const input = event.target as HTMLInputElement
@@ -210,6 +249,25 @@ function clearLanguage() {
 
 function startResizing(event: MouseEvent) {
   emit('resize', { language: props.language.code, event })
+}
+
+function exportColumn() {
+  openExportModal()
+}
+
+function openExportModal() {
+  const modal = document.getElementById(`export_modal_${props.language.code}`) as HTMLDialogElement
+  modal.showModal()
+}
+
+function closeExportModal() {
+  const modal = document.getElementById(`export_modal_${props.language.code}`) as HTMLDialogElement
+  modal.close()
+}
+
+function confirmExport() {
+  emit('export', { language: props.language.code, format: exportFormat.value })
+  closeExportModal()
 }
 </script>
 
