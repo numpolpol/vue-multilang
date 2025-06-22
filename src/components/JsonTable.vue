@@ -59,12 +59,33 @@
     <!-- Table wrapper with horizontal scroll -->
     <div class="flex-1 overflow-auto w-full px-4" :class="mode === 'paging' ? 'flex gap-4' : ''">
       <!-- Preview Images Panel (only in paging mode) - Moved to left side -->
-      <div v-if="mode === 'paging'" class="w-80 flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto flex flex-col h-full">
+      <div v-if="mode === 'paging'" :class="[
+        'flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto flex flex-col h-full transition-all duration-300',
+        isPreviewPanelMinimized ? 'w-12' : 'w-80'
+      ]">
         <div class="space-y-4 flex flex-col h-full">
-          <h3 class="font-semibold text-lg">Preview Images</h3>
-          <div class="text-xs text-base-content/70">
-            {{ Object.keys(previewImages).length }} sections with images
+          <!-- Header with minimize button -->
+          <div class="flex items-center justify-between">
+            <h3 v-if="!isPreviewPanelMinimized" class="font-semibold text-lg">Preview Images</h3>
+            <button 
+              @click="isPreviewPanelMinimized = !isPreviewPanelMinimized"
+              class="btn btn-xs btn-ghost"
+              :title="isPreviewPanelMinimized ? 'Expand Preview Panel' : 'Minimize Preview Panel'"
+            >
+              <svg v-if="isPreviewPanelMinimized" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
           </div>
+          
+          <!-- Content (hidden when minimized) -->
+          <div v-if="!isPreviewPanelMinimized" class="space-y-4 flex flex-col h-full">
+            <div class="text-xs text-base-content/70">
+              {{ Object.keys(previewImages).length }} sections with images
+            </div>
           
           <!-- Image Upload Area -->
           <div class="space-y-2 flex-shrink-0">
@@ -123,6 +144,7 @@
             </svg>
             <p class="text-sm">No preview images</p>
             <p class="text-xs">Upload images to visualize this section</p>
+          </div>
           </div>
         </div>
       </div>
@@ -305,6 +327,7 @@ const search = ref('')
 const skipColumns = ref(props.skipColumns || 0)
 
 const loading = ref(false)
+const isPreviewPanelMinimized = ref(false)
 
 // Get store instance
 const filesStore = useFilesStore()
