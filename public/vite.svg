@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32px" height="32px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Vue Multilang</title>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M16,0 L32,0 L16,28 L0,0 L16,0 Z" fill="#41B883"></path>
+        <path d="M16,0 L26,0 L16,17 L6,0 L16,0 Z" fill="#35495E"></path>
+    </g>
+</svg>
