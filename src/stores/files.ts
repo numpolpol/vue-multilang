@@ -185,6 +185,32 @@ export const useFilesStore = defineStore('files', {
       console.log('Deleted key from all languages:', key)
     },
     
+    // Rename/edit a key across all languages
+    renameKey(oldKey: string, newKey: string): boolean {
+      // Validate new key
+      if (!newKey || newKey.trim() === '' || newKey === oldKey) {
+        return false
+      }
+      
+      // Check if new key already exists
+      const allKeys = this.allKeysFromLanguages
+      if (allKeys.includes(newKey)) {
+        return false
+      }
+      
+      // Rename the key in all languages
+      this.languages.forEach(language => {
+        if (language.data && language.data[oldKey] !== undefined) {
+          language.data[newKey] = language.data[oldKey]
+          delete language.data[oldKey]
+        }
+      })
+      
+      this.syncLanguagesToFiles()
+      console.log('Renamed key:', oldKey, '->', newKey)
+      return true
+    },
+    
     addLanguage(language: LanguageColumn) {
       this.languages.push(language)
       this.syncLanguagesToFiles()

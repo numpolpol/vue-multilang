@@ -213,7 +213,44 @@
                     </div>
                     <div class="badge badge-accent badge-xs">multi-key</div>
                   </div>
-                  <div v-else>{{ key }}</div>
+                  <div v-else-if="editingKey === key" class="space-y-1">
+                    <input
+                      v-model="editKeyValue"
+                      @keydown="onEditKeyKeydown"
+                      @blur="saveEditKey"
+                      class="input input-bordered input-xs w-full"
+                      :class="{ 'input-error': editKeyError }"
+                      placeholder="Enter key name..."
+                      ref="editKeyInput"
+                    />
+                    <div v-if="editKeyError" class="text-xs text-error">{{ editKeyError }}</div>
+                    <div class="flex gap-1">
+                      <button @click="saveEditKey" class="btn btn-xs btn-success" title="Save">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                      <button @click="cancelEditKey" class="btn btn-xs btn-ghost" title="Cancel">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="flex items-center group">
+                    <span class="flex-1 cursor-pointer" @click="startEditKey(key)" :title="'Click to edit key: ' + key">
+                      {{ key }}
+                    </span>
+                    <button 
+                      @click="startEditKey(key)" 
+                      class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                      title="Edit key"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
                 <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
                   <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
@@ -396,7 +433,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import type { PreviewImage, KeyAnnotation } from '../stores/files'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
@@ -436,6 +473,12 @@ const keyAnnotations = ref<KeyAnnotation[]>([])
 const isDragging = ref(false)
 const draggedKeyIndex = ref<number>(-1)
 const imageContainerRef = ref<HTMLElement | null>(null)
+
+// Key editing state
+const editingKey = ref<string | null>(null)
+const editKeyValue = ref<string>('')
+const editKeyError = ref<string>('')
+const editKeyInput = ref<HTMLInputElement | null>(null)
 
 // Get store instance
 const filesStore = useFilesStore()
@@ -785,11 +828,11 @@ function onDeleteKey(key: string) {
 const exportPlatform = ref<'ios' | 'android'>('ios')
 const exportMode = ref<'all' | 'changed' | 'original'>('all')
 
-function openExportModal(mode: 'all' | 'changed' | 'original') {
-  exportMode.value = mode
-  const modal = document.getElementById('export_modal') as HTMLDialogElement
-  modal.showModal()
-}
+// function openExportModal(mode: 'all' | 'changed' | 'original') {
+//   exportMode.value = mode
+//   const modal = document.getElementById('export_modal') as HTMLDialogElement
+//   modal.showModal()
+// }
 
 function closeExportModal() {
   const modal = document.getElementById('export_modal') as HTMLDialogElement
@@ -1076,19 +1119,73 @@ function getDisplayValue(language: any, key: string): string {
   return language.data[key] || ''
 }
 
+// Key editing functions
+function startEditKey(key: string) {
+  editingKey.value = key
+  editKeyValue.value = key
+  editKeyError.value = ''
+  // Focus the input in the next tick
+  nextTick(() => {
+    if (editKeyInput.value) {
+      editKeyInput.value.focus()
+      editKeyInput.value.select()
+    }
+  })
+}
+
+function cancelEditKey() {
+  editingKey.value = null
+  editKeyValue.value = ''
+  editKeyError.value = ''
+}
+
+function saveEditKey() {
+  if (!editingKey.value || !editKeyValue.value.trim()) {
+    editKeyError.value = 'Key cannot be empty'
+    return
+  }
+  
+  const oldKey = editingKey.value
+  const newKey = editKeyValue.value.trim()
+  
+  if (oldKey === newKey) {
+    cancelEditKey()
+    return
+  }
+  
+  // Check if key already exists
+  const allKeys = filesStore.allKeysFromLanguages
+  if (allKeys.includes(newKey)) {
+    editKeyError.value = 'Key already exists'
+    return
+  }
+  
+  // Attempt to rename the key
+  const success = filesStore.renameKey(oldKey, newKey)
+  if (success) {
+    cancelEditKey()
+    emit('change', { key: newKey, fileName: 'key-renamed' })
+  } else {
+    editKeyError.value = 'Failed to rename key'
+  }
+}
+
+function onEditKeyKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    saveEditKey()
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    cancelEditKey()
+  }
+}
+
 defineExpose({
   mode,
   highlightMode,
   search,
-  skipColumns,
-  resetColumnWidths,
-  openExportModal
+  skipColumns
 })
-
-function resetColumnWidths() {
-  columnWidths.value = {}
-  localStorage.removeItem('columnWidths')
-}
 </script>
 
 <style scoped>
