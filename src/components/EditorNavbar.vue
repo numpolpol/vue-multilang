@@ -20,14 +20,30 @@
           <label class="label pb-1">
             <span class="label-text text-xs font-medium">View Mode</span>
           </label>
-          <select 
-            :value="viewMode" 
-            @change="$emit('update:viewMode', ($event.target as HTMLSelectElement).value as 'all' | 'paging')"
-            class="select select-bordered select-sm w-32"
-          >
-            <option value="all">All Keys</option>
-            <option value="paging">Sections</option>
-          </select>
+          <div class="bg-base-200 rounded-lg p-2 flex gap-2">
+            <label class="cursor-pointer flex items-center gap-2">
+              <input 
+                type="radio" 
+                name="viewMode" 
+                value="all" 
+                :checked="viewMode === 'all'"
+                @change="$emit('update:viewMode', 'all')"
+                class="radio radio-sm radio-primary" 
+              />
+              <span class="text-sm">All Keys</span>
+            </label>
+            <label class="cursor-pointer flex items-center gap-2">
+              <input 
+                type="radio" 
+                name="viewMode" 
+                value="paging" 
+                :checked="viewMode === 'paging'"
+                @change="$emit('update:viewMode', 'paging')"
+                class="radio radio-sm radio-primary" 
+              />
+              <span class="text-sm">Sections</span>
+            </label>
+          </div>
         </div>
         
         <!-- Highlight Mode Toggle -->
@@ -83,12 +99,20 @@
       </div>
     </div>
     <div class="navbar-end">
-      <!-- Add Key Button -->
-      <button class="btn btn-primary btn-sm mr-4" @click="$emit('addKey')" title="Add New Key">
+      <!-- Save Button -->
+      <button class="btn btn-success btn-sm mr-2" @click="$emit('saveProject')" title="Save Project">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
         </svg>
-        Add Key
+        Save
+      </button>
+
+      <!-- Export Button -->
+      <button class="btn btn-accent btn-sm mr-4" @click="$emit('exportProject')" title="Export Project">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Export
       </button>
       
       <!-- Project Stats -->
@@ -127,6 +151,7 @@ defineEmits<{
   'update:highlightMode': [value: boolean]
   'update:skipColumns': [value: number]
   'update:dualKeysMode': [value: boolean]
-  addKey: []
+  saveProject: []
+  exportProject: []
 }>()
 </script>

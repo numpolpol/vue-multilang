@@ -1,0 +1,40 @@
+// Sample keys demonstrating dash support for page sections
+
+// Original format (still supported)
+"home_title" = "Welcome Home";
+"home_subtitle" = "Your dashboard overview";
+"settings_button" = "Settings";
+"settings_privacy" = "Privacy";
+
+// New format with dashes in page sections
+"home-screen_title" = "Home Screen Title";
+"home-screen_subtitle" = "Home Screen Subtitle";
+"home-screen_welcome" = "Welcome to the app";
+
+"user-profile_name" = "Full Name";
+"user-profile_email" = "Email Address";
+"user-profile_avatar" = "Profile Picture";
+
+"login-form_username" = "Username";
+"login-form_password" = "Password";
+"login-form_submit" = "Sign In";
+
+"shopping-cart_total" = "Total Amount";
+"shopping-cart_items" = "Items";
+"shopping-cart_checkout" = "Checkout";
+
+"navigation-bar_home" = "Home";
+"navigation-bar_profile" = "Profile";
+"navigation-bar_settings" = "Settings";
+
+// Complex multi-dash sections
+"user-account-settings_privacy" = "Privacy Settings";
+"user-account-settings_notifications" = "Notification Settings";
+
+"main-dashboard-widgets_weather" = "Weather Widget";
+"main-dashboard-widgets_calendar" = "Calendar Widget";
+
+// Keys without underscores (each becomes its own section)
+"welcome" = "Welcome";
+"dashboard" = "Dashboard";
+"about" = "About";

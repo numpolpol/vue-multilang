@@ -14,10 +14,28 @@ export interface StringsFile {
   data: Record<string, string>
 }
 
+export interface KeyAnnotation {
+  keyName: string
+  x: number // X position as percentage (0-100)
+  y: number // Y Position as percentage (0-100)
+  number: number // Display number (1, 2, 3, etc.)
+}
+
 export interface PreviewImage {
   name: string
   url: string
   data: string // base64 data for serialization
+  keyAnnotations?: KeyAnnotation[] // Key positions on the image
+}
+
+export interface ProjectVersion {
+  id: string
+  name: string
+  description?: string
+  timestamp: number
+  languages: LanguageColumn[]
+  previewImages?: Record<string, PreviewImage[]>
+  createdBy?: string
 }
 
 export interface Project {
@@ -26,10 +44,12 @@ export interface Project {
   languages: Array<{
     name: string
     data: Record<string, string>
-  }>
+  }> | LanguageColumn[] // Support both legacy and new structure
   previewImages?: Record<string, PreviewImage[]>
   lastModified: number
   createdAt: number
+  versions?: ProjectVersion[] // Array of project versions
+  currentVersion?: string // ID of current version
 }
 
 // Default language columns
@@ -39,6 +59,26 @@ const DEFAULT_LANGUAGES: LanguageColumn[] = [
   { code: 'km', name: 'Khmer', data: {}, hasFile: false },
   { code: 'my', name: 'Myanmar', data: {}, hasFile: false }
 ]
+
+export interface DiffEntry {
+  key: string
+  type: 'added' | 'removed' | 'modified' | 'unchanged'
+  languageCode: string
+  beforeValue?: string
+  afterValue?: string
+}
+
+export interface VersionDiff {
+  beforeVersion: ProjectVersion
+  afterVersion: ProjectVersion
+  changes: DiffEntry[]
+  summary: {
+    added: number
+    removed: number
+    modified: number
+    unchanged: number
+  }
+}
 
 export const useFilesStore = defineStore('files', {
   state: () => ({
@@ -149,12 +189,97 @@ export const useFilesStore = defineStore('files', {
     },
     
     addKeyToAllLanguages(key: string, defaultValue: string = '') {
+      // Ensure we have at least one language
+      if (this.languages.length === 0) {
+        console.warn('No languages available to add key to')
+        return
+      }
+      
       this.languages.forEach(lang => {
         if (!lang.data[key]) {
           lang.data[key] = defaultValue
         }
       })
       this.syncLanguagesToFiles()
+      
+      console.log('Added key to all languages:', key, 'Languages count:', this.languages.length)
+    },
+    
+    deleteKeyFromAllLanguages(key: string) {
+      // Remove the key from all languages
+      this.languages.forEach(lang => {
+        if (lang.data[key] !== undefined) {
+          delete lang.data[key]
+        }
+      })
+      this.syncLanguagesToFiles()
+      
+      console.log('Deleted key from all languages:', key)
+    },
+    
+    // Rename/edit a key across all languages
+    renameKey(oldKey: string, newKey: string): boolean {
+      // Validate new key
+      if (!newKey || newKey.trim() === '' || newKey === oldKey) {
+        return false
+      }
+      
+      // Check if new key already exists
+      const allKeys = this.allKeysFromLanguages
+      if (allKeys.includes(newKey)) {
+        return false
+      }
+      
+      // Rename the key in all languages
+      this.languages.forEach(language => {
+        if (language.data && language.data[oldKey] !== undefined) {
+          language.data[newKey] = language.data[oldKey]
+          delete language.data[oldKey]
+        }
+      })
+      
+      this.syncLanguagesToFiles()
+      console.log('Renamed key:', oldKey, '->', newKey)
+      return true
+    },
+    
+    addLanguage(language: LanguageColumn) {
+      this.languages.push(language)
+      this.syncLanguagesToFiles()
+    },
+    
+    addFile(file: File, data: Record<string, string>) {
+      this.files.push(file)
+      this.stringsData.push(data)
+      this.originalData.push({ ...data })
+    },
+    
+    createDefaultLanguage() {
+      if (this.languages.length === 0) {
+        // Create default English language with a mock file
+        const defaultContent = '// Default English strings file created automatically\n'
+        const mockFile = new File([defaultContent], 'en.strings', { type: 'text/plain' })
+        
+        // Add to new language structure
+        this.addLanguage({
+          code: 'en',
+          name: 'English',
+          data: {},
+          hasFile: true,
+          fileType: 'strings'
+        })
+        
+        // Add to legacy files structure for compatibility
+        this.addFile(mockFile, {})
+        
+        // Update current project if it exists
+        if (this.currentProject) {
+          this.currentProject.languages = [...this.languages]
+          this.updateCurrentProject()
+        }
+        
+        console.log('Created default English language with strings file')
+      }
     },
     
     updateKeyValue(languageCode: string, key: string, value: string) {
@@ -244,11 +369,22 @@ export const useFilesStore = defineStore('files', {
       if (this.currentProject) {
         this.currentProject.lastModified = Date.now()
         
-        // Update project languages with current data
-        this.currentProject.languages = this.files.map((file, index) => ({
-          name: file.name.replace(/\.(strings|xml)$/, ''),
-          data: this.stringsData[index] || {}
-        }))
+        // Update project languages with current data from language-column structure
+        if (this.hasLanguageFiles) {
+          // Use the new language-column structure if available
+          this.currentProject.languages = this.languages
+            .filter(lang => lang.hasFile)
+            .map(lang => ({
+              name: lang.code,
+              data: { ...lang.data }
+            }))
+        } else {
+          // Fallback to legacy structure
+          this.currentProject.languages = this.files.map((file, index) => ({
+            name: file.name.replace(/\.(strings|xml)$/, ''),
+            data: this.stringsData[index] || {}
+          }))
+        }
         
         // Update preview images
         this.currentProject.previewImages = { ...this.previewImages }
@@ -299,78 +435,181 @@ export const useFilesStore = defineStore('files', {
       URL.revokeObjectURL(url)
     },
     
-    setFileGroups(groups: FileGroup[]) {
-      this.fileGroups = groups
-      this.useDualKeys = groups.some(group => group.hasBothFiles)
-    },
-
-    setUseDualKeys(useDualKeys: boolean) {
-      this.useDualKeys = useDualKeys
-    },
-
-    updateValue(fileIndex: number, key: string, value: string) {
-      if (this.stringsData[fileIndex]) {
-        this.stringsData[fileIndex][key] = value
+    // Version Management Methods
+    createVersion(name: string, description?: string): boolean {
+      if (!this.currentProject) return false
+      
+      try {
+        this.updateCurrentProject()
+        
+        const versionId = `v${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        const newVersion: ProjectVersion = {
+          id: versionId,
+          name,
+          description,
+          timestamp: Date.now(),
+          languages: this.languages.map(lang => ({
+            code: lang.code,
+            name: lang.name,
+            data: { ...lang.data },
+            hasFile: lang.hasFile,
+            fileType: lang.fileType
+          })),
+          previewImages: this.previewImages ? JSON.parse(JSON.stringify(this.previewImages)) : undefined
+        }
+        
+        // Initialize versions array if it doesn't exist
+        if (!this.currentProject.versions) {
+          this.currentProject.versions = []
+        }
+        
+        // Add new version
+        this.currentProject.versions.push(newVersion)
+        this.currentProject.currentVersion = versionId
+        this.currentProject.lastModified = Date.now()
+        
+        // Save to localStorage
+        this.saveProjectToLocalStorage()
+        
+        return true
+      } catch (error) {
+        console.error('Failed to create version:', error)
+        return false
       }
     },
-    
-    addKey(key: string, defaultValue: string = '') {
-      // Check if key already exists
-      if (this.allKeys.includes(key)) {
-        return false // Key already exists
+
+    loadVersion(versionId: string): boolean {
+      if (!this.currentProject?.versions) return false
+      
+      const version = this.currentProject.versions.find(v => v.id === versionId)
+      if (!version) return false
+      
+      try {
+        // Load version data into current state
+        this.languages = version.languages.map(lang => ({ ...lang }))
+        
+        // Load preview images
+        if (version.previewImages) {
+          this.previewImages = JSON.parse(JSON.stringify(version.previewImages))
+        } else {
+          this.previewImages = {}
+        }
+        
+        // Sync language-column structure to legacy structure for compatibility
+        this.syncLanguagesToFiles()
+        
+        // Update current version
+        this.currentProject.currentVersion = versionId
+        
+        return true
+      } catch (error) {
+        console.error('Failed to load version:', error)
+        return false
       }
-      
-      // Add key to all language files with default value
-      this.stringsData.forEach((data) => {
-        if (data) {
-          data[key] = defaultValue
-        }
-      })
-      
-      // Also add to original data for change tracking
-      this.originalData.forEach((data) => {
-        if (data) {
-          data[key] = defaultValue
-        }
-      })
-      
-      return true // Success
     },
-    
-    removeKey(key: string) {
-      // Remove key from all language files
-      this.stringsData.forEach((data) => {
-        if (data && key in data) {
-          delete data[key]
+
+    deleteVersion(versionId: string): boolean {
+      if (!this.currentProject?.versions) return false
+      
+      const versionIndex = this.currentProject.versions.findIndex(v => v.id === versionId)
+      if (versionIndex === -1) return false
+      
+      try {
+        // Remove version
+        this.currentProject.versions.splice(versionIndex, 1)
+        
+        // If this was the current version, clear current version
+        if (this.currentProject.currentVersion === versionId) {
+          this.currentProject.currentVersion = undefined
         }
+        
+        // Save changes
+        this.saveProjectToLocalStorage()
+        
+        return true
+      } catch (error) {
+        console.error('Failed to delete version:', error)
+        return false
+      }
+    },
+
+    compareVersions(beforeVersionId: string, afterVersionId: string): VersionDiff | null {
+      if (!this.currentProject?.versions) return null
+      
+      const beforeVersion = this.currentProject.versions.find(v => v.id === beforeVersionId)
+      const afterVersion = this.currentProject.versions.find(v => v.id === afterVersionId)
+      
+      if (!beforeVersion || !afterVersion) return null
+      
+      const changes: DiffEntry[] = []
+      const summary = { added: 0, removed: 0, modified: 0, unchanged: 0 }
+      
+      // Get all unique keys from both versions
+      const allKeys = new Set<string>()
+      const allLanguages = new Set<string>()
+      
+      beforeVersion.languages.forEach(lang => {
+        allLanguages.add(lang.code)
+        Object.keys(lang.data).forEach(key => allKeys.add(key))
       })
       
-      // Also remove from original data
-      this.originalData.forEach((data) => {
-        if (data && key in data) {
-          delete data[key]
-        }
+      afterVersion.languages.forEach(lang => {
+        allLanguages.add(lang.code)
+        Object.keys(lang.data).forEach(key => allKeys.add(key))
       })
-    },
-    
-    isValueChanged(fileIndex: number, key: string): boolean {
-      const current = this.stringsData[fileIndex]?.[key] ?? ''
-      const original = this.originalData[fileIndex]?.[key] ?? ''
-      return current !== original
-    },
-    
-    getChangedKeys(): string[] {
-      const changedKeys = new Set<string>()
       
-      this.stringsData.forEach((fileData, fileIndex) => {
-        Object.keys(fileData).forEach(key => {
-          if (this.isValueChanged(fileIndex, key)) {
-            changedKeys.add(key)
+      // Compare each key in each language
+      allLanguages.forEach(langCode => {
+        const beforeLang = beforeVersion.languages.find(l => l.code === langCode)
+        const afterLang = afterVersion.languages.find(l => l.code === langCode)
+        
+        allKeys.forEach(key => {
+          const beforeValue = beforeLang?.data[key]
+          const afterValue = afterLang?.data[key]
+          
+          let type: DiffEntry['type'] = 'unchanged'
+          
+          if (beforeValue === undefined && afterValue !== undefined) {
+            type = 'added'
+            summary.added++
+          } else if (beforeValue !== undefined && afterValue === undefined) {
+            type = 'removed'
+            summary.removed++
+          } else if (beforeValue !== afterValue) {
+            type = 'modified'
+            summary.modified++
+          } else {
+            type = 'unchanged'
+            summary.unchanged++
+          }
+          
+          // Only add to changes if it's not unchanged
+          if (type !== 'unchanged') {
+            changes.push({
+              key,
+              type,
+              languageCode: langCode,
+              beforeValue,
+              afterValue
+            })
           }
         })
       })
       
-      return Array.from(changedKeys)
+      return {
+        beforeVersion,
+        afterVersion,
+        changes,
+        summary
+      }
+    },
+
+    getVersions(): ProjectVersion[] {
+      return this.currentProject?.versions || []
+    },
+
+    getCurrentVersionId(): string | undefined {
+      return this.currentProject?.currentVersion
     },
     
     reset() {
@@ -379,6 +618,20 @@ export const useFilesStore = defineStore('files', {
       this.originalData = []
       this.currentProject = null
       this.previewImages = {}
+      
+      // Reset languages to default state
+      this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
+        ...lang,
+        data: {},
+        hasFile: false,
+        fileType: undefined
+      }))
+      
+      // Reset dual key mode state
+      this.useDualKeys = false
+      this.mergedKeys = []
+      this.mergedData = []
+      this.fileGroups = []
     },
 
     // Preview Images Actions
@@ -400,6 +653,145 @@ export const useFilesStore = defineStore('files', {
           delete this.previewImages[prefix]
         }
       }
-    }
+    },
+
+    saveImageKeyAnnotations(prefix: string, imageIndex: number, annotations: KeyAnnotation[]) {
+      if (this.previewImages[prefix] && this.previewImages[prefix][imageIndex]) {
+        this.previewImages[prefix][imageIndex].keyAnnotations = [...annotations]
+      }
+    },
+
+    loadProject(project: Project) {
+      // Set the current project
+      this.currentProject = project
+      
+      // Clear existing data
+      this.files = []
+      this.stringsData = []
+      
+      // Clear languages first
+      this.languages = []
+      
+      // Load project data into language-column structure
+      project.languages.forEach((projectLang) => {        
+        // Check if it's new LanguageColumn structure or legacy structure
+        if ('code' in projectLang && 'hasFile' in projectLang) {
+          // New LanguageColumn structure
+          const langCol = projectLang as LanguageColumn
+          this.languages.push({
+            code: langCol.code,
+            name: langCol.name,
+            data: { ...langCol.data },
+            hasFile: langCol.hasFile,
+            fileType: langCol.fileType
+          })
+        } else {
+          // Legacy structure - convert to new structure
+          const langCode = projectLang.name.toLowerCase().replace(/\.(strings|xml)$/, '')
+          const code = langCode === 'english' ? 'en' : 
+                      langCode === 'thai' ? 'th' :
+                      langCode === 'khmer' ? 'km' :
+                      langCode === 'myanmar' ? 'my' : 
+                      langCode
+          
+          this.languages.push({
+            code: code,
+            name: projectLang.name,
+            data: { ...projectLang.data },
+            hasFile: true,
+            fileType: 'strings'
+          })
+        }
+      })
+      
+      // Load preview images if available
+      if (project.previewImages) {
+        this.previewImages = { ...project.previewImages }
+      }
+      
+      // Sync language-column structure to legacy structure for compatibility
+      this.syncLanguagesToFiles()
+      
+      console.log('Loaded project:', project.name, 'Languages:', this.languages)
+    },
+
+    // Legacy method for backward compatibility
+    addKey(key: string, defaultValue: string = ''): boolean {
+      try {
+        // Check if key already exists
+        const keyExists = this.stringsData.some(data => data.hasOwnProperty(key))
+        if (keyExists) {
+          return false
+        }
+
+        // Add to stringsData (legacy structure)
+        this.stringsData.forEach(data => {
+          data[key] = defaultValue
+        })
+        
+        // Add to originalData
+        this.originalData.forEach(data => {
+          data[key] = defaultValue
+        })
+        
+        return true
+      } catch (error) {
+        console.error('Failed to add key:', error)
+        return false
+      }
+    },
+
+    // Remove a key from all language files
+    removeKey(key: string): boolean {
+      try {
+        // Remove from stringsData
+        this.stringsData.forEach(data => {
+          delete data[key]
+        })
+        
+        // Remove from originalData
+        this.originalData.forEach(data => {
+          delete data[key]
+        })
+
+        // Remove from languages data structure
+        this.languages.forEach(lang => {
+          delete lang.data[key]
+        })
+        
+        return true
+      } catch (error) {
+        console.error('Failed to remove key:', error)
+        return false
+      }
+    },
+
+    // Update a value for a specific file and key
+    updateValue(fileIndex: number, key: string, value: string): boolean {
+      try {
+        // Validate file index
+        if (fileIndex < 0 || fileIndex >= this.stringsData.length) {
+          return false
+        }
+
+        // Update stringsData
+        this.stringsData[fileIndex][key] = value
+
+        // Update languages data structure if it exists
+        if (fileIndex < this.languages.length) {
+          this.languages[fileIndex].data[key] = value
+        }
+        
+        return true
+      } catch (error) {
+        console.error('Failed to update value:', error)
+        return false
+      }
+    },
+
+    // Legacy method alias for backward compatibility
+    setUseDualKeys(enabled: boolean) {
+      this.setDualKeysMode(enabled)
+    },
   }
 })

@@ -19,10 +19,9 @@
       @exportChanged="jsonTable?.openExportModal('changed')"
       @exportOriginal="jsonTable?.openExportModal('original')"
       @goBack="goBack"
-      @addLanguageColumn="addLanguageColumn"
-      @removeLanguageColumn="showRemoveLanguageDialog"
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
+      @showVersionDiff="showVersionDiff"
     />
     
     <!-- Page content -->
@@ -43,7 +42,8 @@
         @update:highlightMode="highlightMode = $event"
         @update:skipColumns="skipColumns = $event"
         @update:dualKeysMode="dualKeysMode = $event"
-        @addKey="showAddKeyModal"
+        @saveProject="saveProjectToLocalStorage"
+        @exportProject="jsonTable?.openExportModal('all')"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
@@ -53,7 +53,6 @@
           :skipColumns="skipColumns"
           :dualKeysMode="dualKeysMode"
           @back="goBack" 
-          @removeLanguageColumn="removeLanguageColumn"
           @addKey="showAddKeyModal"
           ref="jsonTable" 
         />
@@ -62,9 +61,27 @@
     
     <!-- Add Key Modal -->
     <dialog id="add_key_modal" class="modal">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Add New Key</h3>
-        <div class="space-y-4">
+      <div class="modal-box w-11/12 max-w-2xl">
+        <h3 class="font-bold text-lg mb-4">Add New Keys</h3>
+        
+        <!-- Mode Selector -->
+        <div class="tabs tabs-boxed mb-4">
+          <button 
+            :class="['tab', { 'tab-active': addKeyMode === 'single' }]" 
+            @click="addKeyMode = 'single'"
+          >
+            Single Key
+          </button>
+          <button 
+            :class="['tab', { 'tab-active': addKeyMode === 'bulk' }]" 
+            @click="addKeyMode = 'bulk'"
+          >
+            Bulk Keys
+          </button>
+        </div>
+
+        <!-- Single Key Mode -->
+        <div v-if="addKeyMode === 'single'" class="space-y-4">
           <div class="form-control">
             <label class="label">
               <span class="label-text">Key Name</span>
@@ -93,32 +110,100 @@
               @keydown.enter="addNewKey"
             />
           </div>
-          
-          <div v-if="addKeyError" class="alert alert-error">
-            <span>{{ addKeyError }}</span>
+        </div>
+
+        <!-- Bulk Keys Mode -->
+        <div v-if="addKeyMode === 'bulk'" class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Key Names (one per line or comma-separated)</span>
+            </label>
+            <textarea 
+              v-model="bulkKeyNames" 
+              class="textarea textarea-bordered h-32"
+              placeholder="common_ok
+common_cancel
+common_confirm
+
+Or comma-separated:
+common_ok, common_cancel, common_confirm"
+            ></textarea>
+            <label class="label">
+              <span class="label-text-alt">{{ parsedBulkKeys.length }} keys detected</span>
+            </label>
           </div>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Default Value for All Keys (optional)</span>
+            </label>
+            <input 
+              v-model="bulkDefaultValue" 
+              type="text" 
+              placeholder="Default text for all keys and all languages"
+              class="input input-bordered w-full"
+            />
+          </div>
+
+          <!-- Preview -->
+          <div v-if="parsedBulkKeys.length > 0" class="bg-base-200 rounded-lg p-3">
+            <div class="text-sm font-medium mb-2">Preview keys to be added:</div>
+            <div class="text-xs space-y-1 max-h-32 overflow-y-auto">
+              <div v-for="key in parsedBulkKeys" :key="key" class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-primary rounded-full"></div>
+                <span class="font-mono">{{ key }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="addKeyError" class="alert alert-error mt-4">
+          <span>{{ addKeyError }}</span>
         </div>
         
         <div class="modal-action">
           <button class="btn" @click="closeAddKeyModal">Cancel</button>
-          <button class="btn btn-primary" @click="addNewKey" :disabled="!newKeyName.trim()">Add Key</button>
+          <button 
+            class="btn btn-primary" 
+            @click="addKeyMode === 'single' ? addNewKey() : addBulkKeys()" 
+            :disabled="addKeyMode === 'single' ? !newKeyName.trim() : parsedBulkKeys.length === 0"
+          >
+            {{ addKeyMode === 'single' ? 'Add Key' : `Add ${parsedBulkKeys.length} Keys` }}
+          </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
         <button @click="closeAddKeyModal">close</button>
       </form>
     </dialog>
+    
+    <!-- Version Diff Modal -->
+    <dialog id="version_diff_modal" class="modal" :class="{ 'modal-open': showVersionDiffModal }">
+      <div class="modal-box w-11/12 max-w-7xl h-5/6 p-0">
+        <div class="p-6 h-full overflow-auto">
+          <VersionDiff 
+            v-if="showVersionDiffModal && diffBeforeVersionId && diffAfterVersionId"
+            :beforeVersionId="diffBeforeVersionId"
+            :afterVersionId="diffAfterVersionId"
+            @close="closeVersionDiff"
+          />
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeVersionDiff">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '../stores/files'
-import { parseStrings } from '../utils/strings'
 import JsonTable from '../components/JsonTable.vue'
 import EditorSidebar from '../components/EditorSidebar.vue'
 import EditorNavbar from '../components/EditorNavbar.vue'
+import VersionDiff from '../components/VersionDiff.vue'
 
 interface JsonTableWithControls {
   mode: 'all' | 'paging'
@@ -152,10 +237,32 @@ const filteredCount = ref(0)
 const totalKeys = ref(0)
 const noResults = ref(false)
 
+// Version diff state
+const showVersionDiffModal = ref(false)
+const diffBeforeVersionId = ref('')
+const diffAfterVersionId = ref('')
+
 // Add Key Modal
 const newKeyName = ref('')
 const newKeyDefaultValue = ref('')
 const addKeyError = ref('')
+const addKeyMode = ref<'single' | 'bulk'>('single')
+const bulkKeyNames = ref('')
+const bulkDefaultValue = ref('')
+
+// Computed property for parsing bulk keys
+const parsedBulkKeys = computed(() => {
+  if (!bulkKeyNames.value.trim()) return []
+  
+  // Split by newlines or commas and clean up
+  const keys = bulkKeyNames.value
+    .split(/[\n,]/)
+    .map(key => key.trim())
+    .filter(key => key.length > 0)
+    .filter((key, index, arr) => arr.indexOf(key) === index) // Remove duplicates
+  
+  return keys
+})
 
 // Navigation guard - redirect to upload if no files and no project
 onMounted(() => {
@@ -247,87 +354,6 @@ function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
 }
 
-function addLanguageColumn() {
-  // Show file input dialog
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.strings,.xml'
-  input.multiple = true // Allow multiple file selection
-  input.onchange = async (e) => {
-    const files = Array.from((e.target as HTMLInputElement).files || [])
-    if (!files.length) return
-    
-    try {
-      if (dualKeysMode.value) {
-        // Process files with dual key support
-        await processDualKeyFiles(files)
-      } else {
-        // Process files individually (existing behavior)
-        for (const file of files) {
-          await processSingleFile(file)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to process files:', error)
-      alert('Failed to parse one or more files. Please check the format.')
-    }
-  }
-  input.click()
-}
-
-async function processDualKeyFiles(files: File[]) {
-  const { groupFilesByLanguage, processFileGroups } = await import('../utils/strings')
-  
-  // Group files by language
-  const groups = groupFilesByLanguage(files)
-  
-  // Process file groups with key merging enabled
-  const { files: processedFiles, data: processedData, mergedKeys } = await processFileGroups(groups, true)
-  
-  // Update store with processed data
-  const newFiles = [...filesStore.files, ...processedFiles]
-  const newData = [...filesStore.stringsData, ...processedData]
-  
-  filesStore.setFiles(newFiles)
-  filesStore.setStringsData(newData)
-  filesStore.setFileGroups(groups)
-  
-  // Store merged keys information for UI display
-  if (mergedKeys && mergedKeys.length > 0) {
-    console.log('Merged keys:', mergedKeys)
-    // You could add this to the store if you want to show merged keys info in the UI
-  }
-  
-  // Update project if exists
-  if (filesStore.currentProject) {
-    filesStore.updateCurrentProject()
-  }
-  
-  const mergeMessage = mergedKeys && mergedKeys.length > 0 
-    ? ` ${mergedKeys.length} keys were merged based on matching values.`
-    : ''
-  
-  alert(`Processed ${groups.length} language groups. ${groups.filter(g => g.hasBothFiles).length} have both .strings and .xml files.${mergeMessage}`)
-}
-
-async function processSingleFile(file: File) {
-  const { readFileContent } = await import('../utils/strings')
-  const content = await readFileContent(file)
-  const data = parseStrings(content)
-  
-  // Add to existing files
-  const newFiles = [...filesStore.files, file]
-  const newData = [...filesStore.stringsData, data]
-  
-  filesStore.setFiles(newFiles)
-  filesStore.setStringsData(newData)
-  
-  // Update project if exists
-  if (filesStore.currentProject) {
-    filesStore.updateCurrentProject()
-  }
-}
-
 function saveProjectToLocalStorage() {
   if (filesStore.saveProjectToLocalStorage()) {
     const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
@@ -352,62 +378,14 @@ function saveProjectToFile() {
   }
 }
 
-function removeLanguageColumn(index: number) {
-  if (filesStore.files.length <= 1) {
-    alert('Cannot remove the last language column!')
-    return
-  }
-  
-  const fileName = filesStore.files[index]?.name || 'this language'
-  
-  if (confirm(`Are you sure you want to remove "${fileName}" column? This action cannot be undone.`)) {
-    // Create new arrays without the removed index
-    const newFiles = filesStore.files.filter((_, i) => i !== index)
-    const newData = filesStore.stringsData.filter((_, i) => i !== index)
-    
-    // Update store
-    filesStore.setFiles(newFiles)
-    filesStore.setStringsData(newData)
-    
-    // Update project if exists
-    if (filesStore.currentProject) {
-      filesStore.updateCurrentProject()
-    }
-    
-    alert(`"${fileName}" column has been removed successfully!`)
-  }
-}
-
-function showRemoveLanguageDialog() {
-  if (filesStore.files.length <= 1) {
-    alert('Cannot remove the last language column!')
-    return
-  }
-  
-  // Show selection dialog for which language to remove
-  const options = filesStore.files.map((file, index) => 
-    `${index + 1}. ${file.name.replace(/\.(strings|xml)$/, '')}`
-  ).join('\n')
-  
-  const selection = prompt(
-    `Which language would you like to remove?\n\nEnter the number (1-${filesStore.files.length}):\n\n${options}`
-  )
-  
-  if (selection) {
-    const index = parseInt(selection.trim()) - 1
-    if (index >= 0 && index < filesStore.files.length) {
-      removeLanguageColumn(index)
-    } else {
-      alert('Invalid selection! Please enter a valid number.')
-    }
-  }
-}
-
 // Add Key Modal
 function showAddKeyModal() {
   newKeyName.value = ''
   newKeyDefaultValue.value = ''
   addKeyError.value = ''
+  addKeyMode.value = 'single'
+  bulkKeyNames.value = ''
+  bulkDefaultValue.value = ''
   const modal = document.getElementById('add_key_modal') as HTMLDialogElement
   if (modal) {
     modal.showModal()
@@ -428,6 +406,11 @@ function addNewKey() {
   if (!keyName) {
     addKeyError.value = 'Key Name is required.'
     return
+  }
+  
+  // Ensure we have at least one language before adding keys
+  if (filesStore.languages.length === 0) {
+    filesStore.createDefaultLanguage()
   }
   
   // Check for duplicate keys using the new language structure
@@ -452,6 +435,75 @@ function addNewKey() {
     }
   }
   
+  // Force reactivity update
+  nextTick(() => {
+    console.log('Added key:', keyName, 'All keys now:', filesStore.allKeysFromLanguages)
+  })
+  
   closeAddKeyModal()
+}
+
+function addBulkKeys() {
+  const keys = parsedBulkKeys.value
+  const defaultValue = bulkDefaultValue.value.trim()
+  
+  if (keys.length === 0) {
+    addKeyError.value = 'Please enter at least one key name.'
+    return
+  }
+  
+  // Ensure we have at least one language before adding keys
+  if (filesStore.languages.length === 0) {
+    filesStore.createDefaultLanguage()
+  }
+  
+  // Check for duplicate keys
+  const allKeys = filesStore.hasLanguageFiles 
+    ? filesStore.allKeysFromLanguages 
+    : filesStore.allKeys
+  
+  const duplicates = keys.filter(key => allKeys.includes(key))
+  if (duplicates.length > 0) {
+    addKeyError.value = `The following keys already exist: ${duplicates.join(', ')}`
+    return
+  }
+  
+  // Add all keys
+  let successCount = 0
+  if (filesStore.hasLanguageFiles) {
+    keys.forEach(key => {
+      filesStore.addKeyToAllLanguages(key, defaultValue)
+      successCount++
+    })
+  } else {
+    // Fallback to legacy structure
+    keys.forEach(key => {
+      const success = filesStore.addKey(key, defaultValue)
+      if (success) successCount++
+    })
+  }
+  
+  if (successCount === keys.length) {
+    // Force reactivity update
+    nextTick(() => {
+      console.log('Added bulk keys:', keys, 'All keys now:', filesStore.allKeysFromLanguages)
+    })
+    closeAddKeyModal()
+  } else {
+    addKeyError.value = `Only ${successCount} out of ${keys.length} keys were added successfully.`
+  }
+}
+
+// Version Diff Modal
+function showVersionDiff(beforeVersionId: string, afterVersionId: string) {
+  diffBeforeVersionId.value = beforeVersionId
+  diffAfterVersionId.value = afterVersionId
+  showVersionDiffModal.value = true
+}
+
+function closeVersionDiff() {
+  showVersionDiffModal.value = false
+  diffBeforeVersionId.value = ''
+  diffAfterVersionId.value = ''
 }
 </script>
