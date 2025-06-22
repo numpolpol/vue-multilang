@@ -12,11 +12,16 @@ const routes = [
     path: '/editor',
     name: 'Editor',
     component: Editor
+  },
+  // Catch-all route for GitHub Pages
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
