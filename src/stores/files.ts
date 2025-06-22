@@ -14,10 +14,18 @@ export interface StringsFile {
   data: Record<string, string>
 }
 
+export interface KeyAnnotation {
+  keyName: string
+  x: number // X position as percentage (0-100)
+  y: number // Y Position as percentage (0-100)
+  number: number // Display number (1, 2, 3, etc.)
+}
+
 export interface PreviewImage {
   name: string
   url: string
   data: string // base64 data for serialization
+  keyAnnotations?: KeyAnnotation[] // Key positions on the image
 }
 
 export interface Project {
@@ -483,6 +491,12 @@ export const useFilesStore = defineStore('files', {
         if (this.previewImages[prefix].length === 0) {
           delete this.previewImages[prefix]
         }
+      }
+    },
+
+    saveImageKeyAnnotations(prefix: string, imageIndex: number, annotations: KeyAnnotation[]) {
+      if (this.previewImages[prefix] && this.previewImages[prefix][imageIndex]) {
+        this.previewImages[prefix][imageIndex].keyAnnotations = [...annotations]
       }
     },
 

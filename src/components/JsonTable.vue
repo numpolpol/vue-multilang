@@ -118,7 +118,7 @@
                   :alt="image.name"
                   class="object-contain border border-base-300 rounded-lg cursor-pointer hover:opacity-80 transition-opacity w-full"
                   style="height: 200px;"
-                  @click="openFullscreenImage(image)"
+                  @click="openFullscreenImage(image, index, selectedPage)"
                 />
                 <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
@@ -269,24 +269,123 @@
       </form>
     </dialog>
 
-    <!-- Fullscreen Image Modal -->
+    <!-- Fullscreen Image Modal with Key Annotations -->
     <dialog id="fullscreen_image_modal" class="modal">
-      <div class="modal-box w-11/12 max-w-5xl h-5/6 p-4">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="font-bold text-lg">{{ selectedFullscreenImage?.name || 'Image Preview' }}</h3>
+      <div class="modal-box w-11/12 max-w-7xl h-5/6 p-0">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-4 border-b">
+          <h3 class="font-bold text-lg">{{ selectedFullscreenImage?.name || 'Image Preview' }} - Key Annotations</h3>
           <button class="btn btn-sm btn-circle btn-ghost" @click="closeFullscreenModal">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div class="flex justify-center items-center h-full">
-          <img 
-            v-if="selectedFullscreenImage"
-            :src="selectedFullscreenImage.url" 
-            :alt="selectedFullscreenImage.name"
-            class="max-w-full max-h-full object-contain"
-          />
+        
+        <div class="flex h-full">
+          <!-- Image Area -->
+          <div class="flex-1 p-4 flex items-center justify-center">
+            <div 
+              ref="imageContainerRef"
+              class="relative max-w-full max-h-full"
+              style="min-height: 400px; min-width: 400px;"
+            >
+              <img 
+                v-if="selectedFullscreenImage"
+                :src="selectedFullscreenImage.url" 
+                :alt="selectedFullscreenImage.name"
+                class="max-w-full max-h-full object-contain border border-base-300 rounded-lg"
+                style="max-height: 70vh;"
+              />
+              
+              <!-- Key Number Indicators on Image -->
+              <div 
+                v-for="annotation in keyAnnotations"
+                :key="annotation.keyName"
+                class="absolute w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold shadow-lg cursor-pointer hover:scale-110 transition-transform"
+                :style="{ 
+                  left: annotation.x + '%', 
+                  top: annotation.y + '%',
+                  transform: 'translate(-50%, -50%)'
+                }"
+                @click="removeKeyAnnotation(annotation.keyName)"
+                :title="`${annotation.keyName} - Click to remove`"
+              >
+                {{ annotation.number }}
+              </div>
+              
+              <!-- Drop Zone Overlay (only visible during drag) -->
+              <div 
+                v-if="isDragging"
+                class="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center"
+              >
+                <div class="text-primary font-bold">Drop key annotation here</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Key List Panel -->
+          <div class="w-80 border-l bg-base-100 flex flex-col">
+            <div class="p-4 border-b">
+              <h4 class="font-semibold mb-2">Keys for {{ selectedImagePrefix }}</h4>
+              <div class="text-sm text-base-content/70">
+                {{ keyAnnotations.length }} of {{ currentPageKeys.length }} keys annotated
+              </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-2">
+              <div 
+                v-for="(key, index) in currentPageKeys"
+                :key="key"
+                class="flex items-center justify-between p-3 border rounded-lg hover:bg-base-200 cursor-grab"
+                :class="{
+                  'bg-success/20 border-success': keyAnnotations.some(ann => ann.keyName === key),
+                  'bg-base-100': !keyAnnotations.some(ann => ann.keyName === key)
+                }"
+                @mousedown="startDragKey(index, $event)"
+              >
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm truncate">{{ key }}</div>
+                  <div class="text-xs text-base-content/70 truncate">
+                    {{ filesStore.languages.find(lang => lang.data[key])?.data[key] || 'No value' }}
+                  </div>
+                </div>
+                
+                <div class="flex items-center gap-2 ml-2">
+                  <!-- Show number if annotated -->
+                  <div 
+                    v-if="keyAnnotations.some(ann => ann.keyName === key)"
+                    class="w-6 h-6 bg-primary text-primary-content rounded-full flex items-center justify-center text-xs font-bold"
+                  >
+                    {{ keyAnnotations.find(ann => ann.keyName === key)?.number }}
+                  </div>
+                  
+                  <!-- Drag indicator -->
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                </div>
+              </div>
+              
+              <div v-if="currentPageKeys.length === 0" class="text-center py-8 text-base-content/50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3c0-.265.105-.52.293-.707L11.586 8.293a1 1 0 011.414 0L15 10.293A6 6 0 0117 9z" />
+                </svg>
+                <p>No keys found for this section</p>
+              </div>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="p-4 border-t bg-base-200">
+              <h5 class="font-medium text-sm mb-2">How to use:</h5>
+              <ul class="text-xs space-y-1 text-base-content/70">
+                <li>• Drag key names from this panel onto the image</li>
+                <li>• Numbered indicators will appear on the image</li>
+                <li>• Click indicators to remove them</li>
+                <li>• Positions are saved automatically when closed</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -299,7 +398,7 @@
 <script lang="ts" setup>
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount } from 'vue'
 import { useFilesStore } from '../stores/files'
-import type { PreviewImage } from '../stores/files'
+import type { PreviewImage, KeyAnnotation } from '../stores/files'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 
 const emit = defineEmits<{
@@ -328,6 +427,15 @@ const skipColumns = ref(props.skipColumns || 0)
 
 const loading = ref(false)
 const isPreviewPanelMinimized = ref(false)
+
+// Fullscreen image annotation mode
+const selectedFullscreenImage = ref<PreviewImage | null>(null)
+const selectedImageIndex = ref<number>(-1)
+const selectedImagePrefix = ref<string>('')
+const keyAnnotations = ref<KeyAnnotation[]>([])
+const isDragging = ref(false)
+const draggedKeyIndex = ref<number>(-1)
+const imageContainerRef = ref<HTMLElement | null>(null)
 
 // Get store instance
 const filesStore = useFilesStore()
@@ -374,18 +482,117 @@ function removePreviewImage(prefix: string, index: number) {
 }
 
 // Fullscreen image functionality
-const selectedFullscreenImage = ref<PreviewImage | null>(null)
-
-function openFullscreenImage(image: PreviewImage) {
+function openFullscreenImage(image: PreviewImage, imageIndex: number, prefix: string) {
   selectedFullscreenImage.value = image
+  selectedImageIndex.value = imageIndex
+  selectedImagePrefix.value = prefix
+  
+  // Initialize key annotations from the image or create empty array
+  keyAnnotations.value = image.keyAnnotations ? [...image.keyAnnotations] : []
+  
   const modal = document.getElementById('fullscreen_image_modal') as HTMLDialogElement
   modal.showModal()
 }
 
 function closeFullscreenModal() {
+  // Save key annotations before closing
+  if (selectedImagePrefix.value && selectedImageIndex.value >= 0) {
+    filesStore.saveImageKeyAnnotations(
+      selectedImagePrefix.value, 
+      selectedImageIndex.value, 
+      keyAnnotations.value
+    )
+  }
+  
+  // Reset state
   selectedFullscreenImage.value = null
+  selectedImageIndex.value = -1
+  selectedImagePrefix.value = ''
+  keyAnnotations.value = []
+  isDragging.value = false
+  draggedKeyIndex.value = -1
+  
   const modal = document.getElementById('fullscreen_image_modal') as HTMLDialogElement
   modal.close()
+}
+
+// Get current page keys for annotation
+const currentPageKeys = computed(() => {
+  if (!selectedImagePrefix.value) return []
+  return visibleKeys.value.filter(key => key.startsWith(selectedImagePrefix.value + '_'))
+})
+
+// Drag and drop functionality for key annotations
+function startDragKey(keyIndex: number, event: MouseEvent) {
+  isDragging.value = true
+  draggedKeyIndex.value = keyIndex
+  
+  // Prevent default drag behavior
+  event.preventDefault()
+  
+  // Add global mouse move and mouse up listeners
+  document.addEventListener('mousemove', onDragMove)
+  document.addEventListener('mouseup', onDragEnd)
+}
+
+function onDragMove(_event: MouseEvent) {
+  if (!isDragging.value || !imageContainerRef.value) return
+  
+  // Update cursor to show dragging state
+  document.body.style.cursor = 'grabbing'
+}
+
+function onDragEnd(event: MouseEvent) {
+  if (!isDragging.value || !imageContainerRef.value || draggedKeyIndex.value < 0) {
+    cleanupDrag()
+    return
+  }
+  
+  const rect = imageContainerRef.value.getBoundingClientRect()
+  const x = ((event.clientX - rect.left) / rect.width) * 100
+  const y = ((event.clientY - rect.top) / rect.height) * 100
+  
+  // Only add if within bounds
+  if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
+    const keyName = currentPageKeys.value[draggedKeyIndex.value]
+    const existingIndex = keyAnnotations.value.findIndex(ann => ann.keyName === keyName)
+    
+    const annotation: KeyAnnotation = {
+      keyName,
+      x: Math.max(0, Math.min(100, x)),
+      y: Math.max(0, Math.min(100, y)),
+      number: existingIndex >= 0 ? keyAnnotations.value[existingIndex].number : keyAnnotations.value.length + 1
+    }
+    
+    if (existingIndex >= 0) {
+      // Update existing annotation
+      keyAnnotations.value[existingIndex] = annotation
+    } else {
+      // Add new annotation
+      keyAnnotations.value.push(annotation)
+    }
+  }
+  
+  cleanupDrag()
+}
+
+function cleanupDrag() {
+  isDragging.value = false
+  draggedKeyIndex.value = -1
+  document.body.style.cursor = ''
+  document.removeEventListener('mousemove', onDragMove)
+  document.removeEventListener('mouseup', onDragEnd)
+}
+
+function removeKeyAnnotation(keyName: string) {
+  const index = keyAnnotations.value.findIndex(ann => ann.keyName === keyName)
+  if (index >= 0) {
+    keyAnnotations.value.splice(index, 1)
+    // Renumber remaining annotations
+    keyAnnotations.value.forEach((ann, idx) => {
+      ann.number = idx + 1
+    })
+  }
 }
 
 const allKeys = computed(() => {
