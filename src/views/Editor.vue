@@ -21,6 +21,7 @@
       @goBack="goBack"
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
+      @showVersionDiff="showVersionDiff"
     />
     
     <!-- Page content -->
@@ -175,6 +176,23 @@ common_ok, common_cancel, common_confirm"
         <button @click="closeAddKeyModal">close</button>
       </form>
     </dialog>
+    
+    <!-- Version Diff Modal -->
+    <dialog id="version_diff_modal" class="modal" :class="{ 'modal-open': showVersionDiffModal }">
+      <div class="modal-box w-11/12 max-w-7xl h-5/6 p-0">
+        <div class="p-6 h-full overflow-auto">
+          <VersionDiff 
+            v-if="showVersionDiffModal && diffBeforeVersionId && diffAfterVersionId"
+            :beforeVersionId="diffBeforeVersionId"
+            :afterVersionId="diffAfterVersionId"
+            @close="closeVersionDiff"
+          />
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeVersionDiff">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -185,6 +203,7 @@ import { useFilesStore } from '../stores/files'
 import JsonTable from '../components/JsonTable.vue'
 import EditorSidebar from '../components/EditorSidebar.vue'
 import EditorNavbar from '../components/EditorNavbar.vue'
+import VersionDiff from '../components/VersionDiff.vue'
 
 interface JsonTableWithControls {
   mode: 'all' | 'paging'
@@ -217,6 +236,11 @@ watch(dualKeysMode, (newValue) => {
 const filteredCount = ref(0)
 const totalKeys = ref(0)
 const noResults = ref(false)
+
+// Version diff state
+const showVersionDiffModal = ref(false)
+const diffBeforeVersionId = ref('')
+const diffAfterVersionId = ref('')
 
 // Add Key Modal
 const newKeyName = ref('')
@@ -468,5 +492,18 @@ function addBulkKeys() {
   } else {
     addKeyError.value = `Only ${successCount} out of ${keys.length} keys were added successfully.`
   }
+}
+
+// Version Diff Modal
+function showVersionDiff(beforeVersionId: string, afterVersionId: string) {
+  diffBeforeVersionId.value = beforeVersionId
+  diffAfterVersionId.value = afterVersionId
+  showVersionDiffModal.value = true
+}
+
+function closeVersionDiff() {
+  showVersionDiffModal.value = false
+  diffBeforeVersionId.value = ''
+  diffAfterVersionId.value = ''
 }
 </script>

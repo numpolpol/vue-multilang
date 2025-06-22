@@ -53,6 +53,10 @@
           @exportOriginal="$emit('exportOriginal')"
           @goBack="$emit('goBack')"
         />
+        
+        <!-- Version Management -->
+        <div class="divider text-xs">Version Management</div>
+        <VersionManager @showDiff="handleShowDiff" />
       </div>
     </div>
   </div>
@@ -62,6 +66,7 @@
 import ThemeSelector from './ThemeSelector.vue'
 import SearchControls from './SearchControls.vue'
 import ExportControls from './ExportControls.vue'
+import VersionManager from './VersionManager.vue'
 
 interface Props {
   theme: string
@@ -75,7 +80,7 @@ interface Props {
 
 defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   updateTheme: [event: Event]
   resetColumnWidths: []
   'update:searchQuery': [value: string]
@@ -86,5 +91,10 @@ defineEmits<{
   goBack: []
   saveProjectToLocalStorage: []
   saveProjectToFile: []
+  showVersionDiff: [beforeVersionId: string, afterVersionId: string]
 }>()
+
+function handleShowDiff(beforeVersionId: string, afterVersionId: string) {
+  emit('showVersionDiff', beforeVersionId, afterVersionId)
+}
 </script>
