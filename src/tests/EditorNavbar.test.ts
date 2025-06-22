@@ -39,8 +39,8 @@ describe('EditorNavbar', () => {
       props: defaultProps
     })
 
-    const select = wrapper.find('select')
-    expect(select.element.value).toBe('all')
+    const radioAll = wrapper.find('input[value="all"]')
+    expect((radioAll.element as HTMLInputElement).checked).toBe(true)
   })
 
   it('displays project stats correctly', () => {
@@ -50,28 +50,6 @@ describe('EditorNavbar', () => {
 
     expect(wrapper.text()).toContain('15 keys total')
     expect(wrapper.text()).toContain('3 languages')
-  })
-
-  it('shows Add Key button', () => {
-    const wrapper = mount(EditorNavbar, {
-      props: defaultProps
-    })
-
-    const addKeyButton = wrapper.find('[title="Add New Key"]')
-    expect(addKeyButton.exists()).toBe(true)
-    expect(addKeyButton.text()).toContain('Add Key')
-  })
-
-  it('emits addKey event when Add Key button is clicked', async () => {
-    const wrapper = mount(EditorNavbar, {
-      props: defaultProps
-    })
-
-    const addKeyButton = wrapper.find('[title="Add New Key"]')
-    await addKeyButton.trigger('click')
-
-    expect(wrapper.emitted('addKey')).toBeTruthy()
-    expect(wrapper.emitted('addKey')).toHaveLength(1)
   })
 
   it('emits toggleDrawer event when drawer button is clicked', async () => {
@@ -86,13 +64,13 @@ describe('EditorNavbar', () => {
     expect(wrapper.emitted('toggleDrawer')).toHaveLength(1)
   })
 
-  it('emits update:viewMode when view mode select changes', async () => {
+  it('emits update:viewMode when view mode radio changes', async () => {
     const wrapper = mount(EditorNavbar, {
       props: defaultProps
     })
 
-    const select = wrapper.find('select')
-    await select.setValue('paging')
+    const radioPaging = wrapper.find('input[value="paging"]')
+    await radioPaging.setValue(true)
 
     expect(wrapper.emitted('update:viewMode')).toBeTruthy()
     expect(wrapper.emitted('update:viewMode')?.[0]).toEqual(['paging'])

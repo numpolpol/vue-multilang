@@ -718,23 +718,73 @@ export const useFilesStore = defineStore('files', {
     // Legacy method for backward compatibility
     addKey(key: string, defaultValue: string = ''): boolean {
       try {
+        // Check if key already exists
+        const keyExists = this.stringsData.some(data => data.hasOwnProperty(key))
+        if (keyExists) {
+          return false
+        }
+
         // Add to stringsData (legacy structure)
         this.stringsData.forEach(data => {
-          if (!data[key]) {
-            data[key] = defaultValue
-          }
+          data[key] = defaultValue
         })
         
         // Add to originalData
         this.originalData.forEach(data => {
-          if (!data[key]) {
-            data[key] = defaultValue
-          }
+          data[key] = defaultValue
         })
         
         return true
       } catch (error) {
         console.error('Failed to add key:', error)
+        return false
+      }
+    },
+
+    // Remove a key from all language files
+    removeKey(key: string): boolean {
+      try {
+        // Remove from stringsData
+        this.stringsData.forEach(data => {
+          delete data[key]
+        })
+        
+        // Remove from originalData
+        this.originalData.forEach(data => {
+          delete data[key]
+        })
+
+        // Remove from languages data structure
+        this.languages.forEach(lang => {
+          delete lang.data[key]
+        })
+        
+        return true
+      } catch (error) {
+        console.error('Failed to remove key:', error)
+        return false
+      }
+    },
+
+    // Update a value for a specific file and key
+    updateValue(fileIndex: number, key: string, value: string): boolean {
+      try {
+        // Validate file index
+        if (fileIndex < 0 || fileIndex >= this.stringsData.length) {
+          return false
+        }
+
+        // Update stringsData
+        this.stringsData[fileIndex][key] = value
+
+        // Update languages data structure if it exists
+        if (fileIndex < this.languages.length) {
+          this.languages[fileIndex].data[key] = value
+        }
+        
+        return true
+      } catch (error) {
+        console.error('Failed to update value:', error)
         return false
       }
     },
