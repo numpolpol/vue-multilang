@@ -355,6 +355,81 @@ export function splitMergedData(data: Record<string, string>, isIosExport: boole
   return result
 }
 
+// Utility to parse TSV format with 1-4 language values (key + th/en/km/my in order)
+export function parseTSVMultiLanguage(content: string): {
+  th: Record<string, string>
+  en: Record<string, string>
+  km: Record<string, string>
+  my: Record<string, string>
+} {
+  const result = {
+    th: {} as Record<string, string>,
+    en: {} as Record<string, string>,
+    km: {} as Record<string, string>,
+    my: {} as Record<string, string>
+  }
+  
+  if (!content || content.trim().length === 0) {
+    return result
+  }
+  
+  try {
+    const lines = content
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+    
+    for (const line of lines) {
+      // Split by tab or multiple spaces/tabs
+      const parts = line.split(/\t+|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0)
+      
+      // Expect 2-5 parts: key + 1-4 language values
+      if (parts.length >= 2 && parts.length <= 5) {
+        const [key, ...values] = parts
+        
+        // Validate key format
+        if (key && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+          // Map values to languages in order: th, en, km, my
+          const languages = ['th', 'en', 'km', 'my']
+          
+          for (let i = 0; i < languages.length; i++) {
+            const lang = languages[i] as keyof typeof result
+            result[lang][key] = values[i] || '' // Use value if available, otherwise empty string
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to parse TSV content:', error)
+  }
+  
+  return result
+}
+
+// Check if content is TSV format (has tabs/spaces and 2-5 columns per row)
+export function isTSVFormat(content: string): boolean {
+  if (!content || content.trim().length === 0) return false
+  
+  const lines = content
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+  
+  if (lines.length === 0) return false
+  
+  // Check if most lines have 2-5 tab-separated or space-separated parts
+  let validLines = 0
+  for (const line of lines) {
+    const parts = line.split(/\t+|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0)
+    if (parts.length >= 2 && parts.length <= 5) {
+      validLines++
+    }
+  }
+  
+  // If more than 50% of lines have 2-5 parts, consider it TSV format
+  return validLines > 0 && (validLines / lines.length) > 0.5
+}
+
 export function readFileContent(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
