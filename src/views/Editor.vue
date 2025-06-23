@@ -22,6 +22,9 @@
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
       @showVersionDiff="showVersionDiff"
+      @languageAdded="onLanguageAdded"
+      @languageRemoved="onLanguageRemoved"
+      @languagesReordered="onLanguagesReordered"
     />
     
     <!-- Page content -->
@@ -376,6 +379,22 @@ function saveProjectToFile() {
       alert(`Project downloaded with ${imageCount} preview images included!`)
     }, 100)
   }
+}
+
+// Language column management
+function onLanguageAdded(languageCode: string) {
+  console.log('Language added:', languageCode)
+  // The store already handles the addition, no additional action needed
+}
+
+function onLanguageRemoved(languageCode: string) {
+  console.log('Language removed:', languageCode)
+  // The store already handles the removal, no additional action needed
+}
+
+function onLanguagesReordered(fromIndex: number, toIndex: number) {
+  console.log('Languages reordered:', fromIndex, '->', toIndex)
+  // The store already handles the reordering, no additional action needed
 }
 
 // Add Key Modal

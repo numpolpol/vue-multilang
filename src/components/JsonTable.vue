@@ -436,6 +436,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import type { PreviewImage, KeyAnnotation } from '../stores/files'
+import { toStrings, toAndroidStrings } from '../utils/strings'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 
 const emit = defineEmits<{
@@ -828,11 +829,11 @@ function onDeleteKey(key: string) {
 const exportPlatform = ref<'ios' | 'android'>('ios')
 const exportMode = ref<'all' | 'changed' | 'original'>('all')
 
-// function openExportModal(mode: 'all' | 'changed' | 'original') {
-//   exportMode.value = mode
-//   const modal = document.getElementById('export_modal') as HTMLDialogElement
-//   modal.showModal()
-// }
+function openExportModal(mode: 'all' | 'changed' | 'original') {
+  exportMode.value = mode
+  const modal = document.getElementById('export_modal') as HTMLDialogElement
+  modal.showModal()
+}
 
 function closeExportModal() {
   const modal = document.getElementById('export_modal') as HTMLDialogElement
@@ -842,53 +843,88 @@ function closeExportModal() {
 function downloadFiles() {
   closeExportModal()
   
-  props.files.forEach((file, idx) => {
+  // Use store data instead of props
+  const languages = filesStore.languages
+  
+  if (!languages || languages.length === 0) {
+    alert('No language data to export!')
+    return
+  }
+  
+  languages.forEach((language, langIndex) => {
     let finalData: Record<string, string> = {}
-    const data = props.data[idx]
     
     if (exportMode.value === 'all') {
-      finalData = { ...data }
+      finalData = { ...language.data }
     } else if (exportMode.value === 'changed') {
-      Object.keys(data).forEach(key => {
-        if (data[key] !== originalData.value[idx]?.[key]) {
-          finalData[key] = data[key]
+      // For changed mode, compare with original data from store
+      const originalLangData = filesStore.originalData[langIndex] || {}
+      Object.keys(language.data).forEach(key => {
+        const currentValue = language.data[key]
+        const originalValue = originalLangData[key] || ''
+        if (currentValue !== originalValue) {
+          finalData[key] = currentValue
         }
       })
     } else if (exportMode.value === 'original') {
-      // Keep original file order by using original data as base
-      finalData = { ...originalData.value[idx], ...data }
+      // For original mode, include all data but maintain original order
+      finalData = { ...language.data }
     }
 
-    const fileName = file.name
+    // Filter by current view if needed
+    if (mode.value === 'paging' && selectedPage.value) {
+      const filteredData: Record<string, string> = {}
+      Object.keys(finalData).forEach(key => {
+        if (getPagePrefix(key) === selectedPage.value) {
+          filteredData[key] = finalData[key]
+        }
+      })
+      finalData = filteredData
+    }
+
+    // Apply search filter if active
+    if (search.value.trim()) {
+      const searchQuery = search.value.trim().toLowerCase()
+      const filteredData: Record<string, string> = {}
+      Object.keys(finalData).forEach(key => {
+        if (key.toLowerCase().includes(searchQuery) || 
+            finalData[key].toLowerCase().includes(searchQuery)) {
+          filteredData[key] = finalData[key]
+        }
+      })
+      finalData = filteredData
+    }
+
+    if (Object.keys(finalData).length === 0) {
+      console.warn(`No data to export for language: ${language.name}`)
+      return
+    }
+
+    // Create filename
+    let fileName = language.code
+    if (search.value.trim()) {
+      fileName += '_filtered'
+    }
+    if (mode.value === 'paging' && selectedPage.value) {
+      fileName += `_${selectedPage.value}`
+    }
+    
     const fileContent = exportPlatform.value === 'ios' 
-      ? toStringsFile(finalData)
-      : toAndroidStringsFile(finalData)
+      ? toStrings(finalData)
+      : toAndroidStrings(finalData)
+    
+    fileName += exportPlatform.value === 'ios' ? '.strings' : '.xml'
     
     const blob = new Blob([fileContent], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = exportPlatform.value === 'ios' 
-      ? fileName 
-      : fileName.replace('.strings', '.xml')
+    a.download = fileName
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   })
-}
-
-function toStringsFile(data: Record<string, string>): string {
-  return Object.entries(data)
-    .map(([key, value]) => `"${key}" = "${value.replace(/"/g, '\\"')}";`)
-    .join('\n')
-}
-
-function toAndroidStringsFile(data: Record<string, string>): string {
-  const xmlContent = Object.entries(data)
-    .map(([key, value]) => `    <string name="${key}">${value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '\\"')}</string>`)
-    .join('\n')
-  return `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n${xmlContent}\n</resources>`
 }
 
 function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' = 'ios') {
@@ -929,11 +965,11 @@ function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' = 
   let mimeType: string
 
   if (format === 'ios') {
-    content = toStringsFile(columnData)
+    content = toStrings(columnData)
     filename += '.strings'
     mimeType = 'text/plain;charset=utf-8'
   } else if (format === 'android') {
-    content = toAndroidStringsFile(columnData)
+    content = toAndroidStrings(columnData)
     filename += '.xml'
     mimeType = 'application/xml;charset=utf-8'
   } else {
@@ -966,25 +1002,10 @@ let startWidth = 0
 // Column ordering
 const columnOrder = ref<number[]>([])
 // Column ordering for languages
-const languageOrder = ref<number[]>([])
 const orderedLanguages = computed(() => {
-  const languages = filesStore.languages
-  if (languageOrder.value.length === 0) return languages
-  return languageOrder.value.map(index => languages[index])
+  // Directly use the store's languages array, which is already properly ordered
+  return filesStore.languages
 })
-
-// Initialize language order
-watch(() => filesStore.languages, () => {
-  initializeLanguageColumns()
-}, { immediate: true })
-
-function initializeLanguageColumns() {
-  if (filesStore.languages && filesStore.languages.length > 0) {
-    languageOrder.value = filesStore.languages.map((_, index) => index)
-  } else {
-    languageOrder.value = []
-  }
-}
 
 function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
   startResizing(data.event, data.language)
@@ -1184,7 +1205,8 @@ defineExpose({
   mode,
   highlightMode,
   search,
-  skipColumns
+  skipColumns,
+  openExportModal
 })
 </script>
 

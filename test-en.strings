@@ -1,0 +1,6 @@
+// Test sample .strings file for testing column management
+"hello" = "Hello";
+"goodbye" = "Goodbye";
+"welcome" = "Welcome to our app";
+"thank_you" = "Thank you";
+"please" = "Please";

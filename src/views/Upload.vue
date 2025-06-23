@@ -54,25 +54,11 @@
                 </svg>
                 Create New Project
               </h2>
-              <p class="text-base-content/70">Start a new multi-language editing project</p>
-              
-              <div class="form-control w-full mt-4">
-                <label class="label">
-                  <span class="label-text">Project Name</span>
-                </label>
-                <input 
-                  v-model="newProjectName" 
-                  type="text" 
-                  placeholder="Enter project name..." 
-                  class="input input-bordered w-full"
-                  @keyup.enter="createNewProject"
-                />
-              </div>
+              <p class="text-base-content/70">Start a new multi-language editing project with default languages</p>
               
               <div class="card-actions justify-end mt-4">
                 <button 
                   class="btn btn-primary" 
-                  :disabled="!newProjectName.trim()"
                   @click="createNewProject"
                 >
                   Create Project
@@ -92,22 +78,9 @@
               </h2>
               <p class="text-base-content/70">Paste iOS .strings, Android XML, or TSV data to create a project</p>
               
-              <div class="form-control w-full mt-4">
-                <label class="label">
-                  <span class="label-text">Project Name</span>
-                </label>
-                <input 
-                  v-model="snippetProjectName" 
-                  type="text" 
-                  placeholder="Enter project name..." 
-                  class="input input-bordered w-full"
-                />
-              </div>
-              
               <div class="card-actions justify-end mt-4">
                 <button 
                   class="btn btn-accent" 
-                  :disabled="!snippetProjectName.trim()"
                   @click="showSnippetModal"
                 >
                   Create from Code
@@ -127,22 +100,9 @@
               </h2>
               <p class="text-base-content/70">Paste a list of keys to create a project</p>
               
-              <div class="form-control w-full mt-4">
-                <label class="label">
-                  <span class="label-text">Project Name</span>
-                </label>
-                <input 
-                  v-model="keysProjectName" 
-                  type="text" 
-                  placeholder="Enter project name..." 
-                  class="input input-bordered w-full"
-                />
-              </div>
-              
               <div class="card-actions justify-end mt-4">
                 <button 
                   class="btn btn-info" 
-                  :disabled="!keysProjectName.trim()"
                   @click="showKeysModal"
                 >
                   Create from Keys
@@ -248,8 +208,8 @@
             <div class="flex flex-col">
               <div class="font-bold mb-2">How to use:</div>
               <ol class="list-decimal list-inside space-y-2">
-                <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session with all 4 languages (Thai, English, Khmer, Myanmar).</li>
-                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings, Android XML, or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Khmer, Myanmar).</li>
+                <li><span class="font-semibold">Create Project:</span> Click "Create Project" to start a new multi-language editing session with default languages (Thai, English, Myanmar, Khmer). You can rename the project later in the editor.</li>
+                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings, Android XML, or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Myanmar, Khmer).</li>
                 <li><span class="font-semibold">Create from Keys:</span> Paste a list of translation keys to create a project with all 4 languages and empty values ready for translation.</li>
                 <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
                 <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
@@ -402,16 +362,13 @@ const theme = ref(localStorage.getItem('theme') || 'light')
 const isDrawerOpen = ref(false)
 
 // Project management
-const newProjectName = ref('')
 const savedProjects = ref<Project[]>([])
 
 // Snippet functionality
-const snippetProjectName = ref('')
 const snippetCode = ref('')
 const selectedLanguage = ref('th') // Default to Thai
 
 // Keys functionality
-const keysProjectName = ref('')
 const keysList = ref('')
 
 // Computed property to analyze snippet format and keys
@@ -512,11 +469,9 @@ function loadSavedProjects() {
 }
 
 function createNewProject() {
-  if (!newProjectName.value.trim()) return
-  
   const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   
-  // Create all 4 default languages with common keys
+  // Create all 4 default languages with common keys in order: th, en, my, km
   const initialLanguages: LanguageColumn[] = [
     {
       code: 'th',
@@ -541,17 +496,6 @@ function createNewProject() {
       fileType: 'strings'
     },
     {
-      code: 'km',
-      name: 'Khmer',
-      data: {
-        'common_welcome': 'សូមស្វាគមន៍',
-        'common_ok': 'យល់ព្រម',
-        'common_cancel': 'បោះបង់'
-      },
-      hasFile: true,
-      fileType: 'strings'
-    },
-    {
       code: 'my',
       name: 'Myanmar',
       data: {
@@ -561,13 +505,24 @@ function createNewProject() {
       },
       hasFile: true,
       fileType: 'strings'
+    },
+    {
+      code: 'km',
+      name: 'Khmer',
+      data: {
+        'common_welcome': 'សូមស្វាគមន៍',
+        'common_ok': 'យល់ព្រម',
+        'common_cancel': 'បោះបង់'
+      },
+      hasFile: true,
+      fileType: 'strings'
     }
   ]
   
   // Create new project with all 4 languages and initial keys
   const newProject: Project = {
     id: projectId,
-    name: newProjectName.value.trim(),
+    name: 'Untitled',
     languages: initialLanguages,
     lastModified: Date.now(),
     createdAt: Date.now()
@@ -645,8 +600,6 @@ function getImageCount(project: Project): number {
 
 // Snippet modal functions
 function showSnippetModal() {
-  if (!snippetProjectName.value.trim()) return
-  
   // Reset snippet form
   snippetCode.value = ''
   selectedLanguage.value = 'th'
@@ -734,7 +687,7 @@ function createProjectFromSnippet() {
       
       const newProject: Project = {
         id: projectId,
-        name: snippetProjectName.value.trim(),
+        name: 'Untitled',
         languages: initialLanguages,
         lastModified: Date.now(),
         createdAt: Date.now()
@@ -803,7 +756,7 @@ function createProjectFromSnippet() {
     
     const newProject: Project = {
       id: projectId,
-      name: snippetProjectName.value.trim(),
+      name: 'Untitled',
       languages: initialLanguages,
       lastModified: Date.now(),
       createdAt: Date.now()
@@ -827,8 +780,6 @@ function createProjectFromSnippet() {
 
 // Keys modal functions
 function showKeysModal() {
-  if (!keysProjectName.value.trim()) return
-  
   // Reset keys form
   keysList.value = ''
   
@@ -896,7 +847,7 @@ function createProjectFromKeys() {
     
     const newProject: Project = {
       id: projectId,
-      name: keysProjectName.value.trim(),
+      name: 'Untitled',
       languages: initialLanguages,
       lastModified: Date.now(),
       createdAt: Date.now()
