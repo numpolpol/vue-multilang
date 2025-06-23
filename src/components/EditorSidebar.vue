@@ -29,6 +29,15 @@
           </div>
         </div>
 
+        <!-- Column Manager -->
+        <div class="flex-shrink-0">
+          <ColumnManager 
+            @language-added="(code) => $emit('languageAdded', code)"
+            @language-removed="(code) => $emit('languageRemoved', code)"
+            @languages-reordered="(from, to) => $emit('languagesReordered', from, to)"
+          />
+        </div>
+
         <!-- Table Controls -->
         <div class="flex-shrink-0">
           <div class="divider my-2 text-sm">Table Controls</div>
@@ -81,6 +90,7 @@ import ThemeSelector from './ThemeSelector.vue'
 import SearchControls from './SearchControls.vue'
 import ExportControls from './ExportControls.vue'
 import VersionManager from './VersionManager.vue'
+import ColumnManager from './ColumnManager.vue'
 
 interface Props {
   theme: string
@@ -106,6 +116,9 @@ const emit = defineEmits<{
   saveProjectToLocalStorage: []
   saveProjectToFile: []
   showVersionDiff: [beforeVersionId: string, afterVersionId: string]
+  languageAdded: [languageCode: string]
+  languageRemoved: [languageCode: string]
+  languagesReordered: [fromIndex: number, toIndex: number]
 }>()
 
 function handleShowDiff(beforeVersionId: string, afterVersionId: string) {

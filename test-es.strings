@@ -1,0 +1,6 @@
+// Test sample Spanish .strings file
+"hello" = "Hola";
+"goodbye" = "Adiós";
+"welcome" = "Bienvenido a nuestra aplicación";
+"thank_you" = "Gracias";
+"please" = "Por favor";

@@ -1002,25 +1002,10 @@ let startWidth = 0
 // Column ordering
 const columnOrder = ref<number[]>([])
 // Column ordering for languages
-const languageOrder = ref<number[]>([])
 const orderedLanguages = computed(() => {
-  const languages = filesStore.languages
-  if (languageOrder.value.length === 0) return languages
-  return languageOrder.value.map(index => languages[index])
+  // Directly use the store's languages array, which is already properly ordered
+  return filesStore.languages
 })
-
-// Initialize language order
-watch(() => filesStore.languages, () => {
-  initializeLanguageColumns()
-}, { immediate: true })
-
-function initializeLanguageColumns() {
-  if (filesStore.languages && filesStore.languages.length > 0) {
-    languageOrder.value = filesStore.languages.map((_, index) => index)
-  } else {
-    languageOrder.value = []
-  }
-}
 
 function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
   startResizing(data.event, data.language)

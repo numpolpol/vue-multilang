@@ -52,12 +52,9 @@ export interface Project {
   currentVersion?: string // ID of current version
 }
 
-// Default language columns
+// Default language columns - start with just English, users can add more
 const DEFAULT_LANGUAGES: LanguageColumn[] = [
-  { code: 'th', name: 'Thai', data: {}, hasFile: false },
-  { code: 'en', name: 'English', data: {}, hasFile: false },
-  { code: 'km', name: 'Khmer', data: {}, hasFile: false },
-  { code: 'my', name: 'Myanmar', data: {}, hasFile: false }
+  { code: 'en', name: 'English', data: {}, hasFile: false }
 ]
 
 export interface DiffEntry {
@@ -792,6 +789,68 @@ export const useFilesStore = defineStore('files', {
     // Legacy method alias for backward compatibility
     setUseDualKeys(enabled: boolean) {
       this.setDualKeysMode(enabled)
+    },
+    
+    // Language column management actions
+    addLanguageColumn(languageCode: string, languageName: string) {
+      // Check if language already exists
+      const exists = this.languages.find(lang => lang.code === languageCode)
+      if (exists) {
+        console.warn(`Language ${languageCode} already exists`)
+        return
+      }
+      
+      // Get all existing keys from other languages to initialize the new language
+      const existingKeys = new Set<string>()
+      this.languages.forEach(lang => 
+        Object.keys(lang.data).forEach(k => existingKeys.add(k))
+      )
+      
+      // Create data object with empty values for all existing keys
+      const initialData: Record<string, string> = {}
+      existingKeys.forEach(key => {
+        initialData[key] = '' // Empty string for new language
+      })
+      
+      this.languages.push({
+        code: languageCode,
+        name: languageName,
+        data: initialData,
+        hasFile: false
+      })
+      
+      console.log(`Added language column: ${languageName} (${languageCode}) with ${existingKeys.size} keys`)
+    },
+    
+    removeLanguageColumn(languageCode: string) {
+      const index = this.languages.findIndex(lang => lang.code === languageCode)
+      if (index !== -1) {
+        this.languages.splice(index, 1)
+        
+        // Also remove from original data if exists
+        if (this.originalData[index]) {
+          this.originalData.splice(index, 1)
+        }
+      }
+    },
+    
+    reorderLanguageColumns(fromIndex: number, toIndex: number) {
+      if (fromIndex < 0 || fromIndex >= this.languages.length || 
+          toIndex < 0 || toIndex >= this.languages.length) {
+        return
+      }
+      
+      // Move language column
+      const [movedLanguage] = this.languages.splice(fromIndex, 1)
+      this.languages.splice(toIndex, 0, movedLanguage)
+      
+      // Also reorder original data if exists
+      if (this.originalData.length > fromIndex) {
+        const [movedOriginal] = this.originalData.splice(fromIndex, 1)
+        if (movedOriginal) {
+          this.originalData.splice(toIndex, 0, movedOriginal)
+        }
+      }
     },
   }
 })
