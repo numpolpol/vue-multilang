@@ -8,8 +8,41 @@
       </label>
       <div class="flex flex-col">
         <h1 class="text-2xl font-bold">Multi Language Editor</h1>
-        <div v-if="projectName" class="text-sm text-base-content/70">
-          Project: {{ projectName }}
+        <div v-if="projectName" class="text-sm text-base-content/70 flex items-center gap-2">
+          <span>Project:</span>
+          <div v-if="!isEditingProjectName" class="flex items-center gap-2">
+            <span class="font-medium">{{ projectName }}</span>
+            <button 
+              @click="startEditingProjectName" 
+              class="btn btn-ghost btn-xs"
+              title="Rename project"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+          </div>
+          <div v-else class="flex items-center gap-2">
+            <input 
+              ref="projectNameInput"
+              v-model="editingProjectName"
+              @blur="saveProjectName"
+              @keyup.enter="saveProjectName"
+              @keyup.escape="cancelEditingProjectName"
+              class="input input-xs input-bordered bg-base-100 text-sm font-medium w-48"
+              placeholder="Enter project name"
+            />
+            <button @click="saveProjectName" class="btn btn-success btn-xs" title="Save">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+            <button @click="cancelEditingProjectName" class="btn btn-ghost btn-xs" title="Cancel">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -131,6 +164,9 @@
 </template>
 
 <script lang="ts" setup>
+import { ref, nextTick } from 'vue'
+import { useFilesStore } from '../stores/files'
+
 interface Props {
   projectName?: string
   viewMode: 'all' | 'paging'
@@ -154,4 +190,33 @@ defineEmits<{
   saveProject: []
   exportProject: []
 }>()
+
+const filesStore = useFilesStore()
+
+// Project name editing
+const isEditingProjectName = ref(false)
+const editingProjectName = ref('')
+const projectNameInput = ref<HTMLInputElement>()
+
+function startEditingProjectName() {
+  editingProjectName.value = filesStore.currentProject?.name || 'Untitled'
+  isEditingProjectName.value = true
+  nextTick(() => {
+    projectNameInput.value?.focus()
+    projectNameInput.value?.select()
+  })
+}
+
+function saveProjectName() {
+  const newName = editingProjectName.value.trim()
+  if (newName && filesStore.currentProject) {
+    filesStore.updateProjectName(newName)
+  }
+  isEditingProjectName.value = false
+}
+
+function cancelEditingProjectName() {
+  isEditingProjectName.value = false
+  editingProjectName.value = ''
+}
 </script>

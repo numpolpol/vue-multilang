@@ -362,6 +362,13 @@ export const useFilesStore = defineStore('files', {
       this.currentProject = project
     },
 
+    updateProjectName(newName: string) {
+      if (this.currentProject) {
+        this.currentProject.name = newName.trim()
+        this.currentProject.lastModified = Date.now()
+      }
+    },
+
     updateCurrentProject() {
       if (this.currentProject) {
         this.currentProject.lastModified = Date.now()
