@@ -208,8 +208,8 @@
             <div class="flex flex-col">
               <div class="font-bold mb-2">How to use:</div>
               <ol class="list-decimal list-inside space-y-2">
-                <li><span class="font-semibold">Create Project:</span> Click "Create Project" to start a new multi-language editing session with default languages (Thai, English, Khmer, Myanmar). You can rename the project later in the editor.</li>
-                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings, Android XML, or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Khmer, Myanmar).</li>
+                <li><span class="font-semibold">Create Project:</span> Click "Create Project" to start a new multi-language editing session with default languages (Thai, English, Myanmar, Khmer). You can rename the project later in the editor.</li>
+                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings, Android XML, or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Myanmar, Khmer).</li>
                 <li><span class="font-semibold">Create from Keys:</span> Paste a list of translation keys to create a project with all 4 languages and empty values ready for translation.</li>
                 <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
                 <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
@@ -471,7 +471,7 @@ function loadSavedProjects() {
 function createNewProject() {
   const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   
-  // Create all 4 default languages with common keys
+  // Create all 4 default languages with common keys in order: th, en, my, km
   const initialLanguages: LanguageColumn[] = [
     {
       code: 'th',
@@ -496,23 +496,23 @@ function createNewProject() {
       fileType: 'strings'
     },
     {
-      code: 'km',
-      name: 'Khmer',
-      data: {
-        'common_welcome': 'សូមស្វាគមន៍',
-        'common_ok': 'យល់ព្រម',
-        'common_cancel': 'បោះបង់'
-      },
-      hasFile: true,
-      fileType: 'strings'
-    },
-    {
       code: 'my',
       name: 'Myanmar',
       data: {
         'common_welcome': 'ကြိုဆိုပါတယ်',
         'common_ok': 'OK',
         'common_cancel': 'ပယ်ဖျက်'
+      },
+      hasFile: true,
+      fileType: 'strings'
+    },
+    {
+      code: 'km',
+      name: 'Khmer',
+      data: {
+        'common_welcome': 'សូមស្វាគមន៍',
+        'common_ok': 'យល់ព្រម',
+        'common_cancel': 'បោះបង់'
       },
       hasFile: true,
       fileType: 'strings'
