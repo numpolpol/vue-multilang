@@ -90,7 +90,7 @@
                 </svg>
                 Create from Snippet
               </h2>
-              <p class="text-base-content/70">Paste iOS .strings or Android XML code to create a project</p>
+              <p class="text-base-content/70">Paste iOS .strings, Android XML, or TSV data to create a project</p>
               
               <div class="form-control w-full mt-4">
                 <label class="label">
@@ -249,7 +249,7 @@
               <div class="font-bold mb-2">How to use:</div>
               <ol class="list-decimal list-inside space-y-2">
                 <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session with all 4 languages (Thai, English, Khmer, Myanmar).</li>
-                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings or Android XML code to create a project with existing translations in one language, then translate to the other 3 languages.</li>
+                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings, Android XML, or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Khmer, Myanmar).</li>
                 <li><span class="font-semibold">Create from Keys:</span> Paste a list of translation keys to create a project with all 4 languages and empty values ready for translation.</li>
                 <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
                 <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
@@ -265,12 +265,12 @@
   <!-- Snippet Modal -->
   <dialog id="snippet_modal" class="modal">
     <div class="modal-box w-11/12 max-w-4xl">
-      <h3 class="font-bold text-lg">Create Project from iOS .strings or Android XML Code</h3>
-      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings or Android XML code below</p>
+      <h3 class="font-bold text-lg">Create Project from Code Snippet</h3>
+      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings, Android XML, or TSV data below</p>
       
       <div class="form-control w-full mt-4">
         <label class="label">
-          <span class="label-text">iOS .strings or Android XML Code</span>
+          <span class="label-text">Code Snippet (iOS .strings / Android XML / TSV)</span>
         </label>
         <textarea 
           v-model="snippetCode"
@@ -284,10 +284,16 @@ Android XML format:
 <resources>
     <string name="register_foreigner_title">TODO</string>
     <string name="register_foreigner_subtitle">Please fill in your details below.</string>
-</resources>'
+</resources>
+
+TSV format (key + 1-4 language values in order: th, en, km, my):
+key_1	value_th_1
+key_2	value_th_2	value_en_2
+key_3	value_th_3	value_en_3	value_km_3
+key_4	value_th_4	value_en_4	value_km_4	value_my_4'
         ></textarea>
         <label class="label">
-          <span class="label-text-alt">{{ parsedKeysCount }} keys detected</span>
+          <span class="label-text-alt">{{ snippetFormatInfo }}</span>
         </label>
       </div>
       
@@ -388,7 +394,7 @@ login_title, login_username, login_password, register_title"
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore, type Project, type LanguageColumn } from '../stores/files'
-import { parseStrings } from '../utils/strings'
+import { parseStrings, parseTSVMultiLanguage, isTSVFormat } from '../utils/strings'
 
 const router = useRouter()
 const filesStore = useFilesStore()
@@ -408,10 +414,57 @@ const selectedLanguage = ref('th') // Default to Thai
 const keysProjectName = ref('')
 const keysList = ref('')
 
-// Computed property to count parsed keys
+// Computed property to analyze snippet format and keys
+const snippetFormatInfo = computed(() => {
+  if (!snippetCode.value.trim()) return '0 keys detected'
+  
+  try {
+    // Check if it's TSV format first
+    if (isTSVFormat(snippetCode.value)) {
+      const tsvData = parseTSVMultiLanguage(snippetCode.value)
+      const keyCount = Object.keys(tsvData.th).length
+      
+      // Count how many languages have data
+      let langCounts = {
+        th: Object.values(tsvData.th).filter(v => v.trim()).length,
+        en: Object.values(tsvData.en).filter(v => v.trim()).length,
+        km: Object.values(tsvData.km).filter(v => v.trim()).length,
+        my: Object.values(tsvData.my).filter(v => v.trim()).length
+      }
+      
+      let langInfo = []
+      if (langCounts.th > 0) langInfo.push(`th:${langCounts.th}`)
+      if (langCounts.en > 0) langInfo.push(`en:${langCounts.en}`)
+      if (langCounts.km > 0) langInfo.push(`km:${langCounts.km}`)
+      if (langCounts.my > 0) langInfo.push(`my:${langCounts.my}`)
+      
+      return `TSV format detected - ${keyCount} keys (${langInfo.join(', ')})`
+    }
+    
+    // Otherwise try regular parsing (iOS strings or Android XML)
+    const parsed = parseStrings(snippetCode.value)
+    const keyCount = Object.keys(parsed).length
+    
+    if (snippetCode.value.trim().startsWith('<?xml')) {
+      return `Android XML format detected - ${keyCount} keys`
+    } else {
+      return `iOS .strings format detected - ${keyCount} keys`
+    }
+  } catch {
+    return 'Invalid format'
+  }
+})
+
+// For backward compatibility with continue button
 const parsedKeysCount = computed(() => {
   if (!snippetCode.value.trim()) return 0
+  
   try {
+    if (isTSVFormat(snippetCode.value)) {
+      const tsvData = parseTSVMultiLanguage(snippetCode.value)
+      return Object.keys(tsvData.th).length
+    }
+    
     const parsed = parseStrings(snippetCode.value)
     return Object.keys(parsed).length
   } catch {
@@ -610,6 +663,13 @@ function closeSnippetModal() {
 function showLanguageConfirmModal() {
   if (!snippetCode.value.trim() || parsedKeysCount.value === 0) return
   
+  // If it's TSV format, skip language confirmation and create project directly
+  if (isTSVFormat(snippetCode.value)) {
+    createProjectFromSnippet()
+    return
+  }
+  
+  // For other formats, show language confirmation modal
   const snippetModal = document.getElementById('snippet_modal') as HTMLDialogElement
   snippetModal.close()
   
@@ -628,7 +688,69 @@ function closeLanguageConfirmModal() {
 
 function createProjectFromSnippet() {
   try {
-    // Parse the snippet code
+    // Check if it's TSV format first
+    if (isTSVFormat(snippetCode.value)) {
+      // Parse TSV data which already contains all 4 languages
+      const tsvData = parseTSVMultiLanguage(snippetCode.value)
+      
+      if (Object.keys(tsvData.th).length === 0) {
+        alert('No valid TSV data found in the snippet!')
+        return
+      }
+      
+      // Create project with all 4 languages from TSV data
+      const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      
+      const initialLanguages: LanguageColumn[] = [
+        {
+          code: 'th',
+          name: 'Thai',
+          data: { ...tsvData.th },
+          hasFile: true,
+          fileType: 'strings'
+        },
+        {
+          code: 'en',
+          name: 'English',
+          data: { ...tsvData.en },
+          hasFile: true,
+          fileType: 'strings'
+        },
+        {
+          code: 'km',
+          name: 'Khmer',
+          data: { ...tsvData.km },
+          hasFile: true,
+          fileType: 'strings'
+        },
+        {
+          code: 'my',
+          name: 'Myanmar',
+          data: { ...tsvData.my },
+          hasFile: true,
+          fileType: 'strings'
+        }
+      ]
+      
+      const newProject: Project = {
+        id: projectId,
+        name: snippetProjectName.value.trim(),
+        languages: initialLanguages,
+        lastModified: Date.now(),
+        createdAt: Date.now()
+      }
+      
+      // Load the project
+      filesStore.loadProject(newProject)
+      
+      // Close modals and navigate
+      const snippetModal = document.getElementById('snippet_modal') as HTMLDialogElement
+      snippetModal.close()
+      router.push('/editor')
+      return
+    }
+    
+    // Handle iOS .strings or Android XML format (single language)
     const parsedData = parseStrings(snippetCode.value)
     
     if (Object.keys(parsedData).length === 0) {
@@ -698,8 +820,8 @@ function createProjectFromSnippet() {
     router.push('/editor')
     
   } catch (error) {
-    console.error('Failed to parse .strings or XML code:', error)
-    alert('Failed to parse .strings or XML code. Please check the format.')
+    console.error('Failed to parse snippet code:', error)
+    alert('Failed to parse snippet code. Please check the format.')
   }
 }
 
