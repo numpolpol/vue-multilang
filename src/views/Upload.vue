@@ -90,7 +90,7 @@
                 </svg>
                 Create from Snippet
               </h2>
-              <p class="text-base-content/70">Paste iOS .strings code to create a project</p>
+              <p class="text-base-content/70">Paste iOS .strings or Android XML code to create a project</p>
               
               <div class="form-control w-full mt-4">
                 <label class="label">
@@ -249,7 +249,7 @@
               <div class="font-bold mb-2">How to use:</div>
               <ol class="list-decimal list-inside space-y-2">
                 <li><span class="font-semibold">Create Project:</span> Enter a project name and click "Create Project" to start a new multi-language editing session with all 4 languages (Thai, English, Khmer, Myanmar).</li>
-                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings code to create a project with existing translations in one language.</li>
+                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings or Android XML code to create a project with existing translations in one language, then translate to the other 3 languages.</li>
                 <li><span class="font-semibold">Create from Keys:</span> Paste a list of translation keys to create a project with all 4 languages and empty values ready for translation.</li>
                 <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
                 <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
@@ -265,20 +265,26 @@
   <!-- Snippet Modal -->
   <dialog id="snippet_modal" class="modal">
     <div class="modal-box w-11/12 max-w-4xl">
-      <h3 class="font-bold text-lg">Create Project from iOS .strings Code</h3>
-      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings code below</p>
+      <h3 class="font-bold text-lg">Create Project from iOS .strings or Android XML Code</h3>
+      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings or Android XML code below</p>
       
       <div class="form-control w-full mt-4">
         <label class="label">
-          <span class="label-text">iOS .strings Code</span>
+          <span class="label-text">iOS .strings or Android XML Code</span>
         </label>
         <textarea 
           v-model="snippetCode"
           class="textarea textarea-bordered h-64 font-mono text-sm" 
-          placeholder='"register_foreigner_title" = "TODO";
+          placeholder='iOS .strings format:
+"register_foreigner_title" = "TODO";
 "register_foreigner_subtitle" = "Please fill in your details below.";
-"register_foreigner_passport_label" = "Passport Number";
-"register_foreigner_nationality_label" = "Nationality";'
+
+Android XML format:
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="register_foreigner_title">TODO</string>
+    <string name="register_foreigner_subtitle">Please fill in your details below.</string>
+</resources>'
         ></textarea>
         <label class="label">
           <span class="label-text-alt">{{ parsedKeysCount }} keys detected</span>
@@ -309,38 +315,16 @@
           <span class="label-text">Language</span>
         </label>
         <select v-model="selectedLanguage" class="select select-bordered w-full">
+          <option value="th">Thai (ไทย)</option>
           <option value="en">English</option>
-          <option value="th">Thai</option>
-          <option value="km">Khmer</option>
-          <option value="my">Myanmar</option>
-          <option value="ja">Japanese</option>
-          <option value="ko">Korean</option>
-          <option value="zh">Chinese</option>
-          <option value="vi">Vietnamese</option>
-          <option value="id">Indonesian</option>
-          <option value="ms">Malay</option>
-          <option value="tl">Filipino</option>
-          <option value="other">Other</option>
+          <option value="km">Khmer (ខ្មែរ)</option>
+          <option value="my">Myanmar (မြန်မာ)</option>
         </select>
       </div>
-      
-      <div v-if="selectedLanguage === 'other'" class="form-control w-full mt-2">
-        <label class="label">
-          <span class="label-text">Custom Language Code</span>
-        </label>
-        <input 
-          v-model="customLanguageCode"
-          type="text" 
-          placeholder="e.g., fr, de, es" 
-          class="input input-bordered w-full"
-        />
-      </div>
-      
       <div class="modal-action">
         <button class="btn" @click="closeLanguageConfirmModal">Back</button>
         <button 
           class="btn btn-primary" 
-          :disabled="selectedLanguage === 'other' && !customLanguageCode.trim()"
           @click="createProjectFromSnippet"
         >
           Create Project
@@ -418,8 +402,7 @@ const savedProjects = ref<Project[]>([])
 // Snippet functionality
 const snippetProjectName = ref('')
 const snippetCode = ref('')
-const selectedLanguage = ref('en')
-const customLanguageCode = ref('')
+const selectedLanguage = ref('th') // Default to Thai
 
 // Keys functionality
 const keysProjectName = ref('')
@@ -613,8 +596,7 @@ function showSnippetModal() {
   
   // Reset snippet form
   snippetCode.value = ''
-  selectedLanguage.value = 'en'
-  customLanguageCode.value = ''
+  selectedLanguage.value = 'th'
   
   const modal = document.getElementById('snippet_modal') as HTMLDialogElement
   modal.showModal()
@@ -650,30 +632,57 @@ function createProjectFromSnippet() {
     const parsedData = parseStrings(snippetCode.value)
     
     if (Object.keys(parsedData).length === 0) {
-      alert('No valid .strings data found in the snippet!')
+      alert('No valid .strings or XML data found in the snippet!')
       return
     }
     
-    // Determine language code
-    const langCode = selectedLanguage.value === 'other' 
-      ? customLanguageCode.value.trim()
-      : selectedLanguage.value
+    // Use the selected language
+    const langCode = selectedLanguage.value
     
-    if (!langCode) {
-      alert('Please specify a language code!')
-      return
-    }
-    
-    // Create project
+    // Create project with all 4 languages
     const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Create all 4 languages with empty data initially
+    const emptyData: Record<string, string> = {}
+    Object.keys(parsedData).forEach(key => {
+      emptyData[key] = ''
+    })
+    
+    const initialLanguages: LanguageColumn[] = [
+      {
+        code: 'th',
+        name: 'Thai',
+        data: langCode === 'th' ? { ...parsedData } : { ...emptyData },
+        hasFile: true,
+        fileType: 'strings'
+      },
+      {
+        code: 'en',
+        name: 'English',
+        data: langCode === 'en' ? { ...parsedData } : { ...emptyData },
+        hasFile: true,
+        fileType: 'strings'
+      },
+      {
+        code: 'km',
+        name: 'Khmer',
+        data: langCode === 'km' ? { ...parsedData } : { ...emptyData },
+        hasFile: true,
+        fileType: 'strings'
+      },
+      {
+        code: 'my',
+        name: 'Myanmar',
+        data: langCode === 'my' ? { ...parsedData } : { ...emptyData },
+        hasFile: true,
+        fileType: 'strings'
+      }
+    ]
     
     const newProject: Project = {
       id: projectId,
       name: snippetProjectName.value.trim(),
-      languages: [{
-        name: langCode,
-        data: parsedData
-      }],
+      languages: initialLanguages,
       lastModified: Date.now(),
       createdAt: Date.now()
     }
@@ -689,8 +698,8 @@ function createProjectFromSnippet() {
     router.push('/editor')
     
   } catch (error) {
-    console.error('Failed to parse .strings code:', error)
-    alert('Failed to parse .strings code. Please check the format.')
+    console.error('Failed to parse .strings or XML code:', error)
+    alert('Failed to parse .strings or XML code. Please check the format.')
   }
 }
 
