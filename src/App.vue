@@ -1,11 +1,12 @@
 <template>
   <div class="min-h-screen bg-base-200 w-full">
     <router-view></router-view>
+    <NotificationToast />
   </div>
 </template>
 
 <script lang="ts" setup>
-// No imports needed
+import NotificationToast from './components/NotificationToast.vue'
 </script>
 
 <style>

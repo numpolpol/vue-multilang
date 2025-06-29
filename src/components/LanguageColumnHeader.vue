@@ -12,6 +12,13 @@
       <div class="flex items-center gap-1">
         <button 
           class="btn btn-xs btn-outline"
+          @click="openSnippetModal"
+          :title="`View code snippet for ${language.name}`"
+        >
+          📄
+        </button>
+        <button 
+          class="btn btn-xs btn-outline"
           @click="exportColumn"
           :title="`Export ${language.name} column`"
         >
@@ -23,7 +30,7 @@
           :title="`Upload file for ${language.name}`"
         >
           📁
-        </button>
+        </button>>
         
         <!-- Column resizer -->
         <div class="resizer cursor-col-resize w-1 h-4 bg-base-300 hover:bg-primary" 
@@ -184,17 +191,27 @@
         <button @click="closeExportModal">close</button>
       </form>
     </dialog>
+
+    <!-- Snippet Modal -->
+    <SnippetModal 
+      ref="snippetModalRef"
+      :language="language" 
+      :data="language.data"
+      :all-keys="allKeys || []"
+    />
   </th>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useFilesStore } from '../stores/files'
+import SnippetModal from './SnippetModal.vue'
 import type { LanguageColumn } from '../stores/files'
 
 interface Props {
   language: LanguageColumn
   columnWidth?: string
+  allKeys?: string[]
 }
 
 interface Emits {
@@ -208,6 +225,7 @@ const filesStore = useFilesStore()
 
 // Export format selection
 const exportFormat = ref<'ios' | 'android'>('ios')
+const snippetModalRef = ref<InstanceType<typeof SnippetModal> | null>(null)
 
 async function onFileSelected(event: Event, fileType: 'strings' | 'xml') {
   const input = event.target as HTMLInputElement
@@ -268,6 +286,10 @@ function closeExportModal() {
 function confirmExport() {
   emit('export', { language: props.language.code, format: exportFormat.value })
   closeExportModal()
+}
+
+function openSnippetModal() {
+  snippetModalRef.value?.openModal()
 }
 </script>
 
