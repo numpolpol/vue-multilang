@@ -37,7 +37,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
           </label>
-          <h1 class="text-2xl font-bold ml-2">Project Manager</h1>
+          <h1 class="text-2xl font-bold ml-2">Vue Multi Language Editor</h1>
         </div>
       </div>
 

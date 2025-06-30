@@ -1,9 +1,21 @@
 // Utility to parse iOS .strings file into JS object
+import { parseJsonToFlat, isJsonContent, FLATTEN_PRESETS, flatToJsonString } from './jsonFlattening'
+
 export function parseStrings(content: string): Record<string, string> {
   const result: Record<string, string> = {}
   
   if (!content || content.trim().length === 0) {
     return result
+  }
+  
+  // Check if content is JSON format
+  if (isJsonContent(content)) {
+    try {
+      return parseJsonToFlat(content, FLATTEN_PRESETS.web)
+    } catch (error) {
+      console.warn('Failed to parse JSON content:', error)
+      return result
+    }
   }
   
   if (content.trim().startsWith('<?xml')) {
@@ -80,6 +92,20 @@ export function toAndroidStrings(obj: Record<string, string>): string {
   } catch (error) {
     console.warn('Failed to convert to Android XML format:', error)
     return ''
+  }
+}
+
+// Utility to stringify JS object to JSON format (nested structure)
+export function toJsonString(obj: Record<string, string>): string {
+  try {
+    return flatToJsonString(obj, {
+      separator: '.',
+      parseNumbers: true,
+      parseArrays: true
+    })
+  } catch (error) {
+    console.warn('Failed to convert to JSON format:', error)
+    return JSON.stringify(obj, null, 2)
   }
 }
 

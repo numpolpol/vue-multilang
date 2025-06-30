@@ -6,7 +6,7 @@ export interface LanguageColumn {
   name: string
   data: Record<string, string>
   hasFile: boolean
-  fileType?: 'strings' | 'xml'
+  fileType?: 'strings' | 'xml' | 'json'
 }
 
 export interface StringsFile {
@@ -136,10 +136,17 @@ export const useFilesStore = defineStore('files', {
   
   actions: {
     // New actions for language-column structure
-    async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml') {
+    async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml' | 'json') {
       const { parseStrings } = await import('../utils/strings')
       const content = await this.readFileContent(file)
-      const data = parseStrings(content)
+      
+      let data: Record<string, string>
+      try {
+        data = parseStrings(content)
+      } catch (error) {
+        console.error('Failed to parse file:', error)
+        throw new Error(`Failed to parse ${fileType} file. Please check the format.`)
+      }
       
       const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
       if (langIndex !== -1) {
@@ -161,7 +168,9 @@ export const useFilesStore = defineStore('files', {
       this.languages.forEach(lang => {
         if (lang.hasFile) {
           // Create a mock file for compatibility
-          const mockFile = new File([''], `${lang.code}.${lang.fileType || 'strings'}`)
+          const extension = lang.fileType === 'xml' ? 'xml' : 
+                          lang.fileType === 'json' ? 'json' : 'strings'
+          const mockFile = new File([''], `${lang.code}.${extension}`)
           this.files.push(mockFile)
           this.stringsData.push({ ...lang.data })
         }
