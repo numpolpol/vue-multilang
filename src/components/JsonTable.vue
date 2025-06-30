@@ -290,12 +290,20 @@
         <!-- Platform Selection -->
         <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Platform Format</span>
+            <span class="label-text">Export Format</span>
           </label>
           <select v-model="exportPlatform" class="select select-bordered w-full">
             <option value="ios">iOS (.strings)</option>
             <option value="android">Android (strings.xml)</option>
+            <option value="json">JSON (nested structure)</option>
           </select>
+          <label class="label">
+            <span class="label-text-alt">
+              <span v-if="exportPlatform === 'json'">Reconstructs nested JSON from flattened keys</span>
+              <span v-else-if="exportPlatform === 'ios'">Standard iOS localization format</span>
+              <span v-else>Android XML resource format</span>
+            </span>
+          </label>
         </div>
         <div class="modal-action">
           <button class="btn" @click="closeExportModal">Cancel</button>
@@ -827,7 +835,7 @@ function onDeleteKey(key: string) {
 }
 
 // Export functionality
-const exportPlatform = ref<'ios' | 'android'>('ios')
+const exportPlatform = ref<'ios' | 'android' | 'json'>('ios')
 const exportMode = ref<'all' | 'changed' | 'original'>('all')
 
 function openExportModal(mode: 'all' | 'changed' | 'original') {
@@ -910,13 +918,28 @@ function downloadFiles() {
       fileName += `_${selectedPage.value}`
     }
     
-    const fileContent = exportPlatform.value === 'ios' 
-      ? toStrings(finalData)
-      : toAndroidStrings(finalData)
+    // Generate content based on format
+    let fileContent: string
+    let mimeType: string
+
+    if (exportPlatform.value === 'ios') {
+      fileContent = toStrings(finalData)
+      fileName += '.strings'
+      mimeType = 'text/plain;charset=utf-8'
+    } else if (exportPlatform.value === 'android') {
+      fileContent = toAndroidStrings(finalData)
+      fileName += '.xml'
+      mimeType = 'application/xml;charset=utf-8'
+    } else if (exportPlatform.value === 'json') {
+      fileContent = toJsonString(finalData)
+      fileName += '.json'
+      mimeType = 'application/json;charset=utf-8'
+    } else {
+      console.error('Unsupported export format:', exportPlatform.value)
+      return
+    }
     
-    fileName += exportPlatform.value === 'ios' ? '.strings' : '.xml'
-    
-    const blob = new Blob([fileContent], { type: 'text/plain' })
+    const blob = new Blob([fileContent], { type: mimeType })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

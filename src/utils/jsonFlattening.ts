@@ -247,12 +247,12 @@ export function isJsonContent(content: string): boolean {
  * Common flattening presets for different use cases
  */
 export const FLATTEN_PRESETS = {
-  // Standard web app localization
+  // Standard web app localization - Complete flattening to primitive values
   web: {
     separator: '.',
-    maxDepth: 5,
-    preserveArrays: true,
-    includeArrayIndices: false
+    maxDepth: 50,  // Very high depth to ensure complete flattening
+    preserveArrays: false,  // Flatten all arrays
+    includeArrayIndices: true  // Include array indices for proper flattening
   },
   
   // Mobile app localization (iOS/Android)
