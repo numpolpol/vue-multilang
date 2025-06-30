@@ -141,6 +141,35 @@
                   @change="onFileSelected($event, 'xml')"
                 />
               </label>
+
+              <!-- JSON file -->
+              <label class="flex items-center gap-4 p-4 border-2 border-base-300 rounded-xl cursor-pointer hover:border-warning hover:bg-warning/5 transition-all duration-200 group">
+                <div class="flex-shrink-0">
+                  <div class="w-12 h-12 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <span class="text-2xl">📄</span>
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <div class="font-semibold text-base">JSON File</div>
+                  <div class="text-sm text-base-content/70 mt-1">
+                    <code class="bg-base-200 px-2 py-1 rounded text-xs">.json</code> format (flattened)
+                  </div>
+                  <div class="text-xs text-base-content/60 mt-1">
+                    Example: { "user.name": "John", "app.title": "My App" }
+                  </div>
+                </div>
+                <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <input 
+                  type="file" 
+                  accept=".json"
+                  class="hidden"
+                  @change="onFileSelected($event, 'json')"
+                />
+              </label>
             </div>
           </div>
           
@@ -179,6 +208,7 @@
           <select v-model="exportFormat" class="select select-bordered w-full">
             <option value="ios">iOS (.strings)</option>
             <option value="android">Android (strings.xml)</option>
+            <option value="json">JSON (nested structure)</option>
           </select>
         </div>
         
@@ -216,7 +246,7 @@ interface Props {
 
 interface Emits {
   (e: 'resize', data: { language: string, event: MouseEvent }): void
-  (e: 'export', data: { language: string, format: 'ios' | 'android' }): void
+  (e: 'export', data: { language: string, format: 'ios' | 'android' | 'json' }): void
 }
 
 const props = defineProps<Props>()
@@ -224,10 +254,10 @@ const emit = defineEmits<Emits>()
 const filesStore = useFilesStore()
 
 // Export format selection
-const exportFormat = ref<'ios' | 'android'>('ios')
+const exportFormat = ref<'ios' | 'android' | 'json'>('ios')
 const snippetModalRef = ref<InstanceType<typeof SnippetModal> | null>(null)
 
-async function onFileSelected(event: Event, fileType: 'strings' | 'xml') {
+async function onFileSelected(event: Event, fileType: 'strings' | 'xml' | 'json') {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   

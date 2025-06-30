@@ -1,0 +1,105 @@
+{
+  "app": {
+    "name": "My Awesome App",
+    "version": "1.0.0",
+    "description": "A sample multilingual application"
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact",
+    "services": "Services",
+    "menu": {
+      "file": "File",
+      "edit": "Edit",
+      "view": "View",
+      "help": "Help"
+    }
+  },
+  "user": {
+    "profile": {
+      "title": "User Profile",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone Number",
+      "address": {
+        "street": "Street Address",
+        "city": "City",
+        "country": "Country",
+        "zipCode": "ZIP Code"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "language": "Language",
+      "theme": "Theme",
+      "notifications": {
+        "email": "Email Notifications",
+        "push": "Push Notifications",
+        "sms": "SMS Notifications"
+      },
+      "privacy": {
+        "public": "Public Profile",
+        "searchable": "Searchable",
+        "showEmail": "Show Email"
+      }
+    }
+  },
+  "messages": {
+    "success": {
+      "save": "Data saved successfully!",
+      "delete": "Item deleted successfully!",
+      "update": "Profile updated successfully!"
+    },
+    "error": {
+      "network": "Network connection error",
+      "validation": "Please check your input",
+      "permission": "You don't have permission"
+    },
+    "info": {
+      "loading": "Loading...",
+      "processing": "Processing your request",
+      "welcome": "Welcome to our application!"
+    }
+  },
+  "forms": {
+    "login": {
+      "title": "Sign In",
+      "username": "Username",
+      "password": "Password",
+      "rememberMe": "Remember me",
+      "forgotPassword": "Forgot password?",
+      "submit": "Sign In"
+    },
+    "register": {
+      "title": "Create Account",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "terms": "I agree to the terms and conditions",
+      "submit": "Create Account"
+    }
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email address",
+    "password": "Password must be at least 8 characters",
+    "match": "Passwords do not match",
+    "minLength": "Must be at least {min} characters",
+    "maxLength": "Must be no more than {max} characters"
+  },
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  }
+}

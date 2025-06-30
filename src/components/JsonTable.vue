@@ -437,7 +437,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import type { PreviewImage, KeyAnnotation } from '../stores/files'
-import { toStrings, toAndroidStrings } from '../utils/strings'
+import { toStrings, toAndroidStrings, toJsonString } from '../utils/strings'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 
 const emit = defineEmits<{
@@ -928,7 +928,7 @@ function downloadFiles() {
   })
 }
 
-function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' = 'ios') {
+function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' | 'json' = 'ios') {
   // Find the language data
   const language = orderedLanguages.value.find(lang => lang.code === languageCode)
   if (!language) {
@@ -973,6 +973,10 @@ function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' = 
     content = toAndroidStrings(columnData)
     filename += '.xml'
     mimeType = 'application/xml;charset=utf-8'
+  } else if (format === 'json') {
+    content = toJsonString(columnData)
+    filename += '.json'
+    mimeType = 'application/json;charset=utf-8'
   } else {
     alert('Unsupported export format')
     return
@@ -1012,7 +1016,7 @@ function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
   startResizing(data.event, data.language)
 }
 
-function onLanguageColumnExport(data: { language: string, format: 'ios' | 'android' }) {
+function onLanguageColumnExport(data: { language: string, format: 'ios' | 'android' | 'json' }) {
   exportLanguageColumn(data.language, data.format)
 }
 
