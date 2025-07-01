@@ -1,184 +1,72 @@
 <template>
   <div class="h-screen flex flex-col w-full max-w-none json-table-container px-4">
     <!-- Search & Controls -->
-    <div class="bg-base-200 flex-shrink-0 w-full px-4">
-      <!-- Mode Indicator -->
-      <div class="py-1 text-xs text-base-content/70">
-        Mode: {{ mode === 'all' ? 'All Keys View' : 'Page Sections View' }}
-        | {{ filteredKeys.length }} rows
-        <span v-if="search.trim()">
-          (filtered from {{ visibleKeys.length }})
-        </span>
-        <span v-if="mode === 'paging' && selectedPage">
-          | Current: {{ selectedPage }}
-        </span>
-        <span v-if="mode === 'paging'">
-          | {{ pagePrefixes.length }} sections available
-        </span>
-        <span v-if="highlightMode">
-          | Highlight: ON
-        </span>
-        <span v-if="props.dualKeysMode">
-          | Multi Key Mode: ON
-        </span>
-      </div>
-      
-      <!-- Search -->
-      <div class="form-control py-2 w-full">
-        <div class="input-group">
-          <div class="flex items-center gap-2 w-full">
-            <button class="btn btn-square btn-ghost">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
-            <input v-model="search" type="text" placeholder="Search keys or values..." class="input input-bordered w-full" />
-            <button class="btn btn-primary btn-sm" @click="$emit('addKey')" title="Add New Key">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              Add Key
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div v-if="mode === 'paging'" class="tabs-paging flex-shrink-0 px-4 pb-2">
-      <div class="tabs w-full">
-        <button 
-          v-for="prefix in pagePrefixes" 
-          :key="prefix" 
-          :class="['tab', { 'tab-active': selectedPage === prefix }]" 
-          @click="selectedPage = prefix"
-          :title="`Switch to ${prefix} section`"
-        >
-          {{ prefix }}
-        </button>
-      </div>
-    </div>
+    <TableSearchControls
+      :mode="mode"
+      :search="search"
+      :filtered-keys-length="filteredKeys.length"
+      :visible-keys-length="visibleKeys.length"
+      :selected-page="selectedPage"
+      :page-prefixes-length="pagePrefixes.length"
+      :highlight-mode="highlightMode"
+      :dual-keys-mode="props.dualKeysMode"
+      @update:search="search = $event"
+      @add-key="$emit('addKey')"
+    />
+
+    <!-- Page Tabs -->
+    <PageTabs
+      :mode="mode"
+      :page-prefixes="pagePrefixes"
+      :selected-page="selectedPage"
+      @update:selected-page="selectedPage = $event"
+    />
+
     <!-- Table wrapper with horizontal scroll -->
     <div class="flex-1 overflow-auto w-full px-4" :class="mode === 'paging' ? 'flex gap-4' : ''">
-      <!-- Preview Images Panel (only in paging mode) - Moved to left side -->
-      <div v-if="mode === 'paging'" :class="[
-        'flex-shrink-0 bg-base-100 border border-base-300 rounded-lg p-4 mr-auto flex flex-col h-full transition-all duration-300',
-        isPreviewPanelMinimized ? 'w-12' : 'w-80'
-      ]">
-        <div class="space-y-4 flex flex-col h-full">
-          <!-- Header with minimize button -->
-          <div class="flex items-center justify-between">
-            <h3 v-if="!isPreviewPanelMinimized" class="font-semibold text-lg">Preview Images</h3>
-            <button 
-              @click="isPreviewPanelMinimized = !isPreviewPanelMinimized"
-              class="btn btn-xs btn-ghost"
-              :title="isPreviewPanelMinimized ? 'Expand Preview Panel' : 'Minimize Preview Panel'"
-            >
-              <svg v-if="isPreviewPanelMinimized" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          </div>
-          
-          <!-- Content (hidden when minimized) -->
-          <div v-if="!isPreviewPanelMinimized" class="space-y-4 flex flex-col h-full">
-            <div class="text-xs text-base-content/70">
-              {{ Object.keys(previewImages).length }} sections with images
-            </div>
-          
-          <!-- Image Upload Area -->
-          <div class="space-y-2 flex-shrink-0">
-            <label class="label">
-              <span class="label-text">Add Images for {{ selectedPage }} section</span>
-            </label>
-            <input 
-              type="file" 
-              multiple 
-              accept="image/*" 
-              class="file-input file-input-bordered file-input-sm w-full" 
-              @change="onPreviewImagesSelected"
-            />
-            <label class="label">
-              <span class="label-text-alt">Upload preview images to visualize this section</span>
-            </label>
-          </div>
-          
-          <!-- Uploaded Images Display -->
-          <div v-if="previewImages[selectedPage]?.length" class="space-y-3 flex-1 flex flex-col">
-            <div class="divider">Uploaded Images</div>
-            <div class="space-y-3 flex-1 overflow-y-auto">
-              <div 
-                v-for="(image, index) in previewImages[selectedPage]" 
-                :key="index"
-                class="relative group"
-              >
-                <img 
-                  :src="image.url" 
-                  :alt="image.name"
-                  class="object-contain border border-base-300 rounded-lg cursor-pointer hover:opacity-80 transition-opacity w-full"
-                  style="height: 200px;"
-                  @click="openFullscreenImage(image, index, selectedPage)"
-                />
-                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    class="btn btn-sm btn-error btn-circle"
-                    @click="removePreviewImage(selectedPage, index)"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-                <div class="mt-1 text-xs text-base-content/70 truncate">
-                  {{ image.name }}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- No Images State -->
-          <div v-else class="text-center py-8 text-base-content/50 flex-1 flex flex-col justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <p class="text-sm">No preview images</p>
-            <p class="text-xs">Upload images to visualize this section</p>
-          </div>
-          </div>
-        </div>
-      </div>
+      <!-- Preview Images Panel -->
+      <PreviewImagesPanel
+        :mode="mode"
+        :is-minimized="isPreviewPanelMinimized"
+        :preview-images="previewImages"
+        :selected-page="selectedPage"
+        @update:is-minimized="isPreviewPanelMinimized = $event"
+        @images-selected="onPreviewImagesSelected"
+        @open-fullscreen-image="handleOpenFullscreenImage"
+        @remove-image="handleRemoveImage"
+      />
       
       <!-- Table container -->
-      <div :class="mode === 'paging' ? 'flex-1' : 'w-full'">
-        <table class="table w-full h-full">
-          <thead>
-            <tr>
-              <!-- Fixed key column -->
-              <th class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
-                <div class="flex items-center gap-2">
-                  <span>Key</span>
-                    <!-- Multi key mode indicator -->
-                    <div v-if="props.dualKeysMode" 
-                       class="badge badge-accent badge-xs">
-                    🔗
-                    </div>
-                  <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
-                </div>
-              </th>
-              <!-- Fixed paste column -->
-              <th class="sticky" :style="{ left: `${keyColumnWidth}px`, width: '80px', minWidth: '80px' }">
-                <div class="flex items-center gap-2">
-                  <span>Paste</span>
-                </div>
-              </th>
+      <div :class="mode === 'paging' ? 'flex-1' : 'w-full'" class="flex flex-col h-full">
+        <div class="flex-1 overflow-auto relative">
+          <table class="table w-full">
+            <thead class="sticky top-0 z-30 bg-white shadow-md border-b border-base-200">
+              <tr>
+                <!-- Fixed key column -->
+                <th class="sticky left-0 z-20 bg-white border-r border-base-200" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
+                  <div class="flex items-center gap-2">
+                    <span>Key</span>
+                      <!-- Multi key mode indicator -->
+                      <div v-if="props.dualKeysMode" 
+                         class="badge badge-accent badge-xs">
+                      🔗
+                      </div>
+                    <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
+                  </div>
+                </th>
+                <!-- Fixed paste column -->
+                <th class="sticky bg-white border-r border-base-200 z-20" :style="{ left: `${keyColumnWidth}px`, width: '80px', minWidth: '80px' }">
+                  <div class="flex items-center gap-2">
+                    <span>Paste</span>
+                  </div>
+                </th>
               <!-- Language columns using LanguageColumnHeader -->
               <LanguageColumnHeader
                 v-for="language in orderedLanguages" 
                 :key="language.code"
                 :language="language"
                 :column-width="columnWidths[language.code] || '200px'"
-                :all-keys="visibleKeys"
+                :all-keys="filteredKeys"
                 @resize="onLanguageColumnResize"
                 @export="onLanguageColumnExport"
               />
@@ -203,117 +91,41 @@
               </td>
             </tr>
             <template v-else v-for="key in filteredKeys" :key="key">
-              <tr :class="rowClass(key)">
-                <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">
-                  <div v-if="isMergedKey(key)" class="space-y-1">
-                    <div class="text-sm font-medium">
-                      {{ getMergedKeyPrimary(key) }}
-                    </div>
-                    <div v-if="getMergedKeySecondary(key)" class="text-xs text-secondary">
-                      ({{ getMergedKeySecondary(key) }})
-                    </div>
-                    <div class="badge badge-accent badge-xs">multi-key</div>
-                  </div>
-                  <div v-else-if="editingKey === key" class="space-y-1">
-                    <input
-                      v-model="editKeyValue"
-                      @keydown="onEditKeyKeydown"
-                      @blur="saveEditKey"
-                      class="input input-bordered input-xs w-full"
-                      :class="{ 'input-error': editKeyError }"
-                      placeholder="Enter key name..."
-                      ref="editKeyInput"
-                    />
-                    <div v-if="editKeyError" class="text-xs text-error">{{ editKeyError }}</div>
-                    <div class="flex gap-1">
-                      <button @click="saveEditKey" class="btn btn-xs btn-success" title="Save">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </button>
-                      <button @click="cancelEditKey" class="btn btn-xs btn-ghost" title="Cancel">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div v-else class="flex items-center group">
-                    <span class="flex-1 cursor-pointer" @click="startEditKey(key)" :title="'Click to edit key: ' + key">
-                      {{ key }}
-                    </span>
-                    <button 
-                      @click="startEditKey(key)" 
-                      class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                      title="Edit key"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
-                  <button class="btn btn-xs btn-outline" @click="onPaste(key)">Paste</button>
-                </td>
-                <td v-for="language in orderedLanguages" :key="language.code">
-                  <input 
-                    :value="getDisplayValue(language, key)" 
-                    @input="setLanguageDataValue(language.code, key, ($event.target as HTMLInputElement).value)"
-                    class="input input-bordered w-full" 
-                    :placeholder="`Enter ${language.name} text...`"
-                  />
-                </td>
-                <!-- Delete button -->
-                <td class="w-16 min-w-16">
-                  <button 
-                    class="btn btn-xs btn-error btn-circle"
-                    @click="onDeleteKey(key)"
-                    title="Delete this key"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
+              <TableRow
+                :key-name="key"
+                :row-class="rowClass(key)"
+                :column-widths="columnWidths"
+                :key-column-width="keyColumnWidth"
+                :ordered-languages="orderedLanguages"
+                :is-merged-key="isMergedKey(key)"
+                :merged-key-primary="getMergedKeyPrimary(key)"
+                :merged-key-secondary="getMergedKeySecondary(key)"
+                :is-editing="editingKey === key"
+                :edit-key-value="editKeyValue"
+                :edit-key-error="editKeyError"
+                @start-edit-key="startEditKey(key)"
+                @save-edit-key="saveEditKey"
+                @update-edit-key-value="editKeyValue = $event"
+                @cancel-edit-key="cancelEditKey"
+                @paste="onPaste(key)"
+                @update-value="(data) => setLanguageDataValue(data.languageCode, key, data.value)"
+                @delete="onDeleteKey(key)"
+                :ref="editingKey === key ? 'currentEditingRow' : undefined"
+              />
             </template>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
     
     <!-- Export Modal -->
-    <dialog id="export_modal" class="modal">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Export Settings</h3>
-        <!-- Platform Selection -->
-        <div class="form-control w-full">
-          <label class="label">
-            <span class="label-text">Export Format</span>
-          </label>
-          <select v-model="exportPlatform" class="select select-bordered w-full">
-            <option value="ios">iOS (.strings)</option>
-            <option value="android">Android (strings.xml)</option>
-            <option value="json">JSON (nested structure)</option>
-          </select>
-          <label class="label">
-            <span class="label-text-alt">
-              <span v-if="exportPlatform === 'json'">Reconstructs nested JSON from flattened keys</span>
-              <span v-else-if="exportPlatform === 'ios'">Standard iOS localization format</span>
-              <span v-else>Android XML resource format</span>
-            </span>
-          </label>
-        </div>
-        <div class="modal-action">
-          <button class="btn" @click="closeExportModal">Cancel</button>
-          <button class="btn btn-primary" @click="downloadFiles">Export</button>
-        </div>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-      </form>
-    </dialog>
+    <ExportModal
+      :export-platform="exportPlatform"
+      @update:export-platform="exportPlatform = $event"
+      @close="closeExportModal"
+      @download="downloadFiles"
+    />
 
     <!-- Fullscreen Image Modal with Key Annotations -->
     <dialog id="fullscreen_image_modal" class="modal">
@@ -447,6 +259,11 @@ import { useFilesStore } from '../stores/files'
 import type { PreviewImage, KeyAnnotation } from '../stores/files'
 import { toStrings, toAndroidStrings, toJsonString } from '../utils/strings'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
+import TableSearchControls from './TableSearchControls.vue'
+import PageTabs from './PageTabs.vue'
+import PreviewImagesPanel from './PreviewImagesPanel.vue'
+import TableRow from './TableRow.vue'
+import ExportModal from './ExportModal.vue'
 
 const emit = defineEmits<{
   (e: 'update:mode', value: 'all' | 'paging'): void
@@ -1136,6 +953,15 @@ function setLanguageDataValue(languageCode: string, key: string, value: string) 
   }
 }
 
+// Handler functions for component events
+function handleOpenFullscreenImage(data: { image: PreviewImage, index: number, prefix: string }) {
+  openFullscreenImage(data.image, data.index, data.prefix)
+}
+
+function handleRemoveImage(data: { prefix: string, index: number }) {
+  removePreviewImage(data.prefix, data.index)
+}
+
 // Helper functions for merged keys
 function isMergedKey(key: string): boolean {
   return key.includes(' + ')
@@ -1156,16 +982,6 @@ function getMergedKeySecondary(key: string): string {
 function getAllKeysFromMergedKey(key: string): string[] {
   if (!isMergedKey(key)) return [key]
   return key.split(' + ')
-}
-
-function getDisplayValue(language: any, key: string): string {
-  // ถ้าเป็น merged key ให้ใช้ primary key เพื่อดึงค่า
-  if (isMergedKey(key)) {
-    const primaryKey = getMergedKeyPrimary(key)
-    return language.data[primaryKey] || ''
-  }
-  // กรณี key ปกติ
-  return language.data[key] || ''
 }
 
 // Key editing functions
@@ -1216,16 +1032,6 @@ function saveEditKey() {
     emit('change', { key: newKey, fileName: 'key-renamed' })
   } else {
     editKeyError.value = 'Failed to rename key'
-  }
-}
-
-function onEditKeyKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
-    event.preventDefault()
-    saveEditKey()
-  } else if (event.key === 'Escape') {
-    event.preventDefault()
-    cancelEditKey()
   }
 }
 
@@ -1400,26 +1206,60 @@ td:nth-of-type(2) {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* Sticky columns */
+/* Sticky columns - improved */
 .sticky {
-  position: sticky;
+  position: sticky !important;
   z-index: 10;
-  background: inherit;
+  background: white !important;
+}
+
+/* Enhanced sticky header styling */
+thead.sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+  background: white !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Sticky columns with higher z-index */
+th.sticky {
+  position: sticky !important;
+  z-index: 20 !important;
+  background: white !important;
+}
+
+/* Ensure sticky elements stay on top */
+.sticky {
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.sticky:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .left-0 {
   left: 0;
 }
 
-/* Table layout */
+/* Table layout - improved for sticky headers */
 .table {
   table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Ensure proper table container height */
+.flex-1.overflow-auto {
+  height: 0; /* Force flex item to respect parent height */
+  min-height: 200px;
 }
 
 td, th {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-bottom: 1px solid #e5e5e5;
 }
 
 /* Make sure inputs don't overflow */

@@ -2,7 +2,7 @@
   <th class="relative group" :style="{ width: columnWidth || '200px', minWidth: '150px' }">
     <div class="flex items-center gap-2 justify-between">
       <div class="flex items-center gap-2">
-        <span class="font-medium">{{ language.name }} ({{ language.code.toUpperCase() }})</span>
+        <span class="font-medium">{{ language.code.toUpperCase() }}</span>
         <div v-if="language.hasFile" class="badge badge-success badge-xs">
           {{ language.fileType?.toUpperCase() }}
         </div>
