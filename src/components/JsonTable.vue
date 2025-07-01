@@ -178,7 +178,7 @@
                 :key="language.code"
                 :language="language"
                 :column-width="columnWidths[language.code] || '200px'"
-                :all-keys="visibleKeys"
+                :all-keys="filteredKeys"
                 @resize="onLanguageColumnResize"
                 @export="onLanguageColumnExport"
               />
