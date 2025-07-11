@@ -14,22 +14,31 @@
       </h3>
       
       <!-- Format Selector -->
-      <div class="tabs tabs-boxed mb-6">
-        <button 
-          :class="['tab', { 'tab-active': selectedFormat === 'ios' }]" 
+      <div class="flex gap-2 mb-6 justify-center">
+        <button
+          :class="['tab', 'rounded-full', 'px-6', 'py-2', 'font-semibold',
+            selectedFormat === 'ios' ? 'bg-primary text-primary-content shadow' : 'bg-base-200 text-base-content hover:bg-primary/20',
+          ]"
           @click="selectedFormat = 'ios'"
+          type="button"
         >
           iOS .strings
         </button>
-        <button 
-          :class="['tab', { 'tab-active': selectedFormat === 'android' }]" 
+        <button
+          :class="['tab', 'rounded-full', 'px-6', 'py-2', 'font-semibold',
+            selectedFormat === 'android' ? 'bg-success text-success-content shadow' : 'bg-base-200 text-base-content hover:bg-success/20',
+          ]"
           @click="selectedFormat = 'android'"
+          type="button"
         >
           Android XML
         </button>
-        <button 
-          :class="['tab', { 'tab-active': selectedFormat === 'json' }]" 
+        <button
+          :class="['tab', 'rounded-full', 'px-6', 'py-2', 'font-semibold',
+            selectedFormat === 'json' ? 'bg-info text-info-content shadow' : 'bg-base-200 text-base-content hover:bg-info/20',
+          ]"
           @click="selectedFormat = 'json'"
+          type="button"
         >
           JSON
         </button>
@@ -237,31 +246,15 @@ const snippetContent = computed(() => {
 })
 
 function generateIOSSnippet(): string {
-  const header = `/* 
- * Localization file for ${props.language.name} (${props.language.code})
- * Generated on ${new Date().toLocaleDateString()}
- * Total keys: ${filteredData.value.length}
- */\n\n`
-  
-  const content = filteredData.value
+  return filteredData.value
     .map(({ key, value }) => {
       const escapedValue = value.replace(/"/g, '\\"').replace(/\n/g, '\\n')
       return `"${key}" = "${escapedValue}";`
     })
     .join('\n')
-  
-  return header + content
 }
-
 function generateAndroidSnippet(): string {
-  const header = `<?xml version="1.0" encoding="utf-8"?>
-<!-- 
-  Localization file for ${props.language.name} (${props.language.code})
-  Generated on ${new Date().toLocaleDateString()}
-  Total keys: ${filteredData.value.length}
--->
-<resources>\n`
-  
+  const header = `<?xml version="1.0" encoding="utf-8"?>\n<resources>`
   const content = filteredData.value
     .map(({ key, value }) => {
       const escapedValue = value
@@ -274,9 +267,9 @@ function generateAndroidSnippet(): string {
       return `    <string name="${key}">${escapedValue}</string>`
     })
     .join('\n')
-  
   const footer = '\n</resources>'
-  
+
+
   return header + content + footer
 }
 
@@ -285,7 +278,6 @@ function generateJSONSnippet(): string {
     acc[key] = value
     return acc
   }, {} as Record<string, string>)
-  
   return JSON.stringify(data, null, 2)
 }
 
