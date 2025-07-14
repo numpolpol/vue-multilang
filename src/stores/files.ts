@@ -222,7 +222,17 @@ export const useFilesStore = defineStore('files', {
       
       console.log('Deleted key from all languages:', key)
     },
-    
+    updateKeyWithFirstValueForAllLanguages(key: string) {
+      // Set the value for the given key in all languages, but only if the key exists in that language
+      const value = this.languages[0].data[key] // Use the first language's value
+      console.log('Updating key:', key, 'with value:', value)
+      this.languages.forEach(lang => {
+        if (lang.data.hasOwnProperty(key)) {
+          lang.data[key] = value
+        }
+      })
+      this.syncLanguagesToFiles()
+    },
     // Rename/edit a key across all languages
     renameKey(oldKey: string, newKey: string): boolean {
       // Validate new key

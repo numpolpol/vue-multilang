@@ -108,6 +108,7 @@
                 @update-edit-key-value="editKeyValue = $event"
                 @cancel-edit-key="cancelEditKey"
                 @paste="onPaste(key)"
+                @all="onAll(key)"
                 @update-value="(data) => setLanguageDataValue(data.languageCode, key, data.value)"
                 @delete="onDeleteKey(key)"
                 :ref="editingKey === key ? 'currentEditingRow' : undefined"
@@ -636,6 +637,18 @@ async function onPaste(key: string) {
   }
 }
 
+async function onAll(key: string) {
+    // Apply first column value to all languages
+    console.log(`Applying value for key "${key}" to all languages...`)
+    if (isMergedKey(key)) {
+      const allMergedKeys = getAllKeysFromMergedKey(key)
+      allMergedKeys.forEach((individualKey: string) => {
+        filesStore.updateKeyWithFirstValueForAllLanguages(individualKey)
+      })
+    } else {
+      filesStore.updateKeyWithFirstValueForAllLanguages(key)
+    }
+}
 // Delete key functionality
 function onDeleteKey(key: string) {
   if (confirm(`Are you sure you want to delete the key "${key}"? This will remove it from all languages.`)) {

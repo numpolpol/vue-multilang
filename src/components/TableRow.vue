@@ -55,6 +55,7 @@
     <!-- Paste Column -->
     <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
       <button class="btn btn-xs btn-outline" @click="$emit('paste')">Paste</button>
+      <button class="btn btn-xs btn-outline ml-1" @click="$emit('all')">All</button>
     </td>
     
     <!-- Language Columns -->
@@ -111,6 +112,7 @@ const emit = defineEmits<{
   (e: 'updateEditKeyValue', value: string): void
   (e: 'cancelEditKey'): void
   (e: 'paste'): void
+  (e: 'all'): void
   (e: 'updateValue', data: { languageCode: string, value: string }): void
   (e: 'delete'): void
 }>()
