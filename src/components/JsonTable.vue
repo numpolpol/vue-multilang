@@ -512,18 +512,59 @@ const visibleKeys = computed(() => {
   return allKeys.value.filter(key => getPagePrefix(key) === selectedPage.value)
 })
 
+// Multi-key search and regex support
 const filteredKeys = computed(() => {
-  if (!search.value.trim()) return visibleKeys.value
-  const q = search.value.trim().toLowerCase()
-  return visibleKeys.value.filter(key => {
-    if (key.toLowerCase().includes(q)) return true
-    if (props.data && props.data.length > 0) {
-      for (const obj of props.data) {
-        if (obj && (obj[key] ?? '').toLowerCase().includes(q)) return true
-      }
+  const query = search.value.trim()
+  if (!query) return visibleKeys.value
+
+  // Regex mode: if query starts and ends with /, treat as regex
+  if (query.length > 2 && query.startsWith('/') && query.endsWith('/')) {
+    try {
+      const pattern = query.slice(1, -1)
+      const regex = new RegExp(pattern, 'i')
+      return visibleKeys.value.filter(key => {
+        if (regex.test(key)) return true
+        if (props.data && props.data.length > 0) {
+          for (const obj of props.data) {
+            if (obj && regex.test(obj[key] ?? '')) return true
+          }
+        }
+        return false
+      })
+    } catch (e) {
+      // Invalid regex, fallback to normal search
+      // Optionally, could show an error
+      return []
     }
-    return false
+  }
+
+  // Multi-key search: split by comma, filter by order, show results for first, then second, etc.
+  const terms = query.split(',').map(s => s.trim()).filter(Boolean)
+  if (terms.length === 0) return visibleKeys.value
+  const seen = new Set<string>()
+  const result: string[] = []
+  terms.forEach(term => {
+    const q = term.toLowerCase()
+    visibleKeys.value.forEach(key => {
+      if (!seen.has(key)) {
+        // Match key or value
+        let match = key.toLowerCase().includes(q)
+        if (!match && props.data && props.data.length > 0) {
+          for (const obj of props.data) {
+            if (obj && (obj[key] ?? '').toLowerCase().includes(q)) {
+              match = true
+              break
+            }
+          }
+        }
+        if (match) {
+          seen.add(key)
+          result.push(key)
+        }
+      }
+    })
   })
+  return result
 })
 
 // Track original values for highlight
