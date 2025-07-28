@@ -1,3 +1,12 @@
+// --- Generated test keys ---
+// 1000 keys: test_key_0001 to test_key_1000
+
+// Generated test keys
+// Format: "test_key_0001" = "Test value 0001";
+
+// --- BEGIN GENERATED ---
+
+// --- END GENERATED ---
 "common_welcome_message" = "សូមស្វាគមន៍!";
 "common_login_button" = "ចូល";
 "common_logout_button" = "ចេញ";
@@ -41,3 +50,65 @@
 "settings_about" = "អំពី";
 "settings_feedback" = "ផ្ញើមតិយោបល់";
 "settings_logout" = "ចេញ";
+
+// --- Sample keys for 5 screens, 10 keys each ---
+// Screen: login
+"login_title" = "Login Screen";
+"login_username" = "Username";
+"login_password" = "Password";
+"login_button" = "Login";
+"login_forgot_password" = "Forgot Password?";
+"login_remember_me" = "Remember Me";
+"login_error" = "Login failed";
+"login_success" = "Login successful";
+"login_signup" = "Sign Up";
+"login_guest" = "Continue as Guest";
+
+// Screen: register
+"register_title" = "Register Screen";
+"register_username" = "Username";
+"register_password" = "Password";
+"register_confirm_password" = "Confirm Password";
+"register_email" = "Email";
+"register_button" = "Register";
+"register_success" = "Registration successful";
+"register_error" = "Registration failed";
+"register_login" = "Already have an account? Login";
+"register_terms" = "Accept Terms";
+
+// Screen: dashboard
+"dashboard_title" = "Dashboard";
+"dashboard_welcome" = "Welcome to Dashboard";
+"dashboard_stats" = "Statistics";
+"dashboard_notifications" = "Notifications";
+"dashboard_profile" = "Profile";
+"dashboard_settings" = "Settings";
+"dashboard_logout" = "Logout";
+"dashboard_help" = "Help";
+"dashboard_refresh" = "Refresh";
+"dashboard_search" = "Search";
+
+// Screen: settings
+"settings_title" = "Settings Screen";
+"settings_account" = "Account Settings";
+"settings_notifications" = "Notification Settings";
+"settings_privacy" = "Privacy Settings";
+"settings_security" = "Security Settings";
+"settings_language" = "Language Settings";
+"settings_theme" = "Theme";
+"settings_help" = "Help & Support";
+"settings_about" = "About";
+"settings_feedback" = "Send Feedback";
+
+// Screen: profile
+"profile_title" = "Profile Screen";
+"profile_name" = "Name";
+"profile_email" = "Email";
+"profile_phone" = "Phone";
+"profile_edit" = "Edit Profile";
+"profile_save" = "Save";
+"profile_cancel" = "Cancel";
+"profile_picture" = "Profile Picture";
+"profile_bio" = "Bio";
+"profile_logout" = "Logout";
+// --- End sample screens ---
