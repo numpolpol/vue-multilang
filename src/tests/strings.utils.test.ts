@@ -73,42 +73,11 @@ string";
       }
     })
 
-    it('should parse Android XML format', () => {
-      const content = `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="hello">Hello World</string>
-    <string name="goodbye">Goodbye</string>
-    <string name="app_name">My App</string>
-</resources>`
-      
-      const result = parseStrings(content)
-      
-      expect(result).toEqual({
-        'hello': 'Hello World',
-        'goodbye': 'Goodbye',
-        'app_name': 'My App'
-      })
-    })
-
-    it('should handle XML with escaped quotes', () => {
-      const content = `<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="message">He said \\"Hello\\" to me</string>
-</resources>`
-      
-      const result = parseStrings(content)
-      
-      expect(result).toEqual({
-        'message': 'He said "Hello" to me'
-      })
-    })
-
     it('should handle malformed content gracefully', () => {
       const malformedContents = [
         'not a valid format',
         '"incomplete = "value";',
         '"key" = ;',
-        '<?xml><invalid>xml</invalid>',
         'random text here'
       ]
       

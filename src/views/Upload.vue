@@ -9,7 +9,7 @@
         <!-- Theme & Controls -->
         <div class="space-y-4">
           <!-- App Title -->
-          <div class="text-xl font-bold">iOS/Android Editor</div>
+          <div class="text-xl font-bold">iOS String Editor</div>
 
           <!-- Theme -->
           <div class="form-control w-full">
@@ -76,7 +76,7 @@
                 </svg>
                 Create from Snippet
               </h2>
-              <p class="text-base-content/70">Paste iOS .strings, Android XML, or TSV data to create a project</p>
+              <p class="text-base-content/70">Paste iOS .strings or TSV data to create a project</p>
               
               <div class="card-actions justify-end mt-4">
                 <button 
@@ -209,11 +209,11 @@
               <div class="font-bold mb-2">How to use:</div>
               <ol class="list-decimal list-inside space-y-2">
                 <li><span class="font-semibold">Create Project:</span> Click "Create Project" to start a new multi-language editing session with default languages (Thai, English, Myanmar, Khmer). You can rename the project later in the editor.</li>
-                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings, Android XML, or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Myanmar, Khmer).</li>
+                <li><span class="font-semibold">Create from Snippet:</span> Paste iOS .strings or TSV data to create a project. TSV format supports 1-4 language values per key in order (Thai, English, Myanmar, Khmer).</li>
                 <li><span class="font-semibold">Create from Keys:</span> Paste a list of translation keys to create a project with all 4 languages and empty values ready for translation.</li>
                 <li><span class="font-semibold">Load Project:</span> Load from a saved file or select from your saved projects in local storage.</li>
                 <li><span class="font-semibold">Save Work:</span> Save your project to local storage or download as a file to continue later.</li>
-                <li><span class="font-semibold">Export:</span> Export your translations to iOS .strings or Android XML format.</li>
+                <li><span class="font-semibold">Export:</span> Export your translations to iOS .strings format.</li>
               </ol>
             </div>
           </div>
@@ -226,11 +226,11 @@
   <dialog id="snippet_modal" class="modal">
     <div class="modal-box w-11/12 max-w-4xl">
       <h3 class="font-bold text-lg">Create Project from Code Snippet</h3>
-      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings, Android XML, or TSV data below</p>
+      <p class="py-2 text-sm text-base-content/70">Paste your iOS .strings or TSV data below</p>
       
       <div class="form-control w-full mt-4">
         <label class="label">
-          <span class="label-text">Code Snippet (iOS .strings / Android XML / TSV)</span>
+          <span class="label-text">Code Snippet (iOS .strings / TSV)</span>
         </label>
         <textarea 
           v-model="snippetCode"
@@ -238,13 +238,6 @@
           placeholder='iOS .strings format:
 "register_foreigner_title" = "TODO";
 "register_foreigner_subtitle" = "Please fill in your details below.";
-
-Android XML format:
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="register_foreigner_title">TODO</string>
-    <string name="register_foreigner_subtitle">Please fill in your details below.</string>
-</resources>
 
 TSV format (key + 1-4 language values in order: th, en, km, my):
 key_1	value_th_1
@@ -398,14 +391,14 @@ const snippetFormatInfo = computed(() => {
       return `TSV format detected - ${keyCount} keys (${langInfo.join(', ')})`
     }
     
-    // Otherwise try regular parsing (iOS strings or Android XML)
+    // Otherwise try regular parsing (iOS strings only)
     const parsed = parseStrings(snippetCode.value)
     const keyCount = Object.keys(parsed).length
     
-    if (snippetCode.value.trim().startsWith('<?xml')) {
-      return `Android XML format detected - ${keyCount} keys`
-    } else {
+    if (keyCount > 0) {
       return `iOS .strings format detected - ${keyCount} keys`
+    } else {
+      return 'Invalid format'
     }
   } catch {
     return 'Invalid format'
@@ -703,11 +696,11 @@ function createProjectFromSnippet() {
       return
     }
     
-    // Handle iOS .strings or Android XML format (single language)
+    // Handle iOS .strings format (single language)
     const parsedData = parseStrings(snippetCode.value)
     
     if (Object.keys(parsedData).length === 0) {
-      alert('No valid .strings or XML data found in the snippet!')
+      alert('No valid .strings data found in the snippet!')
       return
     }
     

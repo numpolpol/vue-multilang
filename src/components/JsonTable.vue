@@ -123,7 +123,6 @@
     <!-- Export Modal -->
     <ExportModal
       :export-platform="exportPlatform"
-      @update:export-platform="exportPlatform = $event"
       @close="closeExportModal"
       @download="downloadFiles"
     />
@@ -258,7 +257,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import type { PreviewImage, KeyAnnotation } from '../stores/files'
-import { toStrings, toAndroidStrings, toJsonString } from '../utils/strings'
+import { toStrings } from '../utils/strings'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 import TableSearchControls from './TableSearchControls.vue'
 import PageTabs from './PageTabs.vue'
@@ -706,7 +705,7 @@ function onDeleteKey(key: string) {
 }
 
 // Export functionality
-const exportPlatform = ref<'ios' | 'android' | 'json'>('ios')
+const exportPlatform = ref<'ios'>('ios')
 const exportMode = ref<'all' | 'changed' | 'original'>('all')
 
 function openExportModal(mode: 'all' | 'changed' | 'original') {
@@ -780,35 +779,10 @@ function downloadFiles() {
       return
     }
 
-    // Create filename
-    let fileName = language.code
-    if (search.value.trim()) {
-      fileName += '_filtered'
-    }
-    if (mode.value === 'paging' && selectedPage.value) {
-      fileName += `_${selectedPage.value}`
-    }
-    
-    // Generate content based on format
-    let fileContent: string
-    let mimeType: string
-
-    if (exportPlatform.value === 'ios') {
-      fileContent = toStrings(finalData)
-      fileName += '.strings'
-      mimeType = 'text/plain;charset=utf-8'
-    } else if (exportPlatform.value === 'android') {
-      fileContent = toAndroidStrings(finalData)
-      fileName += '.xml'
-      mimeType = 'application/xml;charset=utf-8'
-    } else if (exportPlatform.value === 'json') {
-      fileContent = toJsonString(finalData)
-      fileName += '.json'
-      mimeType = 'application/json;charset=utf-8'
-    } else {
-      console.error('Unsupported export format:', exportPlatform.value)
-      return
-    }
+    // Generate iOS .strings file
+    const fileContent = toStrings(finalData)
+    const fileName = `${language.code}${search.value.trim() ? '_filtered' : ''}${mode.value === 'paging' && selectedPage.value ? `_${selectedPage.value}` : ''}.strings`
+    const mimeType = 'text/plain;charset=utf-8'
     
     const blob = new Blob([fileContent], { type: mimeType })
     const url = URL.createObjectURL(blob)
@@ -822,7 +796,7 @@ function downloadFiles() {
   })
 }
 
-function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' | 'json' = 'ios') {
+function exportLanguageColumn(languageCode: string) {
   // Find the language data
   const language = orderedLanguages.value.find(lang => lang.code === languageCode)
   if (!language) {
@@ -855,26 +829,10 @@ function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' | 
     filename += `_${selectedPage.value}`
   }
 
-  // Generate content based on format
-  let content: string
-  let mimeType: string
-
-  if (format === 'ios') {
-    content = toStrings(columnData)
-    filename += '.strings'
-    mimeType = 'text/plain;charset=utf-8'
-  } else if (format === 'android') {
-    content = toAndroidStrings(columnData)
-    filename += '.xml'
-    mimeType = 'application/xml;charset=utf-8'
-  } else if (format === 'json') {
-    content = toJsonString(columnData)
-    filename += '.json'
-    mimeType = 'application/json;charset=utf-8'
-  } else {
-    alert('Unsupported export format')
-    return
-  }
+  // Generate iOS .strings content
+  const content = toStrings(columnData)
+  filename += '.strings'
+  const mimeType = 'text/plain;charset=utf-8'
 
   // Download the file
   const blob = new Blob([content], { type: mimeType })
@@ -910,8 +868,8 @@ function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
   startResizing(data.event, data.language)
 }
 
-function onLanguageColumnExport(data: { language: string, format: 'ios' | 'android' | 'json' }) {
-  exportLanguageColumn(data.language, data.format)
+function onLanguageColumnExport(data: { language: string }) {
+  exportLanguageColumn(data.language)
 }
 
 // Event handlers for LanguageColumnHeader (removed unused ones)

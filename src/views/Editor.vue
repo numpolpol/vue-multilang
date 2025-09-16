@@ -10,7 +10,7 @@
       :totalKeys="totalKeys"
       :noResults="noResults"
       :languageCount="filesStore.files.length"
-      :languages="filesStore.files.map(file => file.name.replace(/\.(strings|xml)$/, ''))"
+      :languages="filesStore.files.map(file => file.name.replace(/\.(strings)$/, ''))"
       @updateTheme="updateTheme"
       @resetColumnWidths="resetColumnWidths"
       @update:searchQuery="searchQuery = $event"

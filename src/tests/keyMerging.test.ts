@@ -63,7 +63,7 @@ describe('Multi Key Merging Logic', () => {
     expect(result.data[1][mergedKeyName!]).toBe('ตกลง')
   })
 
-  it('should split merged keys correctly for export (multi key mode)', () => {
+  it('should split merged keys correctly for iOS export', () => {
     const mergedData = {
       'common_ok + android_ok + ios_ok': 'OK',
       'home_title': 'Welcome',
@@ -71,22 +71,13 @@ describe('Multi Key Merging Logic', () => {
       'unique_key': 'Unique'
     }
 
-    // Test iOS export (should get iOS keys or first non-android key)
-    const iosData = splitMergedData(mergedData, true)
+    // Test iOS export (should prefer non-android keys)
+    const iosData = splitMergedData(mergedData)
     expect(iosData).toEqual({
-      'ios_ok': 'OK',              // from merged key (iOS preferred)
+      'common_ok': 'OK',            // from merged key (first non-android key)
       'home_title': 'Welcome',      // regular iOS key
+      'android_profile_user': 'User', // included as-is
       'unique_key': 'Unique'        // neutral key
-      // android_profile_user should be excluded for iOS
-    })
-
-    // Test Android export (should get Android keys)
-    const androidData = splitMergedData(mergedData, false)
-    expect(androidData).toEqual({
-      'android_ok': 'OK',           // from merged key (Android preferred)
-      'android_profile_user': 'User', // regular Android key
-      'unique_key': 'Unique'        // neutral key
-      // home_title is excluded as it looks like iOS-only
     })
   })
 })

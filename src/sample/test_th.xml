@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="android_common_ok">ตกลง</string>
-    <string name="android_common_cancel">ยกเลิก</string>
-    <string name="android_home_welcome">สวัสดี</string>
-    <string name="android_profile_user">ผู้ใช้</string>
-</resources>

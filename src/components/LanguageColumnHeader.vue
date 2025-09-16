@@ -112,64 +112,6 @@
                   @change="onFileSelected($event, 'strings')"
                 />
               </label>
-              
-              <!-- Android .xml file -->
-              <label class="flex items-center gap-4 p-4 border-2 border-base-300 rounded-xl cursor-pointer hover:border-success hover:bg-success/5 transition-all duration-200 group">
-                <div class="flex-shrink-0">
-                  <div class="w-12 h-12 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="text-2xl">🤖</span>
-                  </div>
-                </div>
-                <div class="flex-1">
-                  <div class="font-semibold text-base">Android XML File</div>
-                  <div class="text-sm text-base-content/70 mt-1">
-                    <code class="bg-base-200 px-2 py-1 rounded text-xs">.xml</code> format
-                  </div>
-                  <div class="text-xs text-base-content/60 mt-1">
-                    Example: &lt;string name="key"&gt;value&lt;/string&gt;
-                  </div>
-                </div>
-                <div class="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <input 
-                  type="file" 
-                  accept=".xml"
-                  class="hidden"
-                  @change="onFileSelected($event, 'xml')"
-                />
-              </label>
-
-              <!-- JSON file -->
-              <label class="flex items-center gap-4 p-4 border-2 border-base-300 rounded-xl cursor-pointer hover:border-warning hover:bg-warning/5 transition-all duration-200 group">
-                <div class="flex-shrink-0">
-                  <div class="w-12 h-12 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <span class="text-2xl">📄</span>
-                  </div>
-                </div>
-                <div class="flex-1">
-                  <div class="font-semibold text-base">JSON File</div>
-                  <div class="text-sm text-base-content/70 mt-1">
-                    <code class="bg-base-200 px-2 py-1 rounded text-xs">.json</code> format (flattened)
-                  </div>
-                  <div class="text-xs text-base-content/60 mt-1">
-                    Example: { "user.name": "John", "app.title": "My App" }
-                  </div>
-                </div>
-                <div class="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <input 
-                  type="file" 
-                  accept=".json"
-                  class="hidden"
-                  @change="onFileSelected($event, 'json')"
-                />
-              </label>
             </div>
           </div>
           
@@ -198,18 +140,16 @@
     <dialog :id="`export_modal_${language.code}`" class="modal">
       <div class="modal-box">
         <h3 class="font-bold text-lg mb-4">Export {{ language.name }} Column</h3>
-        <p class="text-sm text-base-content/70 mb-4">Choose the export format for this column's data.</p>
+        <p class="text-sm text-base-content/70 mb-4">Export this column's data in iOS .strings format.</p>
         
         <!-- Platform Selection -->
         <div class="form-control w-full">
           <label class="label">
             <span class="label-text">Export Format</span>
           </label>
-          <select v-model="exportFormat" class="select select-bordered w-full">
-            <option value="ios">iOS (.strings)</option>
-            <option value="android">Android (strings.xml)</option>
-            <option value="json">JSON (nested structure)</option>
-          </select>
+          <div class="select select-bordered w-full flex items-center">
+            iOS (.strings)
+          </div>
         </div>
         
         <div class="modal-action">
@@ -246,18 +186,17 @@ interface Props {
 
 interface Emits {
   (e: 'resize', data: { language: string, event: MouseEvent }): void
-  (e: 'export', data: { language: string, format: 'ios' | 'android' | 'json' }): void
+  (e: 'export', data: { language: string }): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const filesStore = useFilesStore()
 
-// Export format selection
-const exportFormat = ref<'ios' | 'android' | 'json'>('ios')
+// Export format - only iOS supported now
 const snippetModalRef = ref<InstanceType<typeof SnippetModal> | null>(null)
 
-async function onFileSelected(event: Event, fileType: 'strings' | 'xml' | 'json') {
+async function onFileSelected(event: Event, fileType: 'strings') {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   
@@ -314,7 +253,7 @@ function closeExportModal() {
 }
 
 function confirmExport() {
-  emit('export', { language: props.language.code, format: exportFormat.value })
+  emit('export', { language: props.language.code })
   closeExportModal()
 }
 
