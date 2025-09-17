@@ -13,35 +13,11 @@
         <div class="badge badge-outline">{{ language.code.toUpperCase() }}</div>
       </h3>
       
-      <!-- Format Selector -->
-      <div class="flex gap-2 mb-6 justify-center">
-        <button
-          :class="['tab', 'rounded-full', 'px-6', 'py-2', 'font-semibold',
-            selectedFormat === 'ios' ? 'bg-primary text-primary-content shadow' : 'bg-base-200 text-base-content hover:bg-primary/20',
-          ]"
-          @click="selectedFormat = 'ios'"
-          type="button"
-        >
-          iOS .strings
-        </button>
-        <button
-          :class="['tab', 'rounded-full', 'px-6', 'py-2', 'font-semibold',
-            selectedFormat === 'android' ? 'bg-success text-success-content shadow' : 'bg-base-200 text-base-content hover:bg-success/20',
-          ]"
-          @click="selectedFormat = 'android'"
-          type="button"
-        >
-          Android XML
-        </button>
-        <button
-          :class="['tab', 'rounded-full', 'px-6', 'py-2', 'font-semibold',
-            selectedFormat === 'json' ? 'bg-info text-info-content shadow' : 'bg-base-200 text-base-content hover:bg-info/20',
-          ]"
-          @click="selectedFormat = 'json'"
-          type="button"
-        >
-          JSON
-        </button>
+      <!-- Format Info -->
+      <div class="flex justify-center mb-6">
+        <div class="badge badge-primary badge-lg px-6 py-3 font-semibold">
+          iOS .strings Format
+        </div>
       </div>
       
       <!-- Snippet Content -->
@@ -120,8 +96,8 @@
           
           <div class="stat">
             <div class="stat-title">Format</div>
-            <div class="stat-value text-lg">{{ selectedFormat.toUpperCase() }}</div>
-            <div class="stat-desc">{{ snippetInfo.extension }}</div>
+            <div class="stat-value text-lg">iOS</div>
+            <div class="stat-desc">.strings</div>
           </div>
         </div>
         
@@ -155,7 +131,6 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const selectedFormat = ref<'ios' | 'android' | 'json'>('ios')
 const keyFilter = ref<'all' | 'filled' | 'empty'>('all')
 const keyLimit = ref<number>(0)
 const copied = ref(false)
@@ -187,44 +162,18 @@ const filteredData = computed(() => {
   return keys.map(key => ({ key, value: props.data[key] || '' }))
 })
 
-// Snippet info based on format
+// Snippet info for iOS format
 const snippetInfo = computed(() => {
-  switch (selectedFormat.value) {
-    case 'ios':
-      return {
-        title: 'iOS Localizable.strings',
-        description: 'Standard iOS localization format with key-value pairs',
-        extension: '.strings'
-      }
-    case 'android':
-      return {
-        title: 'Android strings.xml',
-        description: 'Android resource XML format for string localization',
-        extension: '.xml'
-      }
-    case 'json':
-      return {
-        title: 'JSON Format',
-        description: 'Standard JSON format for web applications',
-        extension: '.json'
-      }
-    default:
-      return { title: '', description: '', extension: '' }
+  return {
+    title: 'iOS Localizable.strings',
+    description: 'Standard iOS localization format with key-value pairs',
+    extension: '.strings'
   }
 })
 
-// Code highlight class
+// Code highlight class for iOS
 const codeHighlightClass = computed(() => {
-  switch (selectedFormat.value) {
-    case 'ios':
-      return 'language-swift'
-    case 'android':
-      return 'language-xml'
-    case 'json':
-      return 'language-json'
-    default:
-      return ''
-  }
+  return 'language-swift'
 })
 
 // Generate snippet content
@@ -233,16 +182,7 @@ const snippetContent = computed(() => {
     return `// No ${keyFilter.value} keys found`
   }
 
-  switch (selectedFormat.value) {
-    case 'ios':
-      return generateIOSSnippet()
-    case 'android':
-      return generateAndroidSnippet()
-    case 'json':
-      return generateJSONSnippet()
-    default:
-      return ''
-  }
+  return generateIOSSnippet()
 })
 
 function generateIOSSnippet(): string {
@@ -252,33 +192,6 @@ function generateIOSSnippet(): string {
       return `"${key}" = "${escapedValue}";`
     })
     .join('\n')
-}
-function generateAndroidSnippet(): string {
-  const header = `<?xml version="1.0" encoding="utf-8"?>\n<resources>`
-  const content = filteredData.value
-    .map(({ key, value }) => {
-      const escapedValue = value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '\\"')
-        .replace(/'/g, "\\'")
-        .replace(/\n/g, '\\n')
-      return `    <string name="${key}">${escapedValue}</string>`
-    })
-    .join('\n')
-  const footer = '\n</resources>'
-
-
-  return header + content + footer
-}
-
-function generateJSONSnippet(): string {
-  const data = filteredData.value.reduce((acc, { key, value }) => {
-    acc[key] = value
-    return acc
-  }, {} as Record<string, string>)
-  return JSON.stringify(data, null, 2)
 }
 
 function formatFileSize(bytes: number): string {
@@ -365,16 +278,8 @@ pre::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--bc) / 0.3);
 }
 
-/* Syntax highlighting improvements */
+/* Syntax highlighting for iOS .strings format */
 .language-swift {
-  color: hsl(var(--bc));
-}
-
-.language-xml {
-  color: hsl(var(--bc));
-}
-
-.language-json {
   color: hsl(var(--bc));
 }
 </style>

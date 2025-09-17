@@ -14,27 +14,12 @@ export interface StringsFile {
   data: Record<string, string>
 }
 
-export interface KeyAnnotation {
-  keyName: string
-  x: number // X position as percentage (0-100)
-  y: number // Y Position as percentage (0-100)
-  number: number // Display number (1, 2, 3, etc.)
-}
-
-export interface PreviewImage {
-  name: string
-  url: string
-  data: string // base64 data for serialization
-  keyAnnotations?: KeyAnnotation[] // Key positions on the image
-}
-
 export interface ProjectVersion {
   id: string
   name: string
   description?: string
   timestamp: number
   languages: LanguageColumn[]
-  previewImages?: Record<string, PreviewImage[]>
   createdBy?: string
 }
 
@@ -45,7 +30,6 @@ export interface Project {
     name: string
     data: Record<string, string>
   }> | LanguageColumn[] // Support both legacy and new structure
-  previewImages?: Record<string, PreviewImage[]>
   lastModified: number
   createdAt: number
   versions?: ProjectVersion[] // Array of project versions
@@ -87,7 +71,6 @@ export const useFilesStore = defineStore('files', {
     stringsData: [] as Record<string, string>[],
     originalData: [] as Record<string, string>[],
     currentProject: null as Project | null,
-    previewImages: {} as Record<string, PreviewImage[]>,
     fileGroups: [] as FileGroup[], // Track file groups for dual key support
     useDualKeys: false, // Flag to indicate if dual key merging is active
     
@@ -408,9 +391,6 @@ export const useFilesStore = defineStore('files', {
             data: this.stringsData[index] || {}
           }))
         }
-        
-        // Update preview images
-        this.currentProject.previewImages = { ...this.previewImages }
       }
     },
 
@@ -477,8 +457,7 @@ export const useFilesStore = defineStore('files', {
             data: { ...lang.data },
             hasFile: lang.hasFile,
             fileType: lang.fileType
-          })),
-          previewImages: this.previewImages ? JSON.parse(JSON.stringify(this.previewImages)) : undefined
+          }))
         }
         
         // Initialize versions array if it doesn't exist
@@ -510,13 +489,6 @@ export const useFilesStore = defineStore('files', {
       try {
         // Load version data into current state
         this.languages = version.languages.map(lang => ({ ...lang }))
-        
-        // Load preview images
-        if (version.previewImages) {
-          this.previewImages = JSON.parse(JSON.stringify(version.previewImages))
-        } else {
-          this.previewImages = {}
-        }
         
         // Sync language-column structure to legacy structure for compatibility
         this.syncLanguagesToFiles()
@@ -640,7 +612,6 @@ export const useFilesStore = defineStore('files', {
       this.stringsData = []
       this.originalData = []
       this.currentProject = null
-      this.previewImages = {}
       
       // Reset languages to default state
       this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
@@ -655,33 +626,6 @@ export const useFilesStore = defineStore('files', {
       this.mergedKeys = []
       this.mergedData = []
       this.fileGroups = []
-    },
-
-    // Preview Images Actions
-    setPreviewImages(images: Record<string, PreviewImage[]>) {
-      this.previewImages = images
-    },
-
-    addPreviewImages(prefix: string, images: PreviewImage[]) {
-      if (!this.previewImages[prefix]) {
-        this.previewImages[prefix] = []
-      }
-      this.previewImages[prefix].push(...images)
-    },
-
-    removePreviewImage(prefix: string, index: number) {
-      if (this.previewImages[prefix]) {
-        this.previewImages[prefix].splice(index, 1)
-        if (this.previewImages[prefix].length === 0) {
-          delete this.previewImages[prefix]
-        }
-      }
-    },
-
-    saveImageKeyAnnotations(prefix: string, imageIndex: number, annotations: KeyAnnotation[]) {
-      if (this.previewImages[prefix] && this.previewImages[prefix][imageIndex]) {
-        this.previewImages[prefix][imageIndex].keyAnnotations = [...annotations]
-      }
     },
 
     loadProject(project: Project) {
@@ -726,11 +670,6 @@ export const useFilesStore = defineStore('files', {
           })
         }
       })
-      
-      // Load preview images if available
-      if (project.previewImages) {
-        this.previewImages = { ...project.previewImages }
-      }
       
       // Sync language-column structure to legacy structure for compatibility
       this.syncLanguagesToFiles()
