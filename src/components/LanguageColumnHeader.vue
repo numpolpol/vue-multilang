@@ -162,20 +162,32 @@
       </form>
     </dialog>
 
-    <!-- Snippet Modal -->
-    <SnippetModal 
-      ref="snippetModalRef"
-      :language="language" 
-      :data="language.data"
-      :all-keys="allKeys || []"
-    />
+    <!-- Simple Snippet Modal -->
+    <dialog :id="`snippet_modal_${language.code}`" class="modal">
+      <div class="modal-box max-w-4xl">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        </form>
+        
+        <h3 class="font-bold text-xl mb-4">
+          Code Snippet for {{ language.name }}
+        </h3>
+        
+        <div class="mockup-code">
+          <pre><code>{{ generateSnippet() }}</code></pre>
+        </div>
+        
+        <div class="modal-action">
+          <button class="btn" onclick="this.closest('dialog').close()">Close</button>
+          <button class="btn btn-primary" @click="copySnippet">Copy to Clipboard</button>
+        </div>
+      </div>
+    </dialog>
   </th>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useFilesStore } from '../stores/files'
-import SnippetModal from './SnippetModal.vue'
 import type { LanguageColumn } from '../stores/files'
 
 interface Props {
@@ -193,8 +205,35 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const filesStore = useFilesStore()
 
-// Export format - only iOS supported now
-const snippetModalRef = ref<InstanceType<typeof SnippetModal> | null>(null)
+// Function to open the snippet modal
+const openSnippetModal = () => {
+  const modal = document.getElementById(`snippet_modal_${props.language.code}`) as HTMLDialogElement
+  if (modal) {
+    modal.showModal()
+  }
+}
+
+// Function to generate snippet
+const generateSnippet = () => {
+  const entries = Object.entries(props.language.data || {})
+  if (entries.length === 0) {
+    return `// No strings available for ${props.language.name}\n`
+  }
+  
+  return entries
+    .map(([key, value]) => `"${key}" = "${value}";`)
+    .join('\n')
+}
+
+// Function to copy snippet to clipboard
+const copySnippet = async () => {
+  try {
+    await navigator.clipboard.writeText(generateSnippet())
+    // Could add a toast notification here if needed
+  } catch (error) {
+    console.error('Failed to copy snippet:', error)
+  }
+}
 
 async function onFileSelected(event: Event, fileType: 'strings') {
   const input = event.target as HTMLInputElement
@@ -255,10 +294,6 @@ function closeExportModal() {
 function confirmExport() {
   emit('export', { language: props.language.code })
   closeExportModal()
-}
-
-function openSnippetModal() {
-  snippetModalRef.value?.openModal()
 }
 </script>
 
