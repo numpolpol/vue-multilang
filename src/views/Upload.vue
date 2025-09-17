@@ -113,7 +113,6 @@
                     <tr>
                       <th>Project Name</th>
                       <th>Languages</th>
-                      <th>Images</th>
                       <th>Last Modified</th>
                       <th>Actions</th>
                     </tr>
@@ -122,7 +121,6 @@
                     <tr v-for="(project, index) in sortedSavedProjects" :key="project.id">
                       <td class="font-medium">{{ project.name }}</td>
                       <td>{{ project.languages.length }} languages</td>
-                      <td>{{ getImageCount(project) }} images</td>
                       <td>{{ formatDate(project.lastModified) }}</td>
                       <td>
                         <div class="flex gap-2">
@@ -341,9 +339,5 @@ function loadProjectFromFile(event: Event) {
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString()
-}
-
-function getImageCount(_project: Project): number {
-  return 0
 }
 </script>

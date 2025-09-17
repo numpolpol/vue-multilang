@@ -26,31 +26,32 @@
     <div class="drawer-content flex flex-col h-screen p-0 m-0 w-full max-w-none">
       <!-- Navbar -->
       <EditorNavbar 
-        :projectName="filesStore.currentProject?.name"
-        :viewMode="viewMode"
-        :highlightMode="highlightMode"
-        :skipColumns="skipColumns"
-        :dualKeysMode="dualKeysMode"
-        :searchQuery="searchQuery"
-        :filteredCount="filteredCount"
-        :totalKeys="totalKeys"
-        :languageCount="filesStore.files.length"
-        @toggleDrawer="toggleDrawer"
-        @update:viewMode="viewMode = $event"
-        @update:highlightMode="highlightMode = $event"
-        @update:skipColumns="skipColumns = $event"
-        @update:dualKeysMode="dualKeysMode = $event"
-        @saveProject="saveProjectToLocalStorage"
+        :saved-count="filesStore.languages.length"
+        :total-keys="totalKeys"
+        :filtered-count="filteredCount"
+        :search-query="searchQuery"
+        :show-save="!!filesStore.currentProject"
+        :has-unsaved-changes="false"
+        :is-saving="false"
+        :project-name="filesStore.currentProject?.name"
+        :language-count="filesStore.languages.length"
+        :view-mode="viewMode"
+        :highlight-mode="highlightMode"
+        :skip-columns="skipColumns"
+        @toggle-drawer="toggleDrawer"
+        @update:view-mode="viewMode = $event"
+        @update:highlight-mode="highlightMode = $event"
+        @update:skip-columns="skipColumns = $event"
+        @save-project="saveProjectToLocalStorage"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
         <JsonTable 
           :data="filesStore.stringsData" 
           :files="filesStore.files" 
-          :skipColumns="skipColumns"
-          :dualKeysMode="dualKeysMode"
+          :skip-columns="skipColumns"
           @back="goBack" 
-          @addKey="showAddKeyModal"
+          @add-key="showAddKeyModal"
           ref="jsonTable" 
         />
       </div>
@@ -203,12 +204,6 @@ const viewMode = ref<'all' | 'paging'>('all')
 const highlightMode = ref(false)
 const searchQuery = ref('')
 const skipColumns = ref(0)
-const dualKeysMode = ref(false)
-
-// Watch dualKeysMode changes and sync with store
-watch(dualKeysMode, (newValue) => {
-  filesStore.setDualKeysMode(newValue)
-}, { immediate: true })
 
 // Computed properties for search results
 const filteredCount = ref(0)
@@ -271,12 +266,6 @@ watch(skipColumns, (newValue) => {
   if (jsonTable.value) {
     jsonTable.value.skipColumns = newValue
   }
-})
-
-// Watch for dualKeysMode changes
-watch(dualKeysMode, (newValue) => {
-  filesStore.setUseDualKeys(newValue)
-  // TODO: Re-process files when dual keys mode is toggled
 })
 
 // Watch for filesStore changes to update totalKeys
