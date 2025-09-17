@@ -1,4 +1,16 @@
-// Utility to parse iOS .strings file into JS object
+// Enhanced structure to preserve original file format
+export interface ParsedStringsFile {
+  data: Record<string, string>
+  structure: Array<{
+    type: 'comment' | 'key' | 'blank'
+    content: string
+    key?: string
+    value?: string
+  }>
+  originalContent: string
+}
+
+// Utility to parse iOS .strings file into JS object with structure preservation
 export function parseStrings(content: string): Record<string, string> {
   const result: Record<string, string> = {}
   
@@ -30,6 +42,125 @@ export function parseStrings(content: string): Record<string, string> {
   }
   
   return result
+}
+
+// Enhanced parsing with structure preservation
+export function parseStringsWithStructure(content: string): ParsedStringsFile {
+  const data: Record<string, string> = {}
+  const structure: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string }> = []
+  
+  if (!content || content.trim().length === 0) {
+    return { data, structure, originalContent: content }
+  }
+  
+  try {
+    const lines = content.split(/\r?\n/)
+    
+    let inBlockComment = false
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmedLine = line.trim()
+      
+      // Handle blank lines
+      if (!trimmedLine) {
+        structure.push({ type: 'blank', content: line })
+        continue
+      }
+      
+      // Handle block comments
+      if (trimmedLine.includes('/*') && !inBlockComment) {
+        inBlockComment = true
+        structure.push({ type: 'comment', content: line })
+        if (trimmedLine.includes('*/')) {
+          inBlockComment = false
+        }
+        continue
+      }
+      
+      if (inBlockComment) {
+        structure.push({ type: 'comment', content: line })
+        if (trimmedLine.includes('*/')) {
+          inBlockComment = false
+        }
+        continue
+      }
+      
+      // Handle line comments
+      if (trimmedLine.startsWith('//')) {
+        structure.push({ type: 'comment', content: line })
+        continue
+      }
+      
+      // Handle key-value pairs
+      const match = trimmedLine.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
+      if (match) {
+        const [, key, value] = match
+        if (key) {
+          data[key] = value || ''
+          structure.push({ type: 'key', content: line, key, value: value || '' })
+        }
+      } else {
+        // Unknown line format, preserve as comment
+        structure.push({ type: 'comment', content: line })
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to parse .strings content with structure:', error)
+  }
+  
+  return { data, structure, originalContent: content }
+}
+
+// Enhanced export with structure preservation
+export function toStringsWithStructure(
+  data: Record<string, string>, 
+  originalStructure?: ParsedStringsFile['structure']
+): string {
+  try {
+    if (!originalStructure) {
+      // Fallback to simple export
+      return toStrings(data)
+    }
+    
+    const lines: string[] = []
+    const processedKeys = new Set<string>()
+    
+    // Process structure and update key-value pairs
+    for (const item of originalStructure) {
+      if (item.type === 'key' && item.key) {
+        // Update with current value if key exists
+        if (data.hasOwnProperty(item.key)) {
+          const currentValue = data[item.key] || ''
+          const escapedValue = currentValue.replace(/"/g, '\\"')
+          lines.push(`"${item.key}" = "${escapedValue}";`)
+          processedKeys.add(item.key)
+        }
+        // Skip keys that no longer exist in data
+      } else {
+        // Preserve comments and blank lines as-is
+        lines.push(item.content)
+      }
+    }
+    
+    // Add any new keys that weren't in the original structure
+    const newKeys = Object.keys(data).filter(key => !processedKeys.has(key))
+    if (newKeys.length > 0) {
+      if (lines.length > 0 && lines[lines.length - 1].trim() !== '') {
+        lines.push('') // Add blank line before new keys
+      }
+      lines.push('// New keys added during editing')
+      for (const key of newKeys) {
+        const escapedValue = (data[key] || '').replace(/"/g, '\\"')
+        lines.push(`"${key}" = "${escapedValue}";`)
+      }
+    }
+    
+    return lines.join('\n')
+  } catch (error) {
+    console.warn('Failed to export with structure preservation:', error)
+    return toStrings(data) // Fallback
+  }
 }
 
 // Utility to stringify JS object to iOS .strings format

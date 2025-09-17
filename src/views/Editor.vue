@@ -14,9 +14,6 @@
       @updateTheme="updateTheme"
       @update:searchQuery="searchQuery = $event"
       @clearSearch="clearSearch"
-      @exportAll="jsonTable?.openExportModal('all')"
-      @exportChanged="jsonTable?.openExportModal('changed')"
-      @exportOriginal="jsonTable?.openExportModal('original')"
       @goBack="goBack"
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
@@ -44,7 +41,6 @@
         @update:skipColumns="skipColumns = $event"
         @update:dualKeysMode="dualKeysMode = $event"
         @saveProject="saveProjectToLocalStorage"
-        @exportProject="jsonTable?.openExportModal('all')"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">

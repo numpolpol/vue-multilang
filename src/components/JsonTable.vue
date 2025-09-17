@@ -108,24 +108,17 @@
       </div>
     </div>
     
-    <!-- Export Modal -->
-    <ExportModal
-      :export-platform="exportPlatform"
-      @close="closeExportModal"
-      @download="downloadFiles"
-    />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
-import { toStrings } from '../utils/strings'
+import { toStrings, toStringsWithStructure } from '../utils/strings'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 import TableSearchControls from './TableSearchControls.vue'
 import PageTabs from './PageTabs.vue'
 import TableRow from './TableRow.vue'
-import ExportModal from './ExportModal.vue'
 
 const emit = defineEmits<{
   (e: 'update:mode', value: 'all' | 'paging'): void
@@ -411,97 +404,7 @@ function onDeleteKey(key: string) {
   }
 }
 
-// Export functionality
-const exportPlatform = ref<'ios'>('ios')
-const exportMode = ref<'all' | 'changed' | 'original'>('all')
-
-function openExportModal(mode: 'all' | 'changed' | 'original') {
-  exportMode.value = mode
-  const modal = document.getElementById('export_modal') as HTMLDialogElement
-  modal.showModal()
-}
-
-function closeExportModal() {
-  const modal = document.getElementById('export_modal') as HTMLDialogElement
-  modal.close()
-}
-
-function downloadFiles() {
-  closeExportModal()
-  
-  // Use store data instead of props
-  const languages = filesStore.languages
-  
-  if (!languages || languages.length === 0) {
-    alert('No language data to export!')
-    return
-  }
-  
-  languages.forEach((language, langIndex) => {
-    let finalData: Record<string, string> = {}
-    
-    if (exportMode.value === 'all') {
-      finalData = { ...language.data }
-    } else if (exportMode.value === 'changed') {
-      // For changed mode, compare with original data from store
-      const originalLangData = filesStore.originalData[langIndex] || {}
-      Object.keys(language.data).forEach(key => {
-        const currentValue = language.data[key]
-        const originalValue = originalLangData[key] || ''
-        if (currentValue !== originalValue) {
-          finalData[key] = currentValue
-        }
-      })
-    } else if (exportMode.value === 'original') {
-      // For original mode, include all data but maintain original order
-      finalData = { ...language.data }
-    }
-
-    // Filter by current view if needed
-    if (mode.value === 'paging' && selectedPage.value) {
-      const filteredData: Record<string, string> = {}
-      Object.keys(finalData).forEach(key => {
-        if (getPagePrefix(key) === selectedPage.value) {
-          filteredData[key] = finalData[key]
-        }
-      })
-      finalData = filteredData
-    }
-
-    // Apply search filter if active
-    if (search.value.trim()) {
-      const searchQuery = search.value.trim().toLowerCase()
-      const filteredData: Record<string, string> = {}
-      Object.keys(finalData).forEach(key => {
-        if (key.toLowerCase().includes(searchQuery) || 
-            finalData[key].toLowerCase().includes(searchQuery)) {
-          filteredData[key] = finalData[key]
-        }
-      })
-      finalData = filteredData
-    }
-
-    if (Object.keys(finalData).length === 0) {
-      console.warn(`No data to export for language: ${language.name}`)
-      return
-    }
-
-    // Generate iOS .strings file
-    const fileContent = toStrings(finalData)
-    const fileName = `${language.code}${search.value.trim() ? '_filtered' : ''}${mode.value === 'paging' && selectedPage.value ? `_${selectedPage.value}` : ''}.strings`
-    const mimeType = 'text/plain;charset=utf-8'
-    
-    const blob = new Blob([fileContent], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  })
-}
+// Column export functionality
 
 function exportLanguageColumn(languageCode: string) {
   // Find the language data
@@ -536,8 +439,15 @@ function exportLanguageColumn(languageCode: string) {
     filename += `_${selectedPage.value}`
   }
 
-  // Generate iOS .strings content
-  const content = toStrings(columnData)
+  // Generate iOS .strings content with structure preservation
+  let content: string
+  if (language.originalStructure) {
+    // Use structure-preserving export to maintain comments and order
+    content = toStringsWithStructure(columnData, language.originalStructure)
+  } else {
+    // Use standard export
+    content = toStrings(columnData)
+  }
   filename += '.strings'
   const mimeType = 'text/plain;charset=utf-8'
 
@@ -749,8 +659,7 @@ defineExpose({
   mode,
   highlightMode,
   search,
-  skipColumns,
-  openExportModal
+  skipColumns
 })
 </script>
 

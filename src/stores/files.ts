@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { FileGroup } from '../utils/strings'
+import type { FileGroup, ParsedStringsFile } from '../utils/strings'
 
 export interface LanguageColumn {
   code: string
@@ -7,6 +7,8 @@ export interface LanguageColumn {
   data: Record<string, string>
   hasFile: boolean
   fileType?: 'strings' | 'xml' | 'json'
+  originalStructure?: ParsedStringsFile['structure'] // Preserve original file structure
+  originalContent?: string // Preserve original file content
 }
 
 export interface StringsFile {
@@ -89,12 +91,21 @@ export const useFilesStore = defineStore('files', {
   actions: {
     // New actions for language-column structure
     async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml' | 'json') {
-      const { parseStrings } = await import('../utils/strings')
+      const { parseStrings, parseStringsWithStructure } = await import('../utils/strings')
       const content = await this.readFileContent(file)
       
       let data: Record<string, string>
+      let parsedFile: any = null
+      
       try {
-        data = parseStrings(content)
+        if (fileType === 'strings') {
+          // Use enhanced parsing for .strings files to preserve structure
+          parsedFile = parseStringsWithStructure(content)
+          data = parsedFile.data
+        } else {
+          // Use regular parsing for other file types
+          data = parseStrings(content)
+        }
       } catch (error) {
         console.error('Failed to parse file:', error)
         throw new Error(`Failed to parse ${fileType} file. Please check the format.`)
@@ -106,6 +117,12 @@ export const useFilesStore = defineStore('files', {
         this.languages[langIndex].data = { ...this.languages[langIndex].data, ...data }
         this.languages[langIndex].hasFile = true
         this.languages[langIndex].fileType = fileType
+        
+        // Store original structure for .strings files
+        if (fileType === 'strings' && parsedFile) {
+          this.languages[langIndex].originalStructure = parsedFile.structure
+          this.languages[langIndex].originalContent = parsedFile.originalContent
+        }
         
         // Update legacy structure for compatibility
         this.syncLanguagesToFiles()

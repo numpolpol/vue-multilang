@@ -55,14 +55,12 @@
           />
         </div>
 
-        <!-- Export Controls -->
+        <!-- Back Button -->
         <div class="flex-shrink-0">
-          <ExportControls
-            @exportAll="$emit('exportAll')"
-            @exportChanged="$emit('exportChanged')"
-            @exportOriginal="$emit('exportOriginal')"
-            @goBack="$emit('goBack')"
-          />
+          <div class="divider"></div>
+          <button class="btn btn-ghost btn-sm btn-block" @click="$emit('goBack')">
+            Back to Upload
+          </button>
         </div>
       </div>
     </div>
@@ -72,7 +70,6 @@
 <script lang="ts" setup>
 import ThemeSelector from './ThemeSelector.vue'
 import SearchControls from './SearchControls.vue'
-import ExportControls from './ExportControls.vue'
 import ColumnManager from './ColumnManager.vue'
 
 interface Props {
@@ -91,9 +88,6 @@ defineEmits<{
   updateTheme: [event: Event]
   'update:searchQuery': [value: string]
   clearSearch: []
-  exportAll: []
-  exportChanged: []
-  exportOriginal: []
   goBack: []
   saveProjectToLocalStorage: []
   saveProjectToFile: []
