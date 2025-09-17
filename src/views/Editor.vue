@@ -12,7 +12,6 @@
       :languageCount="filesStore.files.length"
       :languages="filesStore.files.map(file => file.name.replace(/\.(strings)$/, ''))"
       @updateTheme="updateTheme"
-      @resetColumnWidths="resetColumnWidths"
       @update:searchQuery="searchQuery = $event"
       @clearSearch="clearSearch"
       @exportAll="jsonTable?.openExportModal('all')"
@@ -213,7 +212,6 @@ interface JsonTableWithControls {
   highlightMode: boolean
   search: string
   skipColumns: number
-  resetColumnWidths: () => void
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
 }
 
@@ -272,11 +270,6 @@ onMounted(() => {
   document.documentElement.setAttribute('data-theme', theme.value)
   if (!filesStore.files.length && !filesStore.currentProject) {
     router.push('/')
-  }
-  
-  // Load preview images from current project if available
-  if (filesStore.currentProject?.previewImages) {
-    filesStore.setPreviewImages(filesStore.currentProject.previewImages)
   }
 })
 
@@ -347,38 +340,20 @@ function goBack() {
   router.push('/')
 }
 
-function resetColumnWidths() {
-  if (jsonTable.value) {
-    jsonTable.value.resetColumnWidths()
-  }
-}
-
 function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
 }
 
 function saveProjectToLocalStorage() {
   if (filesStore.saveProjectToLocalStorage()) {
-    const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
-      total + (filesStore.previewImages[key]?.length || 0), 0
-    )
-    alert(`Project saved to local storage successfully!\n${imageCount} preview images included.`)
+    alert('Project saved to local storage successfully!')
   } else {
     alert('Failed to save project. Please try again.')
   }
 }
 
 function saveProjectToFile() {
-  const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
-    total + (filesStore.previewImages[key]?.length || 0), 0
-  )
   filesStore.saveProjectToFile()
-  // Show a brief notification that images are included
-  if (imageCount > 0) {
-    setTimeout(() => {
-      alert(`Project downloaded with ${imageCount} preview images included!`)
-    }, 100)
-  }
 }
 
 // Language column management

@@ -584,11 +584,8 @@ function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString()
 }
 
-function getImageCount(project: Project): number {
-  if (!project.previewImages) return 0
-  return Object.keys(project.previewImages).reduce((total, key) => 
-    total + (project.previewImages![key]?.length || 0), 0
-  )
+function getImageCount(_project: Project): number {
+  return 0
 }
 
 // Snippet modal functions
