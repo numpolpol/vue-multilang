@@ -14,15 +14,6 @@ export interface StringsFile {
   data: Record<string, string>
 }
 
-export interface ProjectVersion {
-  id: string
-  name: string
-  description?: string
-  timestamp: number
-  languages: LanguageColumn[]
-  createdBy?: string
-}
-
 export interface Project {
   id: string
   name: string
@@ -32,34 +23,12 @@ export interface Project {
   }> | LanguageColumn[] // Support both legacy and new structure
   lastModified: number
   createdAt: number
-  versions?: ProjectVersion[] // Array of project versions
-  currentVersion?: string // ID of current version
 }
 
 // Default language columns - start with just English, users can add more
 const DEFAULT_LANGUAGES: LanguageColumn[] = [
   { code: 'en', name: 'English', data: {}, hasFile: false }
 ]
-
-export interface DiffEntry {
-  key: string
-  type: 'added' | 'removed' | 'modified' | 'unchanged'
-  languageCode: string
-  beforeValue?: string
-  afterValue?: string
-}
-
-export interface VersionDiff {
-  beforeVersion: ProjectVersion
-  afterVersion: ProjectVersion
-  changes: DiffEntry[]
-  summary: {
-    added: number
-    removed: number
-    modified: number
-    unchanged: number
-  }
-}
 
 export const useFilesStore = defineStore('files', {
   state: () => ({
@@ -436,175 +405,6 @@ export const useFilesStore = defineStore('files', {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    },
-    
-    // Version Management Methods
-    createVersion(name: string, description?: string): boolean {
-      if (!this.currentProject) return false
-      
-      try {
-        this.updateCurrentProject()
-        
-        const versionId = `v${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        const newVersion: ProjectVersion = {
-          id: versionId,
-          name,
-          description,
-          timestamp: Date.now(),
-          languages: this.languages.map(lang => ({
-            code: lang.code,
-            name: lang.name,
-            data: { ...lang.data },
-            hasFile: lang.hasFile,
-            fileType: lang.fileType
-          }))
-        }
-        
-        // Initialize versions array if it doesn't exist
-        if (!this.currentProject.versions) {
-          this.currentProject.versions = []
-        }
-        
-        // Add new version
-        this.currentProject.versions.push(newVersion)
-        this.currentProject.currentVersion = versionId
-        this.currentProject.lastModified = Date.now()
-        
-        // Save to localStorage
-        this.saveProjectToLocalStorage()
-        
-        return true
-      } catch (error) {
-        console.error('Failed to create version:', error)
-        return false
-      }
-    },
-
-    loadVersion(versionId: string): boolean {
-      if (!this.currentProject?.versions) return false
-      
-      const version = this.currentProject.versions.find(v => v.id === versionId)
-      if (!version) return false
-      
-      try {
-        // Load version data into current state
-        this.languages = version.languages.map(lang => ({ ...lang }))
-        
-        // Sync language-column structure to legacy structure for compatibility
-        this.syncLanguagesToFiles()
-        
-        // Update current version
-        this.currentProject.currentVersion = versionId
-        
-        return true
-      } catch (error) {
-        console.error('Failed to load version:', error)
-        return false
-      }
-    },
-
-    deleteVersion(versionId: string): boolean {
-      if (!this.currentProject?.versions) return false
-      
-      const versionIndex = this.currentProject.versions.findIndex(v => v.id === versionId)
-      if (versionIndex === -1) return false
-      
-      try {
-        // Remove version
-        this.currentProject.versions.splice(versionIndex, 1)
-        
-        // If this was the current version, clear current version
-        if (this.currentProject.currentVersion === versionId) {
-          this.currentProject.currentVersion = undefined
-        }
-        
-        // Save changes
-        this.saveProjectToLocalStorage()
-        
-        return true
-      } catch (error) {
-        console.error('Failed to delete version:', error)
-        return false
-      }
-    },
-
-    compareVersions(beforeVersionId: string, afterVersionId: string): VersionDiff | null {
-      if (!this.currentProject?.versions) return null
-      
-      const beforeVersion = this.currentProject.versions.find(v => v.id === beforeVersionId)
-      const afterVersion = this.currentProject.versions.find(v => v.id === afterVersionId)
-      
-      if (!beforeVersion || !afterVersion) return null
-      
-      const changes: DiffEntry[] = []
-      const summary = { added: 0, removed: 0, modified: 0, unchanged: 0 }
-      
-      // Get all unique keys from both versions
-      const allKeys = new Set<string>()
-      const allLanguages = new Set<string>()
-      
-      beforeVersion.languages.forEach(lang => {
-        allLanguages.add(lang.code)
-        Object.keys(lang.data).forEach(key => allKeys.add(key))
-      })
-      
-      afterVersion.languages.forEach(lang => {
-        allLanguages.add(lang.code)
-        Object.keys(lang.data).forEach(key => allKeys.add(key))
-      })
-      
-      // Compare each key in each language
-      allLanguages.forEach(langCode => {
-        const beforeLang = beforeVersion.languages.find(l => l.code === langCode)
-        const afterLang = afterVersion.languages.find(l => l.code === langCode)
-        
-        allKeys.forEach(key => {
-          const beforeValue = beforeLang?.data[key]
-          const afterValue = afterLang?.data[key]
-          
-          let type: DiffEntry['type'] = 'unchanged'
-          
-          if (beforeValue === undefined && afterValue !== undefined) {
-            type = 'added'
-            summary.added++
-          } else if (beforeValue !== undefined && afterValue === undefined) {
-            type = 'removed'
-            summary.removed++
-          } else if (beforeValue !== afterValue) {
-            type = 'modified'
-            summary.modified++
-          } else {
-            type = 'unchanged'
-            summary.unchanged++
-          }
-          
-          // Only add to changes if it's not unchanged
-          if (type !== 'unchanged') {
-            changes.push({
-              key,
-              type,
-              languageCode: langCode,
-              beforeValue,
-              afterValue
-            })
-          }
-        })
-      })
-      
-      return {
-        beforeVersion,
-        afterVersion,
-        changes,
-        summary
-      }
-    },
-
-    getVersions(): ProjectVersion[] {
-      return this.currentProject?.versions || []
-    },
-
-    getCurrentVersionId(): string | undefined {
-      return this.currentProject?.currentVersion
     },
     
     reset() {
