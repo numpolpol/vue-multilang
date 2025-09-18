@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { FileGroup } from '../utils/strings'
+import type { FileGroup, ParsedStringsFile } from '../utils/strings'
 
 export interface LanguageColumn {
   code: string
@@ -7,35 +7,13 @@ export interface LanguageColumn {
   data: Record<string, string>
   hasFile: boolean
   fileType?: 'strings' | 'xml' | 'json'
+  originalStructure?: ParsedStringsFile['structure'] // Preserve original file structure
+  originalContent?: string // Preserve original file content
 }
 
 export interface StringsFile {
   file: File
   data: Record<string, string>
-}
-
-export interface KeyAnnotation {
-  keyName: string
-  x: number // X position as percentage (0-100)
-  y: number // Y Position as percentage (0-100)
-  number: number // Display number (1, 2, 3, etc.)
-}
-
-export interface PreviewImage {
-  name: string
-  url: string
-  data: string // base64 data for serialization
-  keyAnnotations?: KeyAnnotation[] // Key positions on the image
-}
-
-export interface ProjectVersion {
-  id: string
-  name: string
-  description?: string
-  timestamp: number
-  languages: LanguageColumn[]
-  previewImages?: Record<string, PreviewImage[]>
-  createdBy?: string
 }
 
 export interface Project {
@@ -45,37 +23,14 @@ export interface Project {
     name: string
     data: Record<string, string>
   }> | LanguageColumn[] // Support both legacy and new structure
-  previewImages?: Record<string, PreviewImage[]>
   lastModified: number
   createdAt: number
-  versions?: ProjectVersion[] // Array of project versions
-  currentVersion?: string // ID of current version
 }
 
 // Default language columns - start with just English, users can add more
 const DEFAULT_LANGUAGES: LanguageColumn[] = [
   { code: 'en', name: 'English', data: {}, hasFile: false }
 ]
-
-export interface DiffEntry {
-  key: string
-  type: 'added' | 'removed' | 'modified' | 'unchanged'
-  languageCode: string
-  beforeValue?: string
-  afterValue?: string
-}
-
-export interface VersionDiff {
-  beforeVersion: ProjectVersion
-  afterVersion: ProjectVersion
-  changes: DiffEntry[]
-  summary: {
-    added: number
-    removed: number
-    modified: number
-    unchanged: number
-  }
-}
 
 export const useFilesStore = defineStore('files', {
   state: () => ({
@@ -87,7 +42,6 @@ export const useFilesStore = defineStore('files', {
     stringsData: [] as Record<string, string>[],
     originalData: [] as Record<string, string>[],
     currentProject: null as Project | null,
-    previewImages: {} as Record<string, PreviewImage[]>,
     fileGroups: [] as FileGroup[], // Track file groups for dual key support
     useDualKeys: false, // Flag to indicate if dual key merging is active
     
@@ -137,12 +91,21 @@ export const useFilesStore = defineStore('files', {
   actions: {
     // New actions for language-column structure
     async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml' | 'json') {
-      const { parseStrings } = await import('../utils/strings')
+      const { parseStrings, parseStringsWithStructure } = await import('../utils/strings')
       const content = await this.readFileContent(file)
       
       let data: Record<string, string>
+      let parsedFile: any = null
+      
       try {
-        data = parseStrings(content)
+        if (fileType === 'strings') {
+          // Use enhanced parsing for .strings files to preserve structure
+          parsedFile = parseStringsWithStructure(content)
+          data = parsedFile.data
+        } else {
+          // Use regular parsing for other file types
+          data = parseStrings(content)
+        }
       } catch (error) {
         console.error('Failed to parse file:', error)
         throw new Error(`Failed to parse ${fileType} file. Please check the format.`)
@@ -154,6 +117,12 @@ export const useFilesStore = defineStore('files', {
         this.languages[langIndex].data = { ...this.languages[langIndex].data, ...data }
         this.languages[langIndex].hasFile = true
         this.languages[langIndex].fileType = fileType
+        
+        // Store original structure for .strings files
+        if (fileType === 'strings' && parsedFile) {
+          this.languages[langIndex].originalStructure = parsedFile.structure
+          this.languages[langIndex].originalContent = parsedFile.originalContent
+        }
         
         // Update legacy structure for compatibility
         this.syncLanguagesToFiles()
@@ -408,9 +377,6 @@ export const useFilesStore = defineStore('files', {
             data: this.stringsData[index] || {}
           }))
         }
-        
-        // Update preview images
-        this.currentProject.previewImages = { ...this.previewImages }
       }
     },
 
@@ -458,189 +424,11 @@ export const useFilesStore = defineStore('files', {
       URL.revokeObjectURL(url)
     },
     
-    // Version Management Methods
-    createVersion(name: string, description?: string): boolean {
-      if (!this.currentProject) return false
-      
-      try {
-        this.updateCurrentProject()
-        
-        const versionId = `v${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        const newVersion: ProjectVersion = {
-          id: versionId,
-          name,
-          description,
-          timestamp: Date.now(),
-          languages: this.languages.map(lang => ({
-            code: lang.code,
-            name: lang.name,
-            data: { ...lang.data },
-            hasFile: lang.hasFile,
-            fileType: lang.fileType
-          })),
-          previewImages: this.previewImages ? JSON.parse(JSON.stringify(this.previewImages)) : undefined
-        }
-        
-        // Initialize versions array if it doesn't exist
-        if (!this.currentProject.versions) {
-          this.currentProject.versions = []
-        }
-        
-        // Add new version
-        this.currentProject.versions.push(newVersion)
-        this.currentProject.currentVersion = versionId
-        this.currentProject.lastModified = Date.now()
-        
-        // Save to localStorage
-        this.saveProjectToLocalStorage()
-        
-        return true
-      } catch (error) {
-        console.error('Failed to create version:', error)
-        return false
-      }
-    },
-
-    loadVersion(versionId: string): boolean {
-      if (!this.currentProject?.versions) return false
-      
-      const version = this.currentProject.versions.find(v => v.id === versionId)
-      if (!version) return false
-      
-      try {
-        // Load version data into current state
-        this.languages = version.languages.map(lang => ({ ...lang }))
-        
-        // Load preview images
-        if (version.previewImages) {
-          this.previewImages = JSON.parse(JSON.stringify(version.previewImages))
-        } else {
-          this.previewImages = {}
-        }
-        
-        // Sync language-column structure to legacy structure for compatibility
-        this.syncLanguagesToFiles()
-        
-        // Update current version
-        this.currentProject.currentVersion = versionId
-        
-        return true
-      } catch (error) {
-        console.error('Failed to load version:', error)
-        return false
-      }
-    },
-
-    deleteVersion(versionId: string): boolean {
-      if (!this.currentProject?.versions) return false
-      
-      const versionIndex = this.currentProject.versions.findIndex(v => v.id === versionId)
-      if (versionIndex === -1) return false
-      
-      try {
-        // Remove version
-        this.currentProject.versions.splice(versionIndex, 1)
-        
-        // If this was the current version, clear current version
-        if (this.currentProject.currentVersion === versionId) {
-          this.currentProject.currentVersion = undefined
-        }
-        
-        // Save changes
-        this.saveProjectToLocalStorage()
-        
-        return true
-      } catch (error) {
-        console.error('Failed to delete version:', error)
-        return false
-      }
-    },
-
-    compareVersions(beforeVersionId: string, afterVersionId: string): VersionDiff | null {
-      if (!this.currentProject?.versions) return null
-      
-      const beforeVersion = this.currentProject.versions.find(v => v.id === beforeVersionId)
-      const afterVersion = this.currentProject.versions.find(v => v.id === afterVersionId)
-      
-      if (!beforeVersion || !afterVersion) return null
-      
-      const changes: DiffEntry[] = []
-      const summary = { added: 0, removed: 0, modified: 0, unchanged: 0 }
-      
-      // Get all unique keys from both versions
-      const allKeys = new Set<string>()
-      const allLanguages = new Set<string>()
-      
-      beforeVersion.languages.forEach(lang => {
-        allLanguages.add(lang.code)
-        Object.keys(lang.data).forEach(key => allKeys.add(key))
-      })
-      
-      afterVersion.languages.forEach(lang => {
-        allLanguages.add(lang.code)
-        Object.keys(lang.data).forEach(key => allKeys.add(key))
-      })
-      
-      // Compare each key in each language
-      allLanguages.forEach(langCode => {
-        const beforeLang = beforeVersion.languages.find(l => l.code === langCode)
-        const afterLang = afterVersion.languages.find(l => l.code === langCode)
-        
-        allKeys.forEach(key => {
-          const beforeValue = beforeLang?.data[key]
-          const afterValue = afterLang?.data[key]
-          
-          let type: DiffEntry['type'] = 'unchanged'
-          
-          if (beforeValue === undefined && afterValue !== undefined) {
-            type = 'added'
-            summary.added++
-          } else if (beforeValue !== undefined && afterValue === undefined) {
-            type = 'removed'
-            summary.removed++
-          } else if (beforeValue !== afterValue) {
-            type = 'modified'
-            summary.modified++
-          } else {
-            type = 'unchanged'
-            summary.unchanged++
-          }
-          
-          // Only add to changes if it's not unchanged
-          if (type !== 'unchanged') {
-            changes.push({
-              key,
-              type,
-              languageCode: langCode,
-              beforeValue,
-              afterValue
-            })
-          }
-        })
-      })
-      
-      return {
-        beforeVersion,
-        afterVersion,
-        changes,
-        summary
-      }
-    },
-
-    getVersions(): ProjectVersion[] {
-      return this.currentProject?.versions || []
-    },
-
-    getCurrentVersionId(): string | undefined {
-      return this.currentProject?.currentVersion
-    },
-    
     reset() {
       this.files = []
       this.stringsData = []
       this.originalData = []
       this.currentProject = null
-      this.previewImages = {}
       
       // Reset languages to default state
       this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
@@ -655,33 +443,6 @@ export const useFilesStore = defineStore('files', {
       this.mergedKeys = []
       this.mergedData = []
       this.fileGroups = []
-    },
-
-    // Preview Images Actions
-    setPreviewImages(images: Record<string, PreviewImage[]>) {
-      this.previewImages = images
-    },
-
-    addPreviewImages(prefix: string, images: PreviewImage[]) {
-      if (!this.previewImages[prefix]) {
-        this.previewImages[prefix] = []
-      }
-      this.previewImages[prefix].push(...images)
-    },
-
-    removePreviewImage(prefix: string, index: number) {
-      if (this.previewImages[prefix]) {
-        this.previewImages[prefix].splice(index, 1)
-        if (this.previewImages[prefix].length === 0) {
-          delete this.previewImages[prefix]
-        }
-      }
-    },
-
-    saveImageKeyAnnotations(prefix: string, imageIndex: number, annotations: KeyAnnotation[]) {
-      if (this.previewImages[prefix] && this.previewImages[prefix][imageIndex]) {
-        this.previewImages[prefix][imageIndex].keyAnnotations = [...annotations]
-      }
     },
 
     loadProject(project: Project) {
@@ -726,11 +487,6 @@ export const useFilesStore = defineStore('files', {
           })
         }
       })
-      
-      // Load preview images if available
-      if (project.previewImages) {
-        this.previewImages = { ...project.previewImages }
-      }
       
       // Sync language-column structure to legacy structure for compatibility
       this.syncLanguagesToFiles()

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="android_common_ok">OK</string>
-    <string name="android_common_cancel">Cancel</string>
-    <string name="android_home_welcome">Welcome</string>
-    <string name="android_profile_user">User</string>
-</resources>

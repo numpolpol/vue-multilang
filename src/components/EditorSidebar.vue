@@ -41,14 +41,6 @@
         <!-- Table Controls -->
         <div class="flex-shrink-0">
           <div class="divider my-2 text-sm">Table Controls</div>
-          
-          <!-- Column Reset -->
-          <button class="btn btn-xs btn-block text-xs" @click="$emit('resetColumnWidths')">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-            </svg>
-            Reset Column Widths
-          </button>
         </div>
 
         <!-- Search Controls -->
@@ -63,22 +55,12 @@
           />
         </div>
 
-        <!-- Export Controls -->
+        <!-- Back Button -->
         <div class="flex-shrink-0">
-          <ExportControls
-            @exportAll="$emit('exportAll')"
-            @exportChanged="$emit('exportChanged')"
-            @exportOriginal="$emit('exportOriginal')"
-            @goBack="$emit('goBack')"
-          />
-        </div>
-        
-        <!-- Version Management -->
-        <div class="flex-1 min-h-0">
-          <div class="divider my-2 text-sm">Version Management</div>
-          <div class="overflow-y-auto max-h-full">
-            <VersionManager @showDiff="handleShowDiff" />
-          </div>
+          <div class="divider"></div>
+          <button class="btn btn-ghost btn-sm btn-block" @click="$emit('goBack')">
+            Back to Upload
+          </button>
         </div>
       </div>
     </div>
@@ -88,8 +70,6 @@
 <script lang="ts" setup>
 import ThemeSelector from './ThemeSelector.vue'
 import SearchControls from './SearchControls.vue'
-import ExportControls from './ExportControls.vue'
-import VersionManager from './VersionManager.vue'
 import ColumnManager from './ColumnManager.vue'
 
 interface Props {
@@ -104,24 +84,15 @@ interface Props {
 
 defineProps<Props>()
 
-const emit = defineEmits<{
+defineEmits<{
   updateTheme: [event: Event]
-  resetColumnWidths: []
   'update:searchQuery': [value: string]
   clearSearch: []
-  exportAll: []
-  exportChanged: []
-  exportOriginal: []
   goBack: []
   saveProjectToLocalStorage: []
   saveProjectToFile: []
-  showVersionDiff: [beforeVersionId: string, afterVersionId: string]
   languageAdded: [languageCode: string]
   languageRemoved: [languageCode: string]
   languagesReordered: [fromIndex: number, toIndex: number]
 }>()
-
-function handleShowDiff(beforeVersionId: string, afterVersionId: string) {
-  emit('showVersionDiff', beforeVersionId, afterVersionId)
-}
 </script>

@@ -1,6 +1,16 @@
-// Utility to parse iOS .strings file into JS object
-import { parseJsonToFlat, isJsonContent, FLATTEN_PRESETS, flatToJsonString } from './jsonFlattening'
+// Enhanced structure to preserve original file format
+export interface ParsedStringsFile {
+  data: Record<string, string>
+  structure: Array<{
+    type: 'comment' | 'key' | 'blank'
+    content: string
+    key?: string
+    value?: string
+  }>
+  originalContent: string
+}
 
+// Utility to parse iOS .strings file into JS object with structure preservation
 export function parseStrings(content: string): Record<string, string> {
   const result: Record<string, string> = {}
   
@@ -8,63 +18,155 @@ export function parseStrings(content: string): Record<string, string> {
     return result
   }
   
-  // Check if content is JSON format
-  if (isJsonContent(content)) {
-    try {
-      return parseJsonToFlat(content, FLATTEN_PRESETS.web)
-    } catch (error) {
-      console.warn('Failed to parse JSON content:', error)
-      return result
-    }
-  }
-  
-  if (content.trim().startsWith('<?xml')) {
-    // Parse Android XML format
-    try {
-      const parser = new DOMParser()
-      const xmlDoc = parser.parseFromString(content, 'text/xml')
-      const strings = xmlDoc.getElementsByTagName('string')
-      for (const str of strings) {
-        const name = str.getAttribute('name')
-        if (name) {
-          result[name] = str.textContent?.replace(/\\"/g, '"') || ''
+  // Parse iOS .strings format only
+  try {
+    const lines = content
+      .replace(/\/\*[^]*?\*\//g, '') // block comments
+      .replace(/\/\/.*$/gm, '') // line comments
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l && /=/g.test(l))
+    
+    for (const line of lines) {
+      // Support quoted or unquoted keys
+      const match = line.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
+      if (match) {
+        const [, key, value] = match
+        if (key) {
+          result[key] = value || ''
         }
       }
-    } catch (error) {
-      console.warn('Failed to parse XML content:', error)
     }
-  } else {
-    // Parse iOS .strings format
-    try {
-      const lines = content
-        .replace(/\/\*[^]*?\*\//g, '') // block comments
-        .replace(/\/\/.*$/gm, '') // line comments
-        .split(/\r?\n/)
-        .map(l => l.trim())
-        .filter(l => l && /=/g.test(l))
-      
-      for (const line of lines) {
-        // Support quoted or unquoted keys
-        const match = line.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
-        if (match) {
-          const [, key, value] = match
-          if (key) {
-            result[key] = value || ''
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to parse .strings content:', error)
-    }
+  } catch (error) {
+    console.warn('Failed to parse .strings content:', error)
   }
   
   return result
 }
 
+// Enhanced parsing with structure preservation
+export function parseStringsWithStructure(content: string): ParsedStringsFile {
+  const data: Record<string, string> = {}
+  const structure: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string }> = []
+  
+  if (!content || content.trim().length === 0) {
+    return { data, structure, originalContent: content }
+  }
+  
+  try {
+    const lines = content.split(/\r?\n/)
+    
+    let inBlockComment = false
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmedLine = line.trim()
+      
+      // Handle blank lines
+      if (!trimmedLine) {
+        structure.push({ type: 'blank', content: line })
+        continue
+      }
+      
+      // Handle block comments
+      if (trimmedLine.includes('/*') && !inBlockComment) {
+        inBlockComment = true
+        structure.push({ type: 'comment', content: line })
+        if (trimmedLine.includes('*/')) {
+          inBlockComment = false
+        }
+        continue
+      }
+      
+      if (inBlockComment) {
+        structure.push({ type: 'comment', content: line })
+        if (trimmedLine.includes('*/')) {
+          inBlockComment = false
+        }
+        continue
+      }
+      
+      // Handle line comments
+      if (trimmedLine.startsWith('//')) {
+        structure.push({ type: 'comment', content: line })
+        continue
+      }
+      
+      // Handle key-value pairs
+      const match = trimmedLine.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
+      if (match) {
+        const [, key, value] = match
+        if (key) {
+          data[key] = value || ''
+          structure.push({ type: 'key', content: line, key, value: value || '' })
+        }
+      } else {
+        // Unknown line format, preserve as comment
+        structure.push({ type: 'comment', content: line })
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to parse .strings content with structure:', error)
+  }
+  
+  return { data, structure, originalContent: content }
+}
+
+// Enhanced export with structure preservation
+export function toStringsWithStructure(
+  data: Record<string, string>, 
+  originalStructure?: ParsedStringsFile['structure']
+): string {
+  try {
+    if (!originalStructure) {
+      // Fallback to simple export
+      return toStrings(data)
+    }
+    
+    const lines: string[] = []
+    const processedKeys = new Set<string>()
+    
+    // Process structure and update key-value pairs
+    for (const item of originalStructure) {
+      if (item.type === 'key' && item.key) {
+        // Update with current value if key exists
+        if (data.hasOwnProperty(item.key)) {
+          const currentValue = data[item.key] || ''
+          const escapedValue = currentValue.replace(/"/g, '\\"')
+          lines.push(`"${item.key}" = "${escapedValue}";`)
+          processedKeys.add(item.key)
+        }
+        // Skip keys that no longer exist in data
+      } else {
+        // Preserve comments and blank lines as-is
+        lines.push(item.content)
+      }
+    }
+    
+    // Add any new keys that weren't in the original structure
+    const newKeys = Object.keys(data).filter(key => !processedKeys.has(key))
+    if (newKeys.length > 0) {
+      if (lines.length > 0 && lines[lines.length - 1].trim() !== '') {
+        lines.push('') // Add blank line before new keys
+      }
+      lines.push('// New keys added during editing')
+      for (const key of newKeys) {
+        const escapedValue = (data[key] || '').replace(/"/g, '\\"')
+        lines.push(`"${key}" = "${escapedValue}";`)
+      }
+    }
+    
+    return lines.join('\n')
+  } catch (error) {
+    console.warn('Failed to export with structure preservation:', error)
+    return toStrings(data) // Fallback
+  }
+}
+
 // Utility to stringify JS object to iOS .strings format
 export function toStrings(obj: Record<string, string>): string {
   try {
-    const splitData = splitMergedData(obj, true) // Split for iOS export
+    const splitData = splitMergedData(obj) // Split for iOS export
     return Object.entries(splitData)
       .filter(([key, value]) => key && value !== undefined)
       .map(([k, v]) => `"${k}" = "${(v || '').replace(/"/g, '\\"')}";`)
@@ -72,40 +174,6 @@ export function toStrings(obj: Record<string, string>): string {
   } catch (error) {
     console.warn('Failed to convert to .strings format:', error)
     return ''
-  }
-}
-
-// Utility to stringify JS object to Android strings.xml format
-export function toAndroidStrings(obj: Record<string, string>): string {
-  try {
-    const splitData = splitMergedData(obj, false) // Split for Android export
-    const xmlContent = Object.entries(splitData)
-      .filter(([key, value]) => key && value !== undefined)
-      .map(([key, value]) => 
-        `    <string name="${key}">${(value || '')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '\\"')}</string>`)
-      .join('\n')
-    return `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n${xmlContent}\n</resources>`
-  } catch (error) {
-    console.warn('Failed to convert to Android XML format:', error)
-    return ''
-  }
-}
-
-// Utility to stringify JS object to JSON format (nested structure)
-export function toJsonString(obj: Record<string, string>): string {
-  try {
-    return flatToJsonString(obj, {
-      separator: '.',
-      parseNumbers: true,
-      parseArrays: true
-    })
-  } catch (error) {
-    console.warn('Failed to convert to JSON format:', error)
-    return JSON.stringify(obj, null, 2)
   }
 }
 
@@ -133,10 +201,10 @@ export function groupFilesByLanguage(files: File[]): FileGroup[] {
   
   files.forEach(file => {
     // Extract language code from filename (e.g., "en.strings" -> "en")
-    const match = file.name.match(/^([^.]+)\.(strings|xml)$/)
+    const match = file.name.match(/^([^.]+)\.(strings)$/)
     if (!match) return
     
-    const [, language, extension] = match
+    const [, language] = match
     
     // Get or create group for this language
     if (!groups.has(language)) {
@@ -151,15 +219,11 @@ export function groupFilesByLanguage(files: File[]): FileGroup[] {
     
     const group = groups.get(language)!
     
-    // Assign file based on extension
-    if (extension === 'strings') {
-      group.primaryFile = file
-    } else if (extension === 'xml') {
-      group.secondaryFile = file
-    }
+    // Only handle .strings files
+    group.primaryFile = file
     
-    // Update hasBothFiles flag
-    group.hasBothFiles = !!(group.primaryFile && group.secondaryFile)
+    // No secondary files in iOS-only mode
+    group.hasBothFiles = false
   })
   
   return Array.from(groups.values())
@@ -183,19 +247,12 @@ export async function processFileGroups(
       group.primaryData = parseStrings(content)
     }
     
-    // Parse secondary file (.xml)
-    if (group.secondaryFile) {
-      const content = await readFileContent(group.secondaryFile)
-      group.secondaryData = parseStrings(content)
-    }
+    // Use only primary data (no secondary files in iOS-only mode)
+    group.mergedData = { ...group.primaryData }
     
-    // Merge both data sources
-    group.mergedData = { ...group.primaryData, ...group.secondaryData }
-    
-    // Create a representative file (prefer .strings, fallback to .xml)
-    const representativeFile = group.primaryFile || group.secondaryFile
-    if (representativeFile) {
-      resultFiles.push(representativeFile)
+    // Use the .strings file
+    if (group.primaryFile) {
+      resultFiles.push(group.primaryFile)
       resultData.push(group.mergedData)
     }
   }
@@ -330,8 +387,8 @@ export function applyKeyMerging(
   }
 }
 
-// Utility to split merged keys back for export (Multi Key Mode)
-export function splitMergedData(data: Record<string, string>, isIosExport: boolean): Record<string, string> {
+// Utility to split merged keys back for export (iOS only)
+export function splitMergedData(data: Record<string, string>): Record<string, string> {
   const result: Record<string, string> = {}
   
   Object.entries(data).forEach(([key, value]) => {
@@ -339,42 +396,12 @@ export function splitMergedData(data: Record<string, string>, isIosExport: boole
       // This is a merged key - split it back to individual keys
       const allKeys = key.split(' + ')
       
-      if (isIosExport) {
-        // For iOS export, prefer iOS-style keys (ios_* or not android_*)
-        const iosKeys = allKeys.filter(k => k.startsWith('ios_'))
-        if (iosKeys.length > 0) {
-          // Use the first iOS key found
-          result[iosKeys[0]] = value
-        } else {
-          // Fallback to non-android keys
-          const nonAndroidKeys = allKeys.filter(k => !k.startsWith('android_'))
-          result[nonAndroidKeys[0] || allKeys[0]] = value
-        }
-      } else {
-        // For Android export, prefer Android-style keys (android_*)
-        const androidKeys = allKeys.filter(k => k.startsWith('android_'))
-        if (androidKeys.length > 0) {
-          // Use the first Android key found
-          result[androidKeys[0]] = value
-        } else {
-          // Fallback: use a key that's not iOS-specific
-          const neutralKey = allKeys.find(k => !k.match(/^(home_|settings_|nav_|tab_)/))
-          result[neutralKey || allKeys[0]] = value
-        }
-      }
+      // For iOS-only, prefer keys that don't look like platform-specific
+      const preferredKey = allKeys.find(k => !k.startsWith('android_')) || allKeys[0]
+      result[preferredKey] = value
     } else {
-      // Regular key - include based on platform preference
-      if (isIosExport) {
-        // For iOS export, include keys that don't look like Android-specific keys
-        if (!key.startsWith('android_')) {
-          result[key] = value
-        }
-      } else {
-        // For Android export, include Android keys and keys that aren't clearly iOS-specific
-        if (key.startsWith('android_') || (!key.match(/^(home_|settings_|nav_|tab_)/))) {
-          result[key] = value
-        }
-      }
+      // Regular key - include as-is for iOS
+      result[key] = value
     }
   })
   

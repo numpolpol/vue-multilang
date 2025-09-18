@@ -10,18 +10,13 @@
       :totalKeys="totalKeys"
       :noResults="noResults"
       :languageCount="filesStore.files.length"
-      :languages="filesStore.files.map(file => file.name.replace(/\.(strings|xml)$/, ''))"
+      :languages="filesStore.files.map(file => file.name.replace(/\.(strings)$/, ''))"
       @updateTheme="updateTheme"
-      @resetColumnWidths="resetColumnWidths"
       @update:searchQuery="searchQuery = $event"
       @clearSearch="clearSearch"
-      @exportAll="jsonTable?.openExportModal('all')"
-      @exportChanged="jsonTable?.openExportModal('changed')"
-      @exportOriginal="jsonTable?.openExportModal('original')"
       @goBack="goBack"
       @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
-      @showVersionDiff="showVersionDiff"
       @languageAdded="onLanguageAdded"
       @languageRemoved="onLanguageRemoved"
       @languagesReordered="onLanguagesReordered"
@@ -31,32 +26,32 @@
     <div class="drawer-content flex flex-col h-screen p-0 m-0 w-full max-w-none">
       <!-- Navbar -->
       <EditorNavbar 
-        :projectName="filesStore.currentProject?.name"
-        :viewMode="viewMode"
-        :highlightMode="highlightMode"
-        :skipColumns="skipColumns"
-        :dualKeysMode="dualKeysMode"
-        :searchQuery="searchQuery"
-        :filteredCount="filteredCount"
-        :totalKeys="totalKeys"
-        :languageCount="filesStore.files.length"
-        @toggleDrawer="toggleDrawer"
-        @update:viewMode="viewMode = $event"
-        @update:highlightMode="highlightMode = $event"
-        @update:skipColumns="skipColumns = $event"
-        @update:dualKeysMode="dualKeysMode = $event"
-        @saveProject="saveProjectToLocalStorage"
-        @exportProject="jsonTable?.openExportModal('all')"
+        :saved-count="filesStore.languages.length"
+        :total-keys="totalKeys"
+        :filtered-count="filteredCount"
+        :search-query="searchQuery"
+        :show-save="!!filesStore.currentProject"
+        :has-unsaved-changes="false"
+        :is-saving="false"
+        :project-name="filesStore.currentProject?.name"
+        :language-count="filesStore.languages.length"
+        :view-mode="viewMode"
+        :highlight-mode="highlightMode"
+        :skip-columns="skipColumns"
+        @toggle-drawer="toggleDrawer"
+        @update:view-mode="viewMode = $event"
+        @update:highlight-mode="highlightMode = $event"
+        @update:skip-columns="skipColumns = $event"
+        @save-project="saveProjectToLocalStorage"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
         <JsonTable 
           :data="filesStore.stringsData" 
           :files="filesStore.files" 
-          :skipColumns="skipColumns"
-          :dualKeysMode="dualKeysMode"
+          :skip-columns="skipColumns"
           @back="goBack" 
-          @addKey="showAddKeyModal"
+          @add-key="showAddKeyModal"
           ref="jsonTable" 
         />
       </div>
@@ -179,23 +174,6 @@ common_ok, common_cancel, common_confirm"
         <button @click="closeAddKeyModal">close</button>
       </form>
     </dialog>
-    
-    <!-- Version Diff Modal -->
-    <dialog id="version_diff_modal" class="modal" :class="{ 'modal-open': showVersionDiffModal }">
-      <div class="modal-box w-11/12 max-w-7xl h-5/6 p-0">
-        <div class="p-6 h-full overflow-auto">
-          <VersionDiff 
-            v-if="showVersionDiffModal && diffBeforeVersionId && diffAfterVersionId"
-            :beforeVersionId="diffBeforeVersionId"
-            :afterVersionId="diffAfterVersionId"
-            @close="closeVersionDiff"
-          />
-        </div>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button @click="closeVersionDiff">close</button>
-      </form>
-    </dialog>
   </div>
 </template>
 
@@ -206,14 +184,12 @@ import { useFilesStore } from '../stores/files'
 import JsonTable from '../components/JsonTable.vue'
 import EditorSidebar from '../components/EditorSidebar.vue'
 import EditorNavbar from '../components/EditorNavbar.vue'
-import VersionDiff from '../components/VersionDiff.vue'
 
 interface JsonTableWithControls {
   mode: 'all' | 'paging'
   highlightMode: boolean
   search: string
   skipColumns: number
-  resetColumnWidths: () => void
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
 }
 
@@ -228,22 +204,11 @@ const viewMode = ref<'all' | 'paging'>('all')
 const highlightMode = ref(false)
 const searchQuery = ref('')
 const skipColumns = ref(0)
-const dualKeysMode = ref(false)
-
-// Watch dualKeysMode changes and sync with store
-watch(dualKeysMode, (newValue) => {
-  filesStore.setDualKeysMode(newValue)
-}, { immediate: true })
 
 // Computed properties for search results
 const filteredCount = ref(0)
 const totalKeys = ref(0)
 const noResults = ref(false)
-
-// Version diff state
-const showVersionDiffModal = ref(false)
-const diffBeforeVersionId = ref('')
-const diffAfterVersionId = ref('')
 
 // Add Key Modal
 const newKeyName = ref('')
@@ -273,11 +238,6 @@ onMounted(() => {
   if (!filesStore.files.length && !filesStore.currentProject) {
     router.push('/')
   }
-  
-  // Load preview images from current project if available
-  if (filesStore.currentProject?.previewImages) {
-    filesStore.setPreviewImages(filesStore.currentProject.previewImages)
-  }
 })
 
 // Watch for viewMode changes
@@ -306,12 +266,6 @@ watch(skipColumns, (newValue) => {
   if (jsonTable.value) {
     jsonTable.value.skipColumns = newValue
   }
-})
-
-// Watch for dualKeysMode changes
-watch(dualKeysMode, (newValue) => {
-  filesStore.setUseDualKeys(newValue)
-  // TODO: Re-process files when dual keys mode is toggled
 })
 
 // Watch for filesStore changes to update totalKeys
@@ -347,38 +301,20 @@ function goBack() {
   router.push('/')
 }
 
-function resetColumnWidths() {
-  if (jsonTable.value) {
-    jsonTable.value.resetColumnWidths()
-  }
-}
-
 function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
 }
 
 function saveProjectToLocalStorage() {
   if (filesStore.saveProjectToLocalStorage()) {
-    const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
-      total + (filesStore.previewImages[key]?.length || 0), 0
-    )
-    alert(`Project saved to local storage successfully!\n${imageCount} preview images included.`)
+    alert('Project saved to local storage successfully!')
   } else {
     alert('Failed to save project. Please try again.')
   }
 }
 
 function saveProjectToFile() {
-  const imageCount = Object.keys(filesStore.previewImages).reduce((total, key) => 
-    total + (filesStore.previewImages[key]?.length || 0), 0
-  )
   filesStore.saveProjectToFile()
-  // Show a brief notification that images are included
-  if (imageCount > 0) {
-    setTimeout(() => {
-      alert(`Project downloaded with ${imageCount} preview images included!`)
-    }, 100)
-  }
 }
 
 // Language column management
@@ -511,18 +447,5 @@ function addBulkKeys() {
   } else {
     addKeyError.value = `Only ${successCount} out of ${keys.length} keys were added successfully.`
   }
-}
-
-// Version Diff Modal
-function showVersionDiff(beforeVersionId: string, afterVersionId: string) {
-  diffBeforeVersionId.value = beforeVersionId
-  diffAfterVersionId.value = afterVersionId
-  showVersionDiffModal.value = true
-}
-
-function closeVersionDiff() {
-  showVersionDiffModal.value = false
-  diffBeforeVersionId.value = ''
-  diffAfterVersionId.value = ''
 }
 </script>

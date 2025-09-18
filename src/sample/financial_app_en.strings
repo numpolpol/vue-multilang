@@ -1,0 +1,121 @@
+/* 
+ * Financial App Localization - English
+ * 4 Main Features: Account Management, Transactions, Investments, Settings
+ * 100 total strings (25 per feature)
+ */
+
+// MARK: - Account Management Feature (25 strings)
+/* Account Management - User accounts, profiles, authentication */
+
+"account.title" = "My Account";
+"account.balance" = "Account Balance";
+"account.available_balance" = "Available Balance";
+"account.pending_balance" = "Pending Balance";
+"account.account_number" = "Account Number";
+"account.routing_number" = "Routing Number";
+"account.account_type" = "Account Type";
+"account.checking" = "Checking";
+"account.savings" = "Savings";
+"account.credit" = "Credit";
+"account.login" = "Sign In";
+"account.logout" = "Sign Out";
+"account.register" = "Create Account";
+"account.forgot_password" = "Forgot Password?";
+"account.reset_password" = "Reset Password";
+"account.change_password" = "Change Password";
+"account.profile" = "Profile";
+"account.personal_info" = "Personal Information";
+"account.contact_info" = "Contact Information";
+"account.security" = "Security Settings";
+"account.biometric_login" = "Biometric Login";
+"account.two_factor_auth" = "Two-Factor Authentication";
+"account.linked_accounts" = "Linked Accounts";
+"account.account_statements" = "Account Statements";
+"account.close_account" = "Close Account";
+
+// MARK: - Transactions Feature (25 strings)
+/* Transactions - Payments, transfers, transaction history */
+
+"transactions.title" = "Transactions";
+"transactions.recent" = "Recent Transactions";
+"transactions.all" = "All Transactions";
+"transactions.pending" = "Pending Transactions";
+"transactions.completed" = "Completed";
+"transactions.failed" = "Failed";
+"transactions.cancelled" = "Cancelled";
+"transactions.send_money" = "Send Money";
+"transactions.request_money" = "Request Money";
+"transactions.pay_bills" = "Pay Bills";
+"transactions.transfer_funds" = "Transfer Funds";
+"transactions.deposit" = "Deposit";
+"transactions.withdraw" = "Withdraw";
+"transactions.amount" = "Amount";
+"transactions.recipient" = "Recipient";
+"transactions.description" = "Description";
+"transactions.reference_number" = "Reference Number";
+"transactions.transaction_fee" = "Transaction Fee";
+"transactions.exchange_rate" = "Exchange Rate";
+"transactions.scheduled_payments" = "Scheduled Payments";
+"transactions.recurring_payments" = "Recurring Payments";
+"transactions.payment_history" = "Payment History";
+"transactions.export_statement" = "Export Statement";
+"transactions.search_transactions" = "Search Transactions";
+"transactions.filter_by_date" = "Filter by Date";
+
+// MARK: - Investments Feature (25 strings)
+/* Investments - Portfolio, stocks, bonds, market data */
+
+"investments.title" = "Investments";
+"investments.portfolio" = "My Portfolio";
+"investments.total_value" = "Total Portfolio Value";
+"investments.daily_change" = "Daily Change";
+"investments.total_return" = "Total Return";
+"investments.market_value" = "Market Value";
+"investments.cost_basis" = "Cost Basis";
+"investments.unrealized_gains" = "Unrealized Gains";
+"investments.realized_gains" = "Realized Gains";
+"investments.stocks" = "Stocks";
+"investments.bonds" = "Bonds";
+"investments.mutual_funds" = "Mutual Funds";
+"investments.etfs" = "ETFs";
+"investments.options" = "Options";
+"investments.buy_order" = "Buy Order";
+"investments.sell_order" = "Sell Order";
+"investments.market_order" = "Market Order";
+"investments.limit_order" = "Limit Order";
+"investments.stop_loss" = "Stop Loss";
+"investments.dividend" = "Dividend";
+"investments.yield" = "Yield";
+"investments.pe_ratio" = "P/E Ratio";
+"investments.market_cap" = "Market Cap";
+"investments.watchlist" = "Watchlist";
+"investments.research" = "Research";
+
+// MARK: - Settings Feature (25 strings)
+/* Settings - App configuration, preferences, support */
+
+"settings.title" = "Settings";
+"settings.general" = "General";
+"settings.account_settings" = "Account Settings";
+"settings.privacy" = "Privacy";
+"settings.security_settings" = "Security";
+"settings.notifications" = "Notifications";
+"settings.push_notifications" = "Push Notifications";
+"settings.email_notifications" = "Email Notifications";
+"settings.sms_notifications" = "SMS Notifications";
+"settings.language" = "Language";
+"settings.currency" = "Currency";
+"settings.time_zone" = "Time Zone";
+"settings.dark_mode" = "Dark Mode";
+"settings.touch_id" = "Touch ID";
+"settings.face_id" = "Face ID";
+"settings.passcode" = "Passcode";
+"settings.backup" = "Backup";
+"settings.data_export" = "Export Data";
+"settings.help_support" = "Help & Support";
+"settings.contact_us" = "Contact Us";
+"settings.faq" = "Frequently Asked Questions";
+"settings.terms_conditions" = "Terms & Conditions";
+"settings.privacy_policy" = "Privacy Policy";
+"settings.about" = "About";
+"settings.version" = "Version";

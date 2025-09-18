@@ -1,0 +1,111 @@
+/* 
+ * Financial App Localization - Thai
+ * 4 Main Features: Account Management, Transactions, Investments, Settings
+ * 100 total strings (25 per feature)
+ */
+
+// MARK: - Randomized Thai Strings
+
+"investments.watchlist" = "รายการติดตาม";
+"account.security" = "การตั้งค่าความปลอดภัย";
+"transactions.withdraw" = "ถอนเงิน";
+"settings.passcode" = "รหัสผ่าน";
+"investments.bonds" = "พันธบัตร";
+"account.routing_number" = "หมายเลขกิจการธนาคาร";
+"transactions.send_money" = "โอนเงิน";
+"settings.touch_id" = "Touch ID";
+"account.available_balance" = "ยอดเงินพร้อมใช้";
+"investments.market_cap" = "มูลค่าตลาด";
+"settings.notifications" = "การแจ้งเตือน";
+"transactions.reference_number" = "หมายเลขอ้างอิง";
+"account.forgot_password" = "ลืมรหัสผ่าน?";
+"investments.pe_ratio" = "อัตราส่วน P/E";
+"settings.version" = "เวอร์ชัน";
+"transactions.amount" = "จำนวนเงิน";
+"account.personal_info" = "ข้อมูลส่วนตัว";
+"investments.total_return" = "ผลตอบแทนรวม";
+"settings.help_support" = "ช่วยเหลือและสนับสนุน";
+"transactions.completed" = "เสร็จสมบูรณ์";
+"account.account_statements" = "รายงานบัญชี";
+"investments.unrealized_gains" = "กำไรที่ยังไม่เกิดขึ้น";
+"settings.currency" = "สกุลเงิน";
+"transactions.filter_by_date" = "กรองตามวันที่";
+"account.balance" = "ยอดเงินในบัญชี";
+"investments.buy_order" = "คำสั่งซื้อ";
+"settings.dark_mode" = "โหมดมืด";
+"transactions.recipient" = "ผู้รับ";
+"account.checking" = "บัญชีกระแสรายวัน";
+"investments.dividend" = "เงินปันผล";
+"settings.contact_us" = "ติดต่อเรา";
+"transactions.pay_bills" = "จ่ายบิล";
+"account.login" = "เข้าสู่ระบบ";
+"investments.stocks" = "หุ้น";
+
+// MARK: - Comment below investments.stocks
+
+"settings.general" = "ทั่วไป";
+"transactions.export_statement" = "ส่งออกรายงาน";
+"account.profile" = "โปรไฟล์";
+"investments.yield" = "อัตราผลตอบแทน";
+"settings.faq" = "คำถามที่พบบ่อย";
+"transactions.transaction_fee" = "ค่าธรรมเนียมการทำรายการ";
+"account.credit" = "เครดิต";
+"investments.research" = "การวิจัย";
+"settings.privacy_policy" = "นโยบายความเป็นส่วนตัว";
+"transactions.pending" = "รอดำเนินการ";
+"account.account_type" = "ประเภทบัญชี";
+"investments.cost_basis" = "ต้นทุนพื้นฐาน";
+"settings.about" = "เกี่ยวกับ";
+"transactions.recent" = "รายการล่าสุด";
+"account.close_account" = "ปิดบัญชี";
+"investments.etfs" = "ETFs";
+"settings.face_id" = "Face ID";
+"transactions.search_transactions" = "ค้นหารายการ";
+"account.pending_balance" = "ยอดเงินรอการชำระ";
+"investments.limit_order" = "คำสั่งจำกัด";
+"settings.email_notifications" = "การแจ้งเตือนทางอีเมล";
+"transactions.description" = "รายละเอียด";
+"account.register" = "สร้างบัญชี";
+"investments.market_value" = "มูลค่าตลาด";
+"settings.time_zone" = "เขตเวลา";
+"transactions.cancelled" = "ยกเลิก";
+"account.two_factor_auth" = "การยืนยันตัวตนสองขั้นตอน";
+"investments.options" = "ออปชัน";
+"settings.data_export" = "ส่งออกข้อมูล";
+"transactions.transfer_funds" = "โอนเงิน";
+"account.savings" = "บัญชีออมทรัพย์";
+"investments.stop_loss" = "หยุดการขาดทุน";
+"settings.backup" = "สำรองข้อมูล";
+"transactions.all" = "ทุกรายการ";
+"account.biometric_login" = "เข้าสู่ระบบด้วยข้อมูลชีวมิติ";
+"investments.mutual_funds" = "กองทุนรวม";
+"settings.push_notifications" = "การแจ้งเตือนแบบ Push";
+"transactions.request_money" = "ขอเงิน";
+"account.title" = "บัญชีของฉัน";
+"investments.realized_gains" = "กำไรที่เกิดขึ้นแล้ว";
+"settings.sms_notifications" = "การแจ้งเตือน SMS";
+"transactions.deposit" = "ฝากเงิน";
+"account.change_password" = "เปลี่ยนรหัสผ่าน";
+"investments.market_order" = "คำสั่งตลาด";
+"settings.terms_conditions" = "เงื่อนไขและข้อตกลง";
+"transactions.failed" = "ล้มเหลว";
+"account.linked_accounts" = "บัญชีที่เชื่อมโยง";
+"investments.sell_order" = "คำสั่งขาย";
+"settings.language" = "ภาษา";
+"transactions.recurring_payments" = "การจ่ายเงินประจำ";
+"account.contact_info" = "ข้อมูลการติดต่อ";
+"investments.portfolio" = "พอร์ตโฟลิโอของฉัน";
+"settings.privacy" = "ความเป็นส่วนตัว";
+"transactions.exchange_rate" = "อัตราแลกเปลี่ยน";
+"account.logout" = "ออกจากระบบ";
+"investments.total_value" = "มูลค่าพอร์ตโฟลิโอรวม";
+"settings.account_settings" = "การตั้งค่าบัญชี";
+"transactions.payment_history" = "ประวัติการจ่ายเงิน";
+"account.reset_password" = "รีเซ็ตรหัสผ่าน";
+"investments.daily_change" = "การเปลี่ยนแปลงรายวัน";
+"settings.security_settings" = "การตั้งค่าความปลอดภัย";
+"transactions.scheduled_payments" = "การจ่ายเงินที่กำหนดไว้";
+"account.account_number" = "หมายเลขบัญชี";
+"investments.title" = "การลงทุน";
+"settings.title" = "การตั้งค่า";
+"transactions.title" = "รายการ";

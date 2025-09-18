@@ -23,21 +23,9 @@
     />
 
     <!-- Table wrapper with horizontal scroll -->
-    <div class="flex-1 overflow-auto w-full px-4" :class="mode === 'paging' ? 'flex gap-4' : ''">
-      <!-- Preview Images Panel -->
-      <PreviewImagesPanel
-        :mode="mode"
-        :is-minimized="isPreviewPanelMinimized"
-        :preview-images="previewImages"
-        :selected-page="selectedPage"
-        @update:is-minimized="isPreviewPanelMinimized = $event"
-        @images-selected="onPreviewImagesSelected"
-        @open-fullscreen-image="handleOpenFullscreenImage"
-        @remove-image="handleRemoveImage"
-      />
-      
+    <div class="flex-1 overflow-auto w-full px-4">
       <!-- Table container -->
-      <div :class="mode === 'paging' ? 'flex-1' : 'w-full'" class="flex flex-col h-full">
+      <div class="w-full flex flex-col h-full">
         <div class="flex-1 overflow-auto relative">
           <table class="table w-full">
             <thead class="sticky top-0 z-30 bg-white shadow-md border-b border-base-200">
@@ -91,7 +79,7 @@
               </td>
             </tr>
             <template v-else v-for="key in filteredKeys" :key="key">
-              <TableRow
+                            <TableRow
                 :key-name="key"
                 :row-class="rowClass(key)"
                 :column-widths="columnWidths"
@@ -108,10 +96,8 @@
                 @update-edit-key-value="editKeyValue = $event"
                 @cancel-edit-key="cancelEditKey"
                 @paste="onPaste(key)"
-                @all="onAll(key)"
-                @update-value="(data) => setLanguageDataValue(data.languageCode, key, data.value)"
+                @update-value="onUpdateValue(key, $event.languageCode, $event.value)"
                 @delete="onDeleteKey(key)"
-                :ref="editingKey === key ? 'currentEditingRow' : undefined"
               />
             </template>
           </tbody>
@@ -120,151 +106,17 @@
       </div>
     </div>
     
-    <!-- Export Modal -->
-    <ExportModal
-      :export-platform="exportPlatform"
-      @update:export-platform="exportPlatform = $event"
-      @close="closeExportModal"
-      @download="downloadFiles"
-    />
-
-    <!-- Fullscreen Image Modal with Key Annotations -->
-    <dialog id="fullscreen_image_modal" class="modal">
-      <div class="modal-box w-11/12 max-w-7xl h-5/6 p-0">
-        <!-- Header -->
-        <div class="flex justify-between items-center p-4 border-b">
-          <h3 class="font-bold text-lg">{{ selectedFullscreenImage?.name || 'Image Preview' }} - Key Annotations</h3>
-          <button class="btn btn-sm btn-circle btn-ghost" @click="closeFullscreenModal">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div class="flex h-full">
-          <!-- Image Area -->
-          <div class="flex-1 p-4 flex items-center justify-center">
-            <div 
-              ref="imageContainerRef"
-              class="relative max-w-full max-h-full"
-              style="min-height: 400px; min-width: 400px;"
-            >
-              <img 
-                v-if="selectedFullscreenImage"
-                :src="selectedFullscreenImage.url" 
-                :alt="selectedFullscreenImage.name"
-                class="max-w-full max-h-full object-contain border border-base-300 rounded-lg"
-                style="max-height: 70vh;"
-              />
-              
-              <!-- Key Number Indicators on Image -->
-              <div 
-                v-for="annotation in keyAnnotations"
-                :key="annotation.keyName"
-                class="absolute w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold shadow-lg cursor-pointer hover:scale-110 transition-transform"
-                :style="{ 
-                  left: annotation.x + '%', 
-                  top: annotation.y + '%',
-                  transform: 'translate(-50%, -50%)'
-                }"
-                @click="removeKeyAnnotation(annotation.keyName)"
-                :title="`${annotation.keyName} - Click to remove`"
-              >
-                {{ annotation.number }}
-              </div>
-              
-              <!-- Drop Zone Overlay (only visible during drag) -->
-              <div 
-                v-if="isDragging"
-                class="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center"
-              >
-                <div class="text-primary font-bold">Drop key annotation here</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Key List Panel -->
-          <div class="w-80 border-l bg-base-100 flex flex-col">
-            <div class="p-4 border-b">
-              <h4 class="font-semibold mb-2">Keys for {{ selectedImagePrefix }}</h4>
-              <div class="text-sm text-base-content/70">
-                {{ keyAnnotations.length }} of {{ currentPageKeys.length }} keys annotated
-              </div>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto p-4 space-y-2">
-              <div 
-                v-for="(key, index) in currentPageKeys"
-                :key="key"
-                class="flex items-center justify-between p-3 border rounded-lg hover:bg-base-200 cursor-grab"
-                :class="{
-                  'bg-success/20 border-success': keyAnnotations.some(ann => ann.keyName === key),
-                  'bg-base-100': !keyAnnotations.some(ann => ann.keyName === key)
-                }"
-                @mousedown="startDragKey(index, $event)"
-              >
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-sm truncate">{{ key }}</div>
-                  <div class="text-xs text-base-content/70 truncate">
-                    {{ filesStore.languages.find(lang => lang.data[key])?.data[key] || 'No value' }}
-                  </div>
-                </div>
-                
-                <div class="flex items-center gap-2 ml-2">
-                  <!-- Show number if annotated -->
-                  <div 
-                    v-if="keyAnnotations.some(ann => ann.keyName === key)"
-                    class="w-6 h-6 bg-primary text-primary-content rounded-full flex items-center justify-center text-xs font-bold"
-                  >
-                    {{ keyAnnotations.find(ann => ann.keyName === key)?.number }}
-                  </div>
-                  
-                  <!-- Drag indicator -->
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                  </svg>
-                </div>
-              </div>
-              
-              <div v-if="currentPageKeys.length === 0" class="text-center py-8 text-base-content/50">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3c0-.265.105-.52.293-.707L11.586 8.293a1 1 0 011.414 0L15 10.293A6 6 0 0117 9z" />
-                </svg>
-                <p>No keys found for this section</p>
-              </div>
-            </div>
-            
-            <!-- Instructions -->
-            <div class="p-4 border-t bg-base-200">
-              <h5 class="font-medium text-sm mb-2">How to use:</h5>
-              <ul class="text-xs space-y-1 text-base-content/70">
-                <li>• Drag key names from this panel onto the image</li>
-                <li>• Numbered indicators will appear on the image</li>
-                <li>• Click indicators to remove them</li>
-                <li>• Positions are saved automatically when closed</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-      <form method="dialog" class="modal-backdrop">
-        <button @click="closeFullscreenModal">close</button>
-      </form>
-    </dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
-import type { PreviewImage, KeyAnnotation } from '../stores/files'
-import { toStrings, toAndroidStrings, toJsonString } from '../utils/strings'
+import { toStrings, toStringsWithStructure } from '../utils/strings'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 import TableSearchControls from './TableSearchControls.vue'
 import PageTabs from './PageTabs.vue'
-import PreviewImagesPanel from './PreviewImagesPanel.vue'
 import TableRow from './TableRow.vue'
-import ExportModal from './ExportModal.vue'
 
 const emit = defineEmits<{
   (e: 'update:mode', value: 'all' | 'paging'): void
@@ -291,16 +143,6 @@ const search = ref('')
 const skipColumns = ref(props.skipColumns || 0)
 
 const loading = ref(false)
-const isPreviewPanelMinimized = ref(false)
-
-// Fullscreen image annotation mode
-const selectedFullscreenImage = ref<PreviewImage | null>(null)
-const selectedImageIndex = ref<number>(-1)
-const selectedImagePrefix = ref<string>('')
-const keyAnnotations = ref<KeyAnnotation[]>([])
-const isDragging = ref(false)
-const draggedKeyIndex = ref<number>(-1)
-const imageContainerRef = ref<HTMLElement | null>(null)
 
 // Key editing state
 const editingKey = ref<string | null>(null)
@@ -319,160 +161,16 @@ function getPagePrefix(key: string): string {
   return key.substring(0, underscoreIndex)
 }
 
-// Use preview images from store
-const previewImages = computed(() => filesStore.previewImages)
+// Watch for changes to editingKey to focus the input
 
-function onPreviewImagesSelected(event: Event) {
-  const input = event.target as HTMLInputElement
-  if (!input.files || !selectedPage.value) return
-  
-  const files = Array.from(input.files)
-  const prefix = selectedPage.value
-  
-  const newImages: PreviewImage[] = []
-  
-  files.forEach(file => {
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const dataUrl = reader.result as string
-        const previewImage: PreviewImage = {
-          name: file.name,
-          url: dataUrl,
-          data: dataUrl
-        }
-        newImages.push(previewImage)
-        
-        if (newImages.length === files.filter(f => f.type.startsWith('image/')).length) {
-          // All files processed, add to store
-          filesStore.addPreviewImages(prefix, newImages)
-        }
-      }
-      reader.readAsDataURL(file)
-    }
-  })
-  
-  // Clear the input
-  input.value = ''
-}
-
-function removePreviewImage(prefix: string, index: number) {
-  filesStore.removePreviewImage(prefix, index)
-}
-
-// Fullscreen image functionality
-function openFullscreenImage(image: PreviewImage, imageIndex: number, prefix: string) {
-  selectedFullscreenImage.value = image
-  selectedImageIndex.value = imageIndex
-  selectedImagePrefix.value = prefix
-  
-  // Initialize key annotations from the image or create empty array
-  keyAnnotations.value = image.keyAnnotations ? [...image.keyAnnotations] : []
-  
-  const modal = document.getElementById('fullscreen_image_modal') as HTMLDialogElement
-  modal.showModal()
-}
-
-function closeFullscreenModal() {
-  // Save key annotations before closing
-  if (selectedImagePrefix.value && selectedImageIndex.value >= 0) {
-    filesStore.saveImageKeyAnnotations(
-      selectedImagePrefix.value, 
-      selectedImageIndex.value, 
-      keyAnnotations.value
-    )
+// Watch for changes to editingKey to focus the input
+watch(editingKey, async () => {
+  if (editingKey.value && editKeyInput.value) {
+    await nextTick()
+    editKeyInput.value?.focus()
+    editKeyInput.value?.select()
   }
-  
-  // Reset state
-  selectedFullscreenImage.value = null
-  selectedImageIndex.value = -1
-  selectedImagePrefix.value = ''
-  keyAnnotations.value = []
-  isDragging.value = false
-  draggedKeyIndex.value = -1
-  
-  const modal = document.getElementById('fullscreen_image_modal') as HTMLDialogElement
-  modal.close()
-}
-
-// Get current page keys for annotation
-const currentPageKeys = computed(() => {
-  if (!selectedImagePrefix.value) return []
-  return visibleKeys.value.filter(key => getPagePrefix(key) === selectedImagePrefix.value)
 })
-
-// Drag and drop functionality for key annotations
-function startDragKey(keyIndex: number, event: MouseEvent) {
-  isDragging.value = true
-  draggedKeyIndex.value = keyIndex
-  
-  // Prevent default drag behavior
-  event.preventDefault()
-  
-  // Add global mouse move and mouse up listeners
-  document.addEventListener('mousemove', onDragMove)
-  document.addEventListener('mouseup', onDragEnd)
-}
-
-function onDragMove(_event: MouseEvent) {
-  if (!isDragging.value || !imageContainerRef.value) return
-  
-  // Update cursor to show dragging state
-  document.body.style.cursor = 'grabbing'
-}
-
-function onDragEnd(event: MouseEvent) {
-  if (!isDragging.value || !imageContainerRef.value || draggedKeyIndex.value < 0) {
-    cleanupDrag()
-    return
-  }
-  
-  const rect = imageContainerRef.value.getBoundingClientRect()
-  const x = ((event.clientX - rect.left) / rect.width) * 100
-  const y = ((event.clientY - rect.top) / rect.height) * 100
-  
-  // Only add if within bounds
-  if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
-    const keyName = currentPageKeys.value[draggedKeyIndex.value]
-    const existingIndex = keyAnnotations.value.findIndex(ann => ann.keyName === keyName)
-    
-    const annotation: KeyAnnotation = {
-      keyName,
-      x: Math.max(0, Math.min(100, x)),
-      y: Math.max(0, Math.min(100, y)),
-      number: existingIndex >= 0 ? keyAnnotations.value[existingIndex].number : keyAnnotations.value.length + 1
-    }
-    
-    if (existingIndex >= 0) {
-      // Update existing annotation
-      keyAnnotations.value[existingIndex] = annotation
-    } else {
-      // Add new annotation
-      keyAnnotations.value.push(annotation)
-    }
-  }
-  
-  cleanupDrag()
-}
-
-function cleanupDrag() {
-  isDragging.value = false
-  draggedKeyIndex.value = -1
-  document.body.style.cursor = ''
-  document.removeEventListener('mousemove', onDragMove)
-  document.removeEventListener('mouseup', onDragEnd)
-}
-
-function removeKeyAnnotation(keyName: string) {
-  const index = keyAnnotations.value.findIndex(ann => ann.keyName === keyName)
-  if (index >= 0) {
-    keyAnnotations.value.splice(index, 1)
-    // Renumber remaining annotations
-    keyAnnotations.value.forEach((ann, idx) => {
-      ann.number = idx + 1
-    })
-  }
-}
 
 const allKeys = computed(() => {
   // Use language data from store instead of props.data
@@ -489,10 +187,9 @@ const allKeys = computed(() => {
   // Fallback to legacy structure
   if (!props.data || props.data.length === 0) return []
   const keySet = new Set<string>()
-  props.data.forEach(obj => {
-    if (obj && typeof obj === 'object') {
-      Object.keys(obj).forEach(k => keySet.add(k))
-    }
+
+props.data.forEach(obj => {
+    Object.keys(obj).forEach(key => keySet.add(key))
   })
   return Array.from(keySet)
 })
@@ -678,18 +375,11 @@ async function onPaste(key: string) {
   }
 }
 
-async function onAll(key: string) {
-    // Apply first column value to all languages
-    console.log(`Applying value for key "${key}" to all languages...`)
-    if (isMergedKey(key)) {
-      const allMergedKeys = getAllKeysFromMergedKey(key)
-      allMergedKeys.forEach((individualKey: string) => {
-        filesStore.updateKeyWithFirstValueForAllLanguages(individualKey)
-      })
-    } else {
-      filesStore.updateKeyWithFirstValueForAllLanguages(key)
-    }
+// Handle value updates from TableRow
+function onUpdateValue(key: string, languageCode: string, value: string) {
+  setLanguageDataValue(languageCode, key, value)
 }
+
 // Delete key functionality
 function onDeleteKey(key: string) {
   if (confirm(`Are you sure you want to delete the key "${key}"? This will remove it from all languages.`)) {
@@ -705,124 +395,9 @@ function onDeleteKey(key: string) {
   }
 }
 
-// Export functionality
-const exportPlatform = ref<'ios' | 'android' | 'json'>('ios')
-const exportMode = ref<'all' | 'changed' | 'original'>('all')
+// Column export functionality
 
-function openExportModal(mode: 'all' | 'changed' | 'original') {
-  exportMode.value = mode
-  const modal = document.getElementById('export_modal') as HTMLDialogElement
-  modal.showModal()
-}
-
-function closeExportModal() {
-  const modal = document.getElementById('export_modal') as HTMLDialogElement
-  modal.close()
-}
-
-function downloadFiles() {
-  closeExportModal()
-  
-  // Use store data instead of props
-  const languages = filesStore.languages
-  
-  if (!languages || languages.length === 0) {
-    alert('No language data to export!')
-    return
-  }
-  
-  languages.forEach((language, langIndex) => {
-    let finalData: Record<string, string> = {}
-    
-    if (exportMode.value === 'all') {
-      finalData = { ...language.data }
-    } else if (exportMode.value === 'changed') {
-      // For changed mode, compare with original data from store
-      const originalLangData = filesStore.originalData[langIndex] || {}
-      Object.keys(language.data).forEach(key => {
-        const currentValue = language.data[key]
-        const originalValue = originalLangData[key] || ''
-        if (currentValue !== originalValue) {
-          finalData[key] = currentValue
-        }
-      })
-    } else if (exportMode.value === 'original') {
-      // For original mode, include all data but maintain original order
-      finalData = { ...language.data }
-    }
-
-    // Filter by current view if needed
-    if (mode.value === 'paging' && selectedPage.value) {
-      const filteredData: Record<string, string> = {}
-      Object.keys(finalData).forEach(key => {
-        if (getPagePrefix(key) === selectedPage.value) {
-          filteredData[key] = finalData[key]
-        }
-      })
-      finalData = filteredData
-    }
-
-    // Apply search filter if active
-    if (search.value.trim()) {
-      const searchQuery = search.value.trim().toLowerCase()
-      const filteredData: Record<string, string> = {}
-      Object.keys(finalData).forEach(key => {
-        if (key.toLowerCase().includes(searchQuery) || 
-            finalData[key].toLowerCase().includes(searchQuery)) {
-          filteredData[key] = finalData[key]
-        }
-      })
-      finalData = filteredData
-    }
-
-    if (Object.keys(finalData).length === 0) {
-      console.warn(`No data to export for language: ${language.name}`)
-      return
-    }
-
-    // Create filename
-    let fileName = language.code
-    if (search.value.trim()) {
-      fileName += '_filtered'
-    }
-    if (mode.value === 'paging' && selectedPage.value) {
-      fileName += `_${selectedPage.value}`
-    }
-    
-    // Generate content based on format
-    let fileContent: string
-    let mimeType: string
-
-    if (exportPlatform.value === 'ios') {
-      fileContent = toStrings(finalData)
-      fileName += '.strings'
-      mimeType = 'text/plain;charset=utf-8'
-    } else if (exportPlatform.value === 'android') {
-      fileContent = toAndroidStrings(finalData)
-      fileName += '.xml'
-      mimeType = 'application/xml;charset=utf-8'
-    } else if (exportPlatform.value === 'json') {
-      fileContent = toJsonString(finalData)
-      fileName += '.json'
-      mimeType = 'application/json;charset=utf-8'
-    } else {
-      console.error('Unsupported export format:', exportPlatform.value)
-      return
-    }
-    
-    const blob = new Blob([fileContent], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = fileName
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  })
-}
-
-function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' | 'json' = 'ios') {
+function exportLanguageColumn(languageCode: string) {
   // Find the language data
   const language = orderedLanguages.value.find(lang => lang.code === languageCode)
   if (!language) {
@@ -855,26 +430,17 @@ function exportLanguageColumn(languageCode: string, format: 'ios' | 'android' | 
     filename += `_${selectedPage.value}`
   }
 
-  // Generate content based on format
+  // Generate iOS .strings content with structure preservation
   let content: string
-  let mimeType: string
-
-  if (format === 'ios') {
-    content = toStrings(columnData)
-    filename += '.strings'
-    mimeType = 'text/plain;charset=utf-8'
-  } else if (format === 'android') {
-    content = toAndroidStrings(columnData)
-    filename += '.xml'
-    mimeType = 'application/xml;charset=utf-8'
-  } else if (format === 'json') {
-    content = toJsonString(columnData)
-    filename += '.json'
-    mimeType = 'application/json;charset=utf-8'
+  if (language.originalStructure) {
+    // Use structure-preserving export to maintain comments and order
+    content = toStringsWithStructure(columnData, language.originalStructure)
   } else {
-    alert('Unsupported export format')
-    return
+    // Use standard export
+    content = toStrings(columnData)
   }
+  filename += '.strings'
+  const mimeType = 'text/plain;charset=utf-8'
 
   // Download the file
   const blob = new Blob([content], { type: mimeType })
@@ -910,8 +476,8 @@ function onLanguageColumnResize(data: { language: string, event: MouseEvent }) {
   startResizing(data.event, data.language)
 }
 
-function onLanguageColumnExport(data: { language: string, format: 'ios' | 'android' | 'json' }) {
-  exportLanguageColumn(data.language, data.format)
+function onLanguageColumnExport(data: { language: string }) {
+  exportLanguageColumn(data.language)
 }
 
 // Event handlers for LanguageColumnHeader (removed unused ones)
@@ -1007,15 +573,6 @@ function setLanguageDataValue(languageCode: string, key: string, value: string) 
   }
 }
 
-// Handler functions for component events
-function handleOpenFullscreenImage(data: { image: PreviewImage, index: number, prefix: string }) {
-  openFullscreenImage(data.image, data.index, data.prefix)
-}
-
-function handleRemoveImage(data: { prefix: string, index: number }) {
-  removePreviewImage(data.prefix, data.index)
-}
-
 // Helper functions for merged keys
 function isMergedKey(key: string): boolean {
   return key.includes(' + ')
@@ -1093,8 +650,7 @@ defineExpose({
   mode,
   highlightMode,
   search,
-  skipColumns,
-  openExportModal
+  skipColumns
 })
 </script>
 
