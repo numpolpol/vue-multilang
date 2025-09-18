@@ -155,8 +155,7 @@ export function toStringsWithStructure(
         // Update with current value if key exists
         if (data.hasOwnProperty(item.key)) {
           const currentValue = data[item.key] || ''
-          const escapedValue = currentValue.replace(/"/g, '\\"')
-          lines.push(`"${item.key}" = "${escapedValue}";`)
+          lines.push(`"${item.key}" = "${currentValue}";`)
           processedKeys.add(item.key)
         }
         // Skip keys that no longer exist in data
@@ -174,8 +173,8 @@ export function toStringsWithStructure(
       }
       lines.push('// New keys added during editing')
       for (const key of newKeys) {
-        const escapedValue = (data[key] || '').replace(/"/g, '\\"')
-        lines.push(`"${key}" = "${escapedValue}";`)
+        const value = data[key] || ''
+        lines.push(`"${key}" = "${value}";`)
       }
     }
     
@@ -192,7 +191,7 @@ export function toStrings(obj: Record<string, string>): string {
     const splitData = splitMergedData(obj) // Split for iOS export
     return Object.entries(splitData)
       .filter(([key, value]) => key && value !== undefined)
-      .map(([k, v]) => `"${k}" = "${(v || '').replace(/"/g, '\\"')}";`)
+      .map(([k, v]) => `"${k}" = "${v || ''}";`)
       .join('\n')
   } catch (error) {
     console.warn('Failed to convert to .strings format:', error)
