@@ -92,23 +92,46 @@ export const useFilesStore = defineStore('files', {
     // New actions for language-column structure
     async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml' | 'json') {
       const { parseStrings, parseStringsWithStructure } = await import('../utils/strings')
+      const { useNotifications } = await import('../composables/useNotifications')
+      const { warning, info } = useNotifications()
+      
       const content = await this.readFileContent(file)
       
       let data: Record<string, string>
       let parsedFile: any = null
+      let duplicateCount = 0
       
       try {
         if (fileType === 'strings') {
           // Use enhanced parsing for .strings files to preserve structure
           parsedFile = parseStringsWithStructure(content)
-          data = parsedFile.data
+          
+          // Also get duplicate info by using the regular parseStrings with details
+          const parseResult = parseStrings(content, true)
+          data = parseResult.data
+          duplicateCount = parseResult.duplicateCount
         } else {
           // Use regular parsing for other file types
-          data = parseStrings(content)
+          const parseResult = parseStrings(content, true)
+          data = parseResult.data
+          duplicateCount = parseResult.duplicateCount
         }
       } catch (error) {
         console.error('Failed to parse file:', error)
         throw new Error(`Failed to parse ${fileType} file. Please check the format.`)
+      }
+      
+      // Show notifications for duplicates if any were found
+      if (duplicateCount > 0) {
+        warning(
+          `${duplicateCount} duplicate key${duplicateCount > 1 ? 's' : ''} detected`,
+          `Duplicate keys in ${file.name} were replaced with latest values. Check console for details.`
+        )
+      } else {
+        info(
+          `File uploaded successfully`,
+          `${file.name} imported with ${Object.keys(data).length} keys`
+        )
       }
       
       const langIndex = this.languages.findIndex(lang => lang.code === languageCode)

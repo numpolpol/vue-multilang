@@ -10,12 +10,23 @@ export interface ParsedStringsFile {
   originalContent: string
 }
 
-// Utility to parse iOS .strings file into JS object with structure preservation
-export function parseStrings(content: string): Record<string, string> {
+// Utility to parse iOS .strings file into JS object with duplicate key removal
+export interface ParseResult {
+  data: Record<string, string>
+  duplicateCount: number
+  duplicateKeys: string[]
+}
+
+export function parseStrings(content: string): Record<string, string>
+export function parseStrings(content: string, returnDetails: true): ParseResult
+export function parseStrings(content: string, returnDetails?: boolean): Record<string, string> | ParseResult {
   const result: Record<string, string> = {}
+  const duplicateKeys = new Set<string>()
   
   if (!content || content.trim().length === 0) {
-    return result
+    return returnDetails 
+      ? { data: result, duplicateCount: 0, duplicateKeys: [] }
+      : result
   }
   
   // Parse iOS .strings format only
@@ -33,15 +44,27 @@ export function parseStrings(content: string): Record<string, string> {
       if (match) {
         const [, key, value] = match
         if (key) {
+          // Check for duplicate keys and log them
+          if (key in result) {
+            duplicateKeys.add(key)
+            console.warn(`Duplicate key detected and replaced: "${key}" - Previous value: "${result[key]}", New value: "${value || ''}"`)
+          }
           result[key] = value || ''
         }
       }
+    }
+    
+    // Log summary of duplicates found
+    if (duplicateKeys.size > 0) {
+      console.info(`Import completed. ${duplicateKeys.size} duplicate key(s) were detected and replaced with the latest values:`, Array.from(duplicateKeys))
     }
   } catch (error) {
     console.warn('Failed to parse .strings content:', error)
   }
   
-  return result
+  return returnDetails 
+    ? { data: result, duplicateCount: duplicateKeys.size, duplicateKeys: Array.from(duplicateKeys) }
+    : result
 }
 
 // Enhanced parsing with structure preservation
@@ -236,15 +259,28 @@ export async function processFileGroups(
   files: File[]
   data: Record<string, string>[]
   mergedKeys?: string[]
+  duplicateInfo?: { totalCount: number, byFile: Array<{ fileName: string, count: number, keys: string[] }> }
 }> {
   const resultFiles: File[] = []
   const resultData: Record<string, string>[] = []
+  const duplicateInfo = { totalCount: 0, byFile: [] as Array<{ fileName: string, count: number, keys: string[] }> }
   
   for (const group of groups) {
     // Parse primary file (.strings)
     if (group.primaryFile) {
       const content = await readFileContent(group.primaryFile)
-      group.primaryData = parseStrings(content)
+      const parseResult = parseStrings(content, true)
+      group.primaryData = parseResult.data
+      
+      // Track duplicate info
+      if (parseResult.duplicateCount > 0) {
+        duplicateInfo.totalCount += parseResult.duplicateCount
+        duplicateInfo.byFile.push({
+          fileName: group.primaryFile.name,
+          count: parseResult.duplicateCount,
+          keys: parseResult.duplicateKeys
+        })
+      }
     }
     
     // Use only primary data (no secondary files in iOS-only mode)
@@ -261,10 +297,10 @@ export async function processFileGroups(
   if (shouldMergeKeys && resultData.length > 0) {
     const keyMappings = findMergeableKeys(resultData)
     const { files, data, mergedKeys } = applyKeyMerging(resultFiles, resultData, keyMappings)
-    return { files, data, mergedKeys }
+    return { files, data, mergedKeys, duplicateInfo: duplicateInfo.totalCount > 0 ? duplicateInfo : undefined }
   }
   
-  return { files: resultFiles, data: resultData }
+  return { files: resultFiles, data: resultData, duplicateInfo: duplicateInfo.totalCount > 0 ? duplicateInfo : undefined }
 }
 
 // Function to find keys that should be merged when their values match across all languages (Multi Key Mode)

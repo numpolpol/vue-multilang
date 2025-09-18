@@ -1,0 +1,7 @@
+/* Test file with duplicate keys */
+"welcome" = "Welcome to our app";
+"login" = "Login";
+"welcome" = "Welcome to our application";  // Duplicate - should replace the first one
+"logout" = "Logout";
+"login" = "Sign In";  // Another duplicate
+"goodbye" = "Goodbye";
