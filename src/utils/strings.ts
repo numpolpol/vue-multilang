@@ -120,6 +120,7 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
       if (match) {
         const [, key, value] = match
         if (key) {
+          // Always update data to keep the latest value (like regular parseStrings)
           data[key] = value || ''
           structure.push({ type: 'key', content: line, key, value: value || '' })
         }
@@ -150,8 +151,14 @@ export function toStringsWithStructure(
     const processedKeys = new Set<string>()
     
     // Process structure and update key-value pairs
+    // Skip duplicate keys - only process the first occurrence
     for (const item of originalStructure) {
       if (item.type === 'key' && item.key) {
+        // Skip if we've already processed this key (deduplication)
+        if (processedKeys.has(item.key)) {
+          continue
+        }
+        
         // Update with current value if key exists
         if (data.hasOwnProperty(item.key)) {
           const currentValue = data[item.key] || ''
