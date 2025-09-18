@@ -155,7 +155,23 @@ export function toStringsWithStructure(
         // Update with current value if key exists
         if (data.hasOwnProperty(item.key)) {
           const currentValue = data[item.key] || ''
-          lines.push(`"${item.key}" = "${currentValue}";`)
+          // If the value hasn't changed, preserve the original line exactly
+          if (currentValue === item.value) {
+            lines.push(item.content)
+          } else {
+            // Value has changed, try to preserve original formatting
+            const originalContent = item.content
+            const escapedKey = item.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            // Match the pattern: key = "value" but preserve formatting around it
+            const valueRegex = new RegExp(`(.*"${escapedKey}"\\s*=\\s*)"([^"]*)"(.*)`)
+            const match = originalContent.match(valueRegex)
+            if (match) {
+              lines.push(`${match[1]}"${currentValue}"${match[3]}`)
+            } else {
+              // Fallback to standard format if regex fails
+              lines.push(`"${item.key}" = "${currentValue}";`)
+            }
+          }
           processedKeys.add(item.key)
         }
         // Skip keys that no longer exist in data
