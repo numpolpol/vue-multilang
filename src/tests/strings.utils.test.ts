@@ -154,6 +154,41 @@ string";
       })
     })
 
+    it('should provide duplicate key information when requested', () => {
+      const content = `
+"duplicate_key" = "First Value";
+"other_key" = "Other Value";
+"duplicate_key" = "Second Value";
+"another_duplicate" = "First";
+"another_duplicate" = "Second";
+      `.trim()
+      
+      const result = parseStrings(content, true)
+      
+      expect(result.data).toEqual({
+        'duplicate_key': 'Second Value',
+        'other_key': 'Other Value',
+        'another_duplicate': 'Second'
+      })
+      expect(result.duplicateCount).toBe(2)
+      expect(result.duplicateKeys).toContain('duplicate_key')
+      expect(result.duplicateKeys).toContain('another_duplicate')
+      expect(result.duplicateKeys).toHaveLength(2)
+    })
+
+    it('should return zero duplicates for unique keys', () => {
+      const content = `
+"key1" = "Value 1";
+"key2" = "Value 2";
+"key3" = "Value 3";
+      `.trim()
+      
+      const result = parseStrings(content, true)
+      
+      expect(result.duplicateCount).toBe(0)
+      expect(result.duplicateKeys).toHaveLength(0)
+    })
+
     it('should handle large files efficiently', () => {
       // Generate a large .strings file content
       const lines = []
