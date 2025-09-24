@@ -31,25 +31,81 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
   
   // Parse iOS .strings format only
   try {
-    const lines = content
-      .replace(/\/\*[^]*?\*\//g, '') // block comments
-      .replace(/\/\/.*$/gm, '') // line comments
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(l => l && /=/g.test(l))
-    
-    for (const line of lines) {
-      // Support quoted or unquoted keys
-      const match = line.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
-      if (match) {
-        const [, key, value] = match
+  // Clean content (remove comments and process lines)
+  const lines = content
+    .replace(/\/\*[^]*?\*\//g, '') // block comments
+    // Only remove // comments that are not inside quoted strings
+    .split(/\r?\n/)
+    .map(line => {
+      // Remove // comments only if they're not inside quotes
+      let inQuotes = false
+      let result = ''
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        const nextChar = line[i + 1]
+        
+        if (char === '"' && (i === 0 || line[i - 1] !== '\\')) {
+          inQuotes = !inQuotes
+        }
+        
+        // If we find // outside of quotes, truncate the line here
+        if (!inQuotes && char === '/' && nextChar === '/') {
+          break
+        }
+        
+        result += char
+      }
+      return result
+    })
+    .map(l => l.trim())
+    .filter(l => l && /=/g.test(l))
+  
+  for (const line of lines) {
+      // Parse key-value pairs with proper handling of escaped quotes
+      const keyMatch = line.match(/^"?(.*?)"?\s*=\s*"/)
+      if (keyMatch) {
+        const key = keyMatch[1]
+        if (!key) continue
+        
+        // Find the value by parsing from the opening quote to the closing quote
+        // Handle escaped quotes properly
+        const valueStart = line.indexOf('"', line.indexOf('=')) + 1
+        let value = ''
+        let i = valueStart
+        
+        while (i < line.length) {
+          const char = line[i]
+          const nextChar = i + 1 < line.length ? line[i + 1] : null
+          
+          if (char === '\\' && nextChar === '"') {
+            // This is an escaped quote (\") - add both characters to the value
+            value += '\\"'
+            i += 2 // Skip both the backslash and the quote
+          } else if (char === '\\' && nextChar === '\\') {
+            // This is an escaped backslash (\\) - add both characters to the value  
+            value += '\\\\'
+            i += 2 // Skip both backslashes
+          } else if (char === '\\' && nextChar) {
+            // This is a backslash followed by some other character - keep both
+            value += char + nextChar
+            i += 2
+          } else if (char === '"') {
+            // Found unescaped quote - this should be the end of the value
+            break
+          } else {
+            // Regular character
+            value += char
+            i++
+          }
+        }
+        
         if (key) {
           // Check for duplicate keys and log them
           if (key in result) {
             duplicateKeys.add(key)
-            console.warn(`Duplicate key detected and replaced: "${key}" - Previous value: "${result[key]}", New value: "${value || ''}"`)
+            console.warn(`Duplicate key detected and replaced: "${key}" - Previous value: "${result[key]}", New value: "${value}"`)
           }
-          result[key] = value || ''
+          result[key] = value
         }
       }
     }
@@ -115,14 +171,46 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
         continue
       }
       
-      // Handle key-value pairs
-      const match = trimmedLine.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
-      if (match) {
-        const [, key, value] = match
+      // Handle key-value pairs with proper escaped quote handling
+      const keyMatch = trimmedLine.match(/^"?(.*?)"?\s*=\s*"/)
+      if (keyMatch) {
+        const key = keyMatch[1]
         if (key) {
+          // Find the value by parsing from the opening quote to the closing quote
+          // Handle escaped quotes properly
+          const valueStart = trimmedLine.indexOf('"', trimmedLine.indexOf('=')) + 1
+          let value = ''
+          let i = valueStart
+          
+          while (i < trimmedLine.length) {
+            const char = trimmedLine[i]
+            const nextChar = i + 1 < trimmedLine.length ? trimmedLine[i + 1] : null
+            
+            if (char === '\\' && nextChar === '"') {
+              // This is an escaped quote (\") - add both characters to the value
+              value += '\\"'
+              i += 2 // Skip both the backslash and the quote
+            } else if (char === '\\' && nextChar === '\\') {
+              // This is an escaped backslash (\\) - add both characters to the value
+              value += '\\\\'
+              i += 2 // Skip both backslashes
+            } else if (char === '\\' && nextChar) {
+              // This is a backslash followed by some other character - keep both
+              value += char + nextChar
+              i += 2
+            } else if (char === '"') {
+              // Found unescaped quote - this should be the end of the value
+              break
+            } else {
+              // Regular character
+              value += char
+              i++
+            }
+          }
+          
           // Always update data to keep the latest value (like regular parseStrings)
-          data[key] = value || ''
-          structure.push({ type: 'key', content: line, key, value: value || '' })
+          data[key] = value
+          structure.push({ type: 'key', content: line, key, value })
         }
       } else {
         // Unknown line format, preserve as comment

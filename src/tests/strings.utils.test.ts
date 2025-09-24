@@ -365,5 +365,52 @@ string";
       expect(key2Occurrences).toBe(1)
       expect(key3Occurrences).toBe(1)
     })
+
+    it('should handle HTML content with nested quotes correctly', () => {
+      // Test case from user: HTML with nested quotes in href attribute
+      const htmlContent = `"ndid_rp_info" = "หากต้องการแก้ไขข้อมูลส่วนตัวด้านบนนี้ กรุณา <a href=\\"https://www.truemoney.com/smart-pay\\">ยืนยันตัวตนด้วยบัตรประชาชน</a>";
+"simple_key" = "Simple value";
+"another_html" = "Click <a href=\\"https://example.com\\">here</a> for more info";`
+
+      // Test regular parsing
+      const parsed = parseStrings(htmlContent)
+      
+      console.log('Parsed result:', JSON.stringify(parsed, null, 2))
+      console.log('ndid_rp_info value:', JSON.stringify(parsed['ndid_rp_info']))
+      
+      expect(parsed).toHaveProperty('ndid_rp_info')
+      expect(parsed['ndid_rp_info']).toBe('หากต้องการแก้ไขข้อมูลส่วนตัวด้านบนนี้ กรุณา <a href=\\"https://www.truemoney.com/smart-pay\\">ยืนยันตัวตนด้วยบัตรประชาชน</a>')
+      expect(parsed).toHaveProperty('simple_key', 'Simple value')
+      expect(parsed).toHaveProperty('another_html', 'Click <a href=\\"https://example.com\\">here</a> for more info')
+
+      // Test structure parsing
+      const structureParsed = parseStringsWithStructure(htmlContent)
+      expect(structureParsed.data).toHaveProperty('ndid_rp_info')
+      expect(structureParsed.data['ndid_rp_info']).toBe('หากต้องการแก้ไขข้อมูลส่วนตัวด้านบนนี้ กรุณา <a href=\\"https://www.truemoney.com/smart-pay\\">ยืนยันตัวตนด้วยบัตรประชาชน</a>')
+
+      // Test export
+      const exported = toStrings(parsed)
+      expect(exported).toContain('ndid_rp_info')
+      
+      // Should preserve the escaped quotes in the exported version  
+      expect(exported).toContain('href=\\\\"https://www.truemoney.com/smart-pay\\\\"')
+    })
+
+    it('should handle various types of nested quotes and special characters', () => {
+      const complexContent = `"json_like" = "{\\"name\\": \\"John\\", \\"age\\": 30}";
+"css_style" = "color: red; content: \\"Hello World\\";";
+"javascript" = "alert(\\"Welcome to our app!\\");";
+"mixed_quotes" = "He said \\"I'll be back\\" in the movie.";`
+
+      const parsed = parseStrings(complexContent)
+      
+      expect(parsed).toHaveProperty('json_like', '{\\"name\\": \\"John\\", \\"age\\": 30}')
+      expect(parsed).toHaveProperty('css_style', 'color: red; content: \\"Hello World\\";')
+      expect(parsed).toHaveProperty('javascript', 'alert(\\"Welcome to our app!\\");')
+      expect(parsed).toHaveProperty('mixed_quotes', 'He said \\"I\'ll be back\\" in the movie.')
+
+      // Test that all keys are present
+      expect(Object.keys(parsed)).toHaveLength(4)
+    })
   })
 })
