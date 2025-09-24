@@ -166,25 +166,27 @@ export function toStringsWithStructure(
           if (currentValue === item.value) {
             lines.push(item.content)
           } else {
-            // Value has changed, try to preserve original formatting
-            const originalContent = item.content
-            const escapedKey = item.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            // Match the pattern: key = "value" but preserve formatting around it
-            const valueRegex = new RegExp(`(.*"${escapedKey}"\\s*=\\s*)"([^"]*)"(.*)`)
-            const match = originalContent.match(valueRegex)
-            if (match) {
-              lines.push(`${match[1]}"${currentValue}"${match[3]}`)
-            } else {
-              // Fallback to standard format if regex fails
-              lines.push(`"${item.key}" = "${currentValue}";`)
-            }
+            // Value has changed - create new line with proper multi-line handling
+            const escapedValue = currentValue.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+            lines.push(`"${item.key}" = "${escapedValue}";`)
           }
           processedKeys.add(item.key)
         }
         // Skip keys that no longer exist in data
-      } else {
-        // Preserve comments and blank lines as-is
-        lines.push(item.content)
+      } else if (item.type === 'comment' || item.type === 'blank') {
+        // Check if this comment line contains a duplicate key that we should skip
+        let shouldSkip = false
+        if (item.type === 'comment') {
+          // Check if the comment line looks like a key-value pair that's a duplicate
+          const keyMatch = item.content.match(/"([^"]+)"\s*=/)
+          if (keyMatch && keyMatch[1] && processedKeys.has(keyMatch[1])) {
+            shouldSkip = true // Skip this line as it's a duplicate key
+          }
+        }
+        
+        if (!shouldSkip) {
+          lines.push(item.content)
+        }
       }
     }
     
@@ -197,7 +199,8 @@ export function toStringsWithStructure(
       lines.push('// New keys added during editing')
       for (const key of newKeys) {
         const value = data[key] || ''
-        lines.push(`"${key}" = "${value}";`)
+        const escapedValue = value.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        lines.push(`"${key}" = "${escapedValue}";`)
       }
     }
     
@@ -214,7 +217,10 @@ export function toStrings(obj: Record<string, string>): string {
     const splitData = splitMergedData(obj) // Split for iOS export
     return Object.entries(splitData)
       .filter(([key, value]) => key && value !== undefined)
-      .map(([k, v]) => `"${k}" = "${v || ''}";`)
+      .map(([k, v]) => {
+        const escapedValue = (v || '').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        return `"${k}" = "${escapedValue}";`
+      })
       .join('\n')
   } catch (error) {
     console.warn('Failed to convert to .strings format:', error)
