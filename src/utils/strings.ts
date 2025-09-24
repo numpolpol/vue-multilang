@@ -31,25 +31,81 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
   
   // Parse iOS .strings format only
   try {
-    const lines = content
-      .replace(/\/\*[^]*?\*\//g, '') // block comments
-      .replace(/\/\/.*$/gm, '') // line comments
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(l => l && /=/g.test(l))
-    
-    for (const line of lines) {
-      // Support quoted or unquoted keys
-      const match = line.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
-      if (match) {
-        const [, key, value] = match
+  // Clean content (remove comments and process lines)
+  const lines = content
+    .replace(/\/\*[^]*?\*\//g, '') // block comments
+    // Only remove // comments that are not inside quoted strings
+    .split(/\r?\n/)
+    .map(line => {
+      // Remove // comments only if they're not inside quotes
+      let inQuotes = false
+      let result = ''
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        const nextChar = line[i + 1]
+        
+        if (char === '"' && (i === 0 || line[i - 1] !== '\\')) {
+          inQuotes = !inQuotes
+        }
+        
+        // If we find // outside of quotes, truncate the line here
+        if (!inQuotes && char === '/' && nextChar === '/') {
+          break
+        }
+        
+        result += char
+      }
+      return result
+    })
+    .map(l => l.trim())
+    .filter(l => l && /=/g.test(l))
+  
+  for (const line of lines) {
+      // Parse key-value pairs with proper handling of escaped quotes
+      const keyMatch = line.match(/^"?(.*?)"?\s*=\s*"/)
+      if (keyMatch) {
+        const key = keyMatch[1]
+        if (!key) continue
+        
+        // Find the value by parsing from the opening quote to the closing quote
+        // Handle escaped quotes properly
+        const valueStart = line.indexOf('"', line.indexOf('=')) + 1
+        let value = ''
+        let i = valueStart
+        
+        while (i < line.length) {
+          const char = line[i]
+          const nextChar = i + 1 < line.length ? line[i + 1] : null
+          
+          if (char === '\\' && nextChar === '"') {
+            // This is an escaped quote (\") - add both characters to the value
+            value += '\\"'
+            i += 2 // Skip both the backslash and the quote
+          } else if (char === '\\' && nextChar === '\\') {
+            // This is an escaped backslash (\\) - add both characters to the value  
+            value += '\\\\'
+            i += 2 // Skip both backslashes
+          } else if (char === '\\' && nextChar) {
+            // This is a backslash followed by some other character - keep both
+            value += char + nextChar
+            i += 2
+          } else if (char === '"') {
+            // Found unescaped quote - this should be the end of the value
+            break
+          } else {
+            // Regular character
+            value += char
+            i++
+          }
+        }
+        
         if (key) {
           // Check for duplicate keys and log them
           if (key in result) {
             duplicateKeys.add(key)
-            console.warn(`Duplicate key detected and replaced: "${key}" - Previous value: "${result[key]}", New value: "${value || ''}"`)
+            console.warn(`Duplicate key detected and replaced: "${key}" - Previous value: "${result[key]}", New value: "${value}"`)
           }
-          result[key] = value || ''
+          result[key] = value
         }
       }
     }
@@ -115,14 +171,46 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
         continue
       }
       
-      // Handle key-value pairs
-      const match = trimmedLine.match(/^"?(.*?)"?\s*=\s*"([\s\S]*?)"\s*;?\s*$/)
-      if (match) {
-        const [, key, value] = match
+      // Handle key-value pairs with proper escaped quote handling
+      const keyMatch = trimmedLine.match(/^"?(.*?)"?\s*=\s*"/)
+      if (keyMatch) {
+        const key = keyMatch[1]
         if (key) {
+          // Find the value by parsing from the opening quote to the closing quote
+          // Handle escaped quotes properly
+          const valueStart = trimmedLine.indexOf('"', trimmedLine.indexOf('=')) + 1
+          let value = ''
+          let i = valueStart
+          
+          while (i < trimmedLine.length) {
+            const char = trimmedLine[i]
+            const nextChar = i + 1 < trimmedLine.length ? trimmedLine[i + 1] : null
+            
+            if (char === '\\' && nextChar === '"') {
+              // This is an escaped quote (\") - add both characters to the value
+              value += '\\"'
+              i += 2 // Skip both the backslash and the quote
+            } else if (char === '\\' && nextChar === '\\') {
+              // This is an escaped backslash (\\) - add both characters to the value
+              value += '\\\\'
+              i += 2 // Skip both backslashes
+            } else if (char === '\\' && nextChar) {
+              // This is a backslash followed by some other character - keep both
+              value += char + nextChar
+              i += 2
+            } else if (char === '"') {
+              // Found unescaped quote - this should be the end of the value
+              break
+            } else {
+              // Regular character
+              value += char
+              i++
+            }
+          }
+          
           // Always update data to keep the latest value (like regular parseStrings)
-          data[key] = value || ''
-          structure.push({ type: 'key', content: line, key, value: value || '' })
+          data[key] = value
+          structure.push({ type: 'key', content: line, key, value })
         }
       } else {
         // Unknown line format, preserve as comment
@@ -166,25 +254,27 @@ export function toStringsWithStructure(
           if (currentValue === item.value) {
             lines.push(item.content)
           } else {
-            // Value has changed, try to preserve original formatting
-            const originalContent = item.content
-            const escapedKey = item.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            // Match the pattern: key = "value" but preserve formatting around it
-            const valueRegex = new RegExp(`(.*"${escapedKey}"\\s*=\\s*)"([^"]*)"(.*)`)
-            const match = originalContent.match(valueRegex)
-            if (match) {
-              lines.push(`${match[1]}"${currentValue}"${match[3]}`)
-            } else {
-              // Fallback to standard format if regex fails
-              lines.push(`"${item.key}" = "${currentValue}";`)
-            }
+            // Value has changed - create new line with proper multi-line handling
+            const escapedValue = currentValue.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+            lines.push(`"${item.key}" = "${escapedValue}";`)
           }
           processedKeys.add(item.key)
         }
         // Skip keys that no longer exist in data
-      } else {
-        // Preserve comments and blank lines as-is
-        lines.push(item.content)
+      } else if (item.type === 'comment' || item.type === 'blank') {
+        // Check if this comment line contains a duplicate key that we should skip
+        let shouldSkip = false
+        if (item.type === 'comment') {
+          // Check if the comment line looks like a key-value pair that's a duplicate
+          const keyMatch = item.content.match(/"([^"]+)"\s*=/)
+          if (keyMatch && keyMatch[1] && processedKeys.has(keyMatch[1])) {
+            shouldSkip = true // Skip this line as it's a duplicate key
+          }
+        }
+        
+        if (!shouldSkip) {
+          lines.push(item.content)
+        }
       }
     }
     
@@ -197,7 +287,8 @@ export function toStringsWithStructure(
       lines.push('// New keys added during editing')
       for (const key of newKeys) {
         const value = data[key] || ''
-        lines.push(`"${key}" = "${value}";`)
+        const escapedValue = value.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        lines.push(`"${key}" = "${escapedValue}";`)
       }
     }
     
@@ -214,7 +305,10 @@ export function toStrings(obj: Record<string, string>): string {
     const splitData = splitMergedData(obj) // Split for iOS export
     return Object.entries(splitData)
       .filter(([key, value]) => key && value !== undefined)
-      .map(([k, v]) => `"${k}" = "${v || ''}";`)
+      .map(([k, v]) => {
+        const escapedValue = (v || '').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        return `"${k}" = "${escapedValue}";`
+      })
       .join('\n')
   } catch (error) {
     console.warn('Failed to convert to .strings format:', error)

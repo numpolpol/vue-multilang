@@ -480,6 +480,30 @@ function onLanguageColumnExport(data: { language: string }) {
   exportLanguageColumn(data.language)
 }
 
+// Export all columns functionality
+function exportAllColumns() {
+  if (orderedLanguages.value.length === 0) {
+    alert('No languages available to export')
+    return
+  }
+
+  // Confirm the export
+  const confirmation = confirm(`Export all ${orderedLanguages.value.length} language columns as separate .strings files?`)
+  if (!confirmation) return
+
+  // Export each language column with a delay to prevent browser blocking
+  orderedLanguages.value.forEach((language, index) => {
+    setTimeout(() => {
+      exportLanguageColumn(language.code)
+    }, index * 100) // 100ms delay between downloads
+  })
+
+  // Show success message
+  setTimeout(() => {
+    alert(`Started downloading ${orderedLanguages.value.length} language files. Please check your downloads folder.`)
+  }, orderedLanguages.value.length * 100 + 500)
+}
+
 // Event handlers for LanguageColumnHeader (removed unused ones)
 
 // Initialize column order
@@ -650,7 +674,8 @@ defineExpose({
   mode,
   highlightMode,
   search,
-  skipColumns
+  skipColumns,
+  exportAllColumns
 })
 </script>
 

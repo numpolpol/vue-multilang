@@ -43,6 +43,7 @@
         @update:highlight-mode="highlightMode = $event"
         @update:skip-columns="skipColumns = $event"
         @save-project="saveProjectToLocalStorage"
+        @export-all-columns="exportAllColumns"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
@@ -191,6 +192,7 @@ interface JsonTableWithControls {
   search: string
   skipColumns: number
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
+  exportAllColumns: () => void
 }
 
 const router = useRouter()
@@ -446,6 +448,15 @@ function addBulkKeys() {
     closeAddKeyModal()
   } else {
     addKeyError.value = `Only ${successCount} out of ${keys.length} keys were added successfully.`
+  }
+}
+
+// Export all columns functionality
+function exportAllColumns() {
+  if (jsonTable.value && jsonTable.value.exportAllColumns) {
+    jsonTable.value.exportAllColumns()
+  } else {
+    console.error('JsonTable reference not available or exportAllColumns method not found')
   }
 }
 </script>
