@@ -1,3 +1,19 @@
+// Helper function to safely escape quotes and backslashes for export
+function escapeQuotesForExport(value: string): string {
+  let result = value
+  
+  // Escape backslashes first (must be done before quotes)
+  result = result.replace(/\\/g, '\\\\')
+  
+  // Escape quotes
+  result = result.replace(/"/g, '\\"')
+  
+  // Handle newlines
+  result = result.replace(/\n/g, '\\n')
+  
+  return result
+}
+
 // Enhanced structure to preserve original file format
 export interface ParsedStringsFile {
   data: Record<string, string>
@@ -78,15 +94,19 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
           const nextChar = i + 1 < line.length ? line[i + 1] : null
           
           if (char === '\\' && nextChar === '"') {
-            // This is an escaped quote (\") - add both characters to the value
-            value += '\\"'
+            // This is an escaped quote (\") - unescape it to just a quote
+            value += '"'
             i += 2 // Skip both the backslash and the quote
           } else if (char === '\\' && nextChar === '\\') {
-            // This is an escaped backslash (\\) - add both characters to the value  
-            value += '\\\\'
+            // This is an escaped backslash (\\) - unescape it to a single backslash
+            value += '\\'
             i += 2 // Skip both backslashes
+          } else if (char === '\\' && nextChar === 'n') {
+            // This is an escaped newline (\n) - convert to actual newline
+            value += '\n'
+            i += 2
           } else if (char === '\\' && nextChar) {
-            // This is a backslash followed by some other character - keep both
+            // This is a backslash followed by some other character - keep both for now
             value += char + nextChar
             i += 2
           } else if (char === '"') {
@@ -187,15 +207,19 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
             const nextChar = i + 1 < trimmedLine.length ? trimmedLine[i + 1] : null
             
             if (char === '\\' && nextChar === '"') {
-              // This is an escaped quote (\") - add both characters to the value
-              value += '\\"'
+              // This is an escaped quote (\") - unescape it to just a quote
+              value += '"'
               i += 2 // Skip both the backslash and the quote
             } else if (char === '\\' && nextChar === '\\') {
-              // This is an escaped backslash (\\) - add both characters to the value
-              value += '\\\\'
+              // This is an escaped backslash (\\) - unescape it to a single backslash
+              value += '\\'
               i += 2 // Skip both backslashes
+            } else if (char === '\\' && nextChar === 'n') {
+              // This is an escaped newline (\n) - convert to actual newline
+              value += '\n'
+              i += 2
             } else if (char === '\\' && nextChar) {
-              // This is a backslash followed by some other character - keep both
+              // This is a backslash followed by some other character - keep both for now
               value += char + nextChar
               i += 2
             } else if (char === '"') {
@@ -254,8 +278,8 @@ export function toStringsWithStructure(
           if (currentValue === item.value) {
             lines.push(item.content)
           } else {
-            // Value has changed - create new line with proper multi-line handling
-            const escapedValue = currentValue.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+            // Value has changed - create new line with proper escaping
+            const escapedValue = escapeQuotesForExport(currentValue)
             lines.push(`"${item.key}" = "${escapedValue}";`)
           }
           processedKeys.add(item.key)
@@ -287,7 +311,7 @@ export function toStringsWithStructure(
       lines.push('// New keys added during editing')
       for (const key of newKeys) {
         const value = data[key] || ''
-        const escapedValue = value.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        const escapedValue = escapeQuotesForExport(value)
         lines.push(`"${key}" = "${escapedValue}";`)
       }
     }
@@ -306,7 +330,7 @@ export function toStrings(obj: Record<string, string>): string {
     return Object.entries(splitData)
       .filter(([key, value]) => key && value !== undefined)
       .map(([k, v]) => {
-        const escapedValue = (v || '').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        const escapedValue = escapeQuotesForExport(v || '')
         return `"${k}" = "${escapedValue}";`
       })
       .join('\n')
