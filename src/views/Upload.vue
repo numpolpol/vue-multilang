@@ -100,7 +100,40 @@
               </div>
             </div>
           </div>
+
+          <!-- Import Folder -->
+          <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                Import Folder
+              </h2>
+              <p class="text-base-content/70">Import a folder containing multiple .strings files</p>
+              
+              <div class="card-actions justify-end mt-4">
+                <button 
+                  class="btn btn-accent" 
+                  @click="openFolderImport"
+                >
+                  Import Folder
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- Folder Import Modal -->
+        <dialog ref="folderImportModal" class="modal">
+          <div class="modal-box max-w-4xl">
+            <h3 class="font-bold text-lg mb-4">Import Folder with .strings Files</h3>
+            <FolderUploader />
+            <div class="modal-action">
+              <button class="btn" @click="closeFolderImport">Close</button>
+            </div>
+          </div>
+        </dialog>
 
         <!-- Saved Projects -->
         <div v-if="savedProjects.length > 0" class="mt-8">
@@ -180,6 +213,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore, type Project, type LanguageColumn } from '../stores/files'
+import FolderUploader from '../components/FolderUploader.vue'
 
 const router = useRouter()
 const filesStore = useFilesStore()
@@ -188,6 +222,9 @@ const isDrawerOpen = ref(false)
 
 // Project management
 const savedProjects = ref<Project[]>([])
+
+// Folder import modal
+const folderImportModal = ref<HTMLDialogElement>()
 
 // Computed property to sort saved projects by lastModified (newest first)
 const sortedSavedProjects = computed(() => {
@@ -339,5 +376,13 @@ function loadProjectFromFile(event: Event) {
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString()
+}
+
+function openFolderImport() {
+  folderImportModal.value?.showModal()
+}
+
+function closeFolderImport() {
+  folderImportModal.value?.close()
 }
 </script>

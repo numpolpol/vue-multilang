@@ -657,5 +657,29 @@ export const useFilesStore = defineStore('files', {
         }
       }
     },
+
+    // Create new project (for folder import)
+    createNewProject(projectName: string) {
+      // Clear existing data
+      this.files = []
+      this.stringsData = []
+      this.originalData = []
+      this.fileGroups = []
+      this.mergedKeys = []
+      this.mergedData = []
+      this.useDualKeys = false
+      
+      // Set project info
+      this.currentProject = {
+        id: Date.now().toString(),
+        name: projectName,
+        languages: [],
+        createdAt: Date.now(),
+        lastModified: Date.now()
+      }
+      
+      // Reset to default state with empty languages
+      this.languages = []
+    },
   }
 })

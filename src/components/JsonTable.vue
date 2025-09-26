@@ -405,9 +405,12 @@ function exportLanguageColumn(languageCode: string) {
     return
   }
 
-  // Get the filtered keys data for this language
+  // Get ALL keys data for this language (not just filtered keys)
+  // This ensures structure preservation and complete export
   const columnData: Record<string, string> = {}
-  filteredKeys.value.forEach(key => {
+  
+  // Use all keys from the language data to preserve complete structure
+  Object.keys(language.data).forEach(key => {
     if (isMergedKey(key)) {
       const primaryKey = getMergedKeyPrimary(key)
       columnData[primaryKey] = language.data[primaryKey] || ''
@@ -421,14 +424,8 @@ function exportLanguageColumn(languageCode: string) {
     return
   }
 
-  // Create filename with current filter info
+  // Create filename (always exports complete file regardless of filters)
   let filename = `${languageCode}`
-  if (search.value.trim()) {
-    filename += `_filtered`
-  }
-  if (mode.value === 'paging' && selectedPage.value) {
-    filename += `_${selectedPage.value}`
-  }
 
   // Generate iOS .strings content with structure preservation
   let content: string
