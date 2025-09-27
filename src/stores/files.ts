@@ -26,6 +26,16 @@ export interface Project {
   createdAt: number
 }
 
+// Type guard to check if language is LanguageColumn format
+function isLanguageColumn(lang: any): lang is LanguageColumn {
+  return 'code' in lang && 'data' in lang
+}
+
+// Type guard to check if language is legacy format
+function isLegacyLanguage(lang: any): lang is { name: string; data: Record<string, string> } {
+  return 'name' in lang && 'data' in lang && !('code' in lang)
+}
+
 // Supported languages only (removed Android/other platform languages)
 const SUPPORTED_LANGUAGES: LanguageColumn[] = [
   { code: 'th', name: 'ไทย (Thai)', data: {}, hasFile: false },
@@ -323,10 +333,15 @@ export const useFilesStore = defineStore('files', {
       if (this.currentProject) {
         this.currentProject.lastModified = Date.now()
         
-        // Update languages in project
+        // Update languages in project - preserve full structure for comments
         this.currentProject.languages = this.languages.map(lang => ({
-          name: lang.code,
-          data: { ...lang.data }
+          code: lang.code,
+          name: lang.name,
+          data: { ...lang.data },
+          hasFile: lang.hasFile,
+          fileType: lang.fileType,
+          originalStructure: lang.originalStructure ? [...lang.originalStructure] : undefined,
+          originalContent: lang.originalContent
         }))
       }
     },
@@ -336,8 +351,13 @@ export const useFilesStore = defineStore('files', {
         id: Date.now().toString(),
         name: name,
         languages: this.languages.map(lang => ({
-          name: lang.code,
-          data: { ...lang.data }
+          code: lang.code,
+          name: lang.name,
+          data: { ...lang.data },
+          hasFile: lang.hasFile,
+          fileType: lang.fileType,
+          originalStructure: lang.originalStructure ? [...lang.originalStructure] : undefined,
+          originalContent: lang.originalContent
         })),
         lastModified: Date.now(),
         createdAt: Date.now()
@@ -372,18 +392,44 @@ export const useFilesStore = defineStore('files', {
       // Load data from project
       if (Array.isArray(project.languages)) {
         project.languages.forEach(projectLang => {
-          const langCode = projectLang.name.toLowerCase().replace(/\.strings$/, '')
-          const code = langCode === 'english' ? 'en' : 
-                      langCode === 'thai' ? 'th' :
-                      langCode === 'khmer' ? 'km' :
-                      langCode === 'myanmar' ? 'my' : 
-                      langCode
+          let code: string
           
-          const targetLang = this.languages.find(l => l.code === code)
-          if (targetLang) {
-            targetLang.data = { ...projectLang.data }
-            targetLang.hasFile = true
-            targetLang.fileType = 'strings'
+          // Handle both old format (legacy) and new format (LanguageColumn)
+          if (isLanguageColumn(projectLang)) {
+            // New format - use code directly
+            code = projectLang.code
+            const targetLang = this.languages.find(l => l.code === code)
+            if (targetLang) {
+              targetLang.data = { ...projectLang.data }
+              targetLang.hasFile = projectLang.hasFile
+              targetLang.fileType = projectLang.fileType
+              targetLang.name = projectLang.name
+              
+              // Restore structure and content if available (for comment preservation)
+              if (projectLang.originalStructure) {
+                targetLang.originalStructure = [...projectLang.originalStructure]
+              }
+              if (projectLang.originalContent) {
+                targetLang.originalContent = projectLang.originalContent
+              }
+            }
+          } else if (isLegacyLanguage(projectLang)) {
+            // Legacy format - convert name to code
+            const langCode = projectLang.name.toLowerCase().replace(/\.strings$/, '')
+            code = langCode === 'english' ? 'en' : 
+                   langCode === 'thai' ? 'th' :
+                   langCode === 'khmer' ? 'km' :
+                   langCode === 'myanmar' ? 'my' : 
+                   langCode
+            
+            const targetLang = this.languages.find(l => l.code === code)
+            if (targetLang) {
+              targetLang.data = { ...projectLang.data }
+              targetLang.hasFile = true
+              targetLang.fileType = 'strings'
+            }
+          } else {
+            console.warn('Invalid language format in project:', projectLang)
           }
         })
       }

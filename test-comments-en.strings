@@ -1,0 +1,21 @@
+/*
+ * English language file
+ * Created: 2025-01-01
+ */
+
+// Application title section
+"app_title" = "My Amazing App";
+"app_subtitle" = "The best app ever"; // This is the subtitle
+
+/* User Interface */
+"button_ok" = "OK";
+"button_cancel" = "Cancel";
+// Navigation menu
+"menu_home" = "Home";
+"menu_settings" = "Settings"; /* Settings page */
+
+// Error messages section
+"error_network" = "Network error occurred";
+"error_unknown" = "Unknown error";
+
+/* End of file */
