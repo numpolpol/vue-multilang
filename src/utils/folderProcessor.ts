@@ -126,6 +126,9 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
     return result
   }
 
+  // Track all unique keys across files
+  const allKeys = new Set<string>()
+
   // Process each .strings file
   for (const file of stringsFiles) {
     try {
@@ -134,23 +137,33 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       const structuredResult = parseStringsWithStructure(content)
       const { code, name } = extractLanguageCode(file.name)
 
+      // Check if parsing actually found valid .strings content
+      const hasValidContent = Object.keys(parseResult.data).length > 0 || 
+                             content.trim() === '' || // Empty files are valid
+                             /^\s*(\/\/.*|\s)*$/.test(content) // Comments/whitespace only are valid
+
       const folderFile: FolderFile = {
         file,
         name: file.name,
         languageCode: code,
         languageName: name,
         size: file.size,
-        isValidStrings: true,
+        isValidStrings: hasValidContent,
         parseResult,
         originalStructure: structuredResult.structure,
         originalContent: structuredResult.originalContent
       }
 
       result.files.push(folderFile)
-      result.totalDuplicates += parseResult.duplicateCount
-
-      // Update key count (use max from all files)
-      result.keyCount = Math.max(result.keyCount, Object.keys(parseResult.data).length)
+      
+      if (hasValidContent) {
+        result.totalDuplicates += parseResult.duplicateCount
+        // Add all keys from this file to the set
+        Object.keys(parseResult.data).forEach(key => allKeys.add(key))
+      } else {
+        result.hasErrors = true
+        result.errors.push(`File ${file.name} contains invalid .strings syntax`)
+      }
 
     } catch (error) {
       result.hasErrors = true
@@ -168,6 +181,9 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       })
     }
   }
+
+  // Set the total unique key count
+  result.keyCount = allKeys.size
 
   // Create language columns
   const languageMap = new Map<string, LanguageColumn>()

@@ -140,7 +140,7 @@ const mode = ref<'all' | 'paging' | 'changes'>('all')
 const selectedPage = ref('')
 const search = ref('')
 const debouncedSearch = ref('')
-const searchTimeout = ref<NodeJS.Timeout | null>(null)
+const searchTimeout = ref<number | null>(null)
 const skipColumns = ref(props.skipColumns || 0)
 
 const loading = ref(false)
