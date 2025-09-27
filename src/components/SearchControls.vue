@@ -9,8 +9,9 @@
         type="text" 
         :value="searchQuery" 
         @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
-        placeholder="Search keys or values..." 
+        placeholder="Search... (empty:, key:, /regex/)" 
         class="input input-bordered input-sm join-item w-full" 
+        title="Advanced search: empty: duplicate: key:pattern value:pattern lang:th:pattern /regex/ comma,separated" 
         :class="{ 'input-error': noResults }"
       />
       <button 
