@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 defineProps<{
-  mode: 'all' | 'paging'
+  mode: 'all' | 'paging' | 'changes'
   pagePrefixes: string[]
   selectedPage: string
 }>()

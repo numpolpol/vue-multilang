@@ -40,9 +40,23 @@
         <span class="flex-1 cursor-pointer" @click="$emit('startEditKey')" :title="'Click to edit key: ' + keyName">
           {{ keyName }}
         </span>
+        <!-- Change indicators -->
+        <div v-if="changeDetails && changeDetails.length > 0" class="flex items-center gap-1 mr-1">
+          <div v-for="change in changeDetails" :key="change.languageCode" 
+               class="badge badge-xs"
+               :class="{
+                 'badge-success': change.status === 'new',
+                 'badge-warning': change.status === 'modified', 
+                 'badge-error': change.status === 'deleted'
+               }"
+               :title="`${change.languageName}: ${change.status} ${change.status === 'new' ? '→ ' + change.newValue : change.status === 'deleted' ? change.oldValue + ' → (deleted)' : change.oldValue + ' → ' + change.newValue}`"
+          >
+            {{ change.languageCode.toUpperCase() }}
+          </div>
+        </div>
         <button 
           @click="$emit('startEditKey')" 
-          class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+          class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
           title="Edit key"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,6 +116,13 @@ const props = defineProps<{
   isEditing: boolean
   editKeyValue: string
   editKeyError: string
+  changeDetails?: Array<{
+    languageCode: string,
+    languageName: string,
+    status: 'new' | 'modified' | 'deleted',
+    oldValue?: string,
+    newValue?: string
+  }> | null
 }>()
 
 const emit = defineEmits<{

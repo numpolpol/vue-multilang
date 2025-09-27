@@ -1,21 +1,54 @@
 <template>
   <div class="bg-base-200 flex-shrink-0 w-full px-4">
-    <!-- Mode Indicator -->
-    <div class="py-1 text-xs text-base-content/70">
-      Mode: {{ mode === 'all' ? 'All Keys View' : 'Page Sections View' }}
-      | {{ filteredKeysLength }} rows
-      <span v-if="search.trim()">
-        (filtered from {{ visibleKeysLength }})
-      </span>
-      <span v-if="mode === 'paging' && selectedPage">
-        | Current: {{ selectedPage }}
-      </span>
-      <span v-if="mode === 'paging'">
-        | {{ pagePrefixesLength }} sections available
-      </span>
-      <span v-if="dualKeysMode">
-        | Multi Key Mode: ON
-      </span>
+    <!-- Mode Selector & Indicator -->
+    <div class="flex justify-between items-center py-1">
+      <div class="flex gap-2">
+        <div class="btn-group">
+          <button 
+            class="btn btn-xs" 
+            :class="{ 'btn-active': mode === 'all' }"
+            @click="$emit('update:mode', 'all')"
+            title="Show all keys"
+          >
+            All
+          </button>
+          <button 
+            class="btn btn-xs" 
+            :class="{ 'btn-active': mode === 'paging' }"
+            @click="$emit('update:mode', 'paging')"
+            title="Group by page sections"
+          >
+            Pages
+          </button>
+          <button 
+            class="btn btn-xs" 
+            :class="{ 'btn-active': mode === 'changes' }"
+            @click="$emit('update:mode', 'changes')"
+            title="Show only changed keys"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 1v1a1 1 0 001 1h6a1 1 0 001-1V5M7 8v8a2 2 0 002 2h6a2 2 0 002-2V8M8 12l2 2 4-4" />
+            </svg>
+            Changes
+          </button>
+        </div>
+      </div>
+      <div class="text-xs text-base-content/70">
+        {{ mode === 'all' ? 'All Keys View' : mode === 'changes' ? 'Changes Only View' : 'Page Sections View' }}
+        | {{ filteredKeysLength }} rows
+        <span v-if="search.trim()">
+          (filtered from {{ visibleKeysLength }})
+        </span>
+        <span v-if="mode === 'paging' && selectedPage">
+          | Current: {{ selectedPage }}
+        </span>
+        <span v-if="mode === 'paging'">
+          | {{ pagePrefixesLength }} sections available
+        </span>
+        <span v-if="dualKeysMode">
+          | Multi Key Mode: ON
+        </span>
+      </div>
     </div>
     
     <!-- Search -->
@@ -51,7 +84,7 @@
 
 <script setup lang="ts">
 defineProps<{
-  mode: 'all' | 'paging'
+  mode: 'all' | 'paging' | 'changes'
   search: string
   filteredKeysLength: number
   visibleKeysLength: number
@@ -63,6 +96,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'update:search', value: string): void
+  (e: 'update:mode', value: 'all' | 'paging' | 'changes'): void
   (e: 'addKey'): void
 }>()
 </script>

@@ -37,6 +37,9 @@ export const useFilesStore = defineStore('files', {
     // New language-column based structure
     languages: [...DEFAULT_LANGUAGES] as LanguageColumn[],
     
+    // Changes tracking for new structure
+    originalLanguages: [] as LanguageColumn[], // Store original state when project is loaded
+    
     // Legacy structure (keep for compatibility)
     files: [] as File[],
     stringsData: [] as Record<string, string>[],
@@ -85,7 +88,92 @@ export const useFilesStore = defineStore('files', {
         .map(lang => lang.data)
     },
     
-    hasLanguageFiles: (state) => state.languages.some(lang => lang.hasFile)
+    hasLanguageFiles: (state) => state.languages.some(lang => lang.hasFile),
+    
+    // Get keys that have changes compared to original state
+    changedKeys: (state) => {
+      if (!state.originalLanguages.length) return []
+      
+      const changedKeys = new Set<string>()
+      
+      // Check each language for changes
+      state.languages.forEach((lang, langIndex) => {
+        if (!lang.hasFile) return
+        
+        const originalLang = state.originalLanguages[langIndex]
+        if (!originalLang) return
+        
+        // Check for new keys
+        Object.keys(lang.data).forEach(key => {
+          if (!(key in originalLang.data)) {
+            changedKeys.add(key) // New key
+          } else if (lang.data[key] !== originalLang.data[key]) {
+            changedKeys.add(key) // Changed value
+          }
+        })
+        
+        // Check for deleted keys (exist in original but not in current)
+        Object.keys(originalLang.data).forEach(key => {
+          if (!(key in lang.data)) {
+            changedKeys.add(key) // Deleted key
+          }
+        })
+      })
+      
+      return Array.from(changedKeys).sort()
+    },
+    
+    // Get details about what changed for a specific key
+    getKeyChangeDetails: (state) => (key: string) => {
+      if (!state.originalLanguages.length) return null
+      
+      const changes: Array<{
+        languageCode: string,
+        languageName: string,
+        status: 'new' | 'modified' | 'deleted',
+        oldValue?: string,
+        newValue?: string
+      }> = []
+      
+      state.languages.forEach((lang, langIndex) => {
+        if (!lang.hasFile) return
+        
+        const originalLang = state.originalLanguages[langIndex]
+        if (!originalLang) return
+        
+        const hasOriginal = key in originalLang.data
+        const hasCurrent = key in lang.data
+        
+        if (!hasOriginal && hasCurrent) {
+          // New key
+          changes.push({
+            languageCode: lang.code,
+            languageName: lang.name,
+            status: 'new',
+            newValue: lang.data[key]
+          })
+        } else if (hasOriginal && !hasCurrent) {
+          // Deleted key
+          changes.push({
+            languageCode: lang.code,
+            languageName: lang.name,
+            status: 'deleted',
+            oldValue: originalLang.data[key]
+          })
+        } else if (hasOriginal && hasCurrent && lang.data[key] !== originalLang.data[key]) {
+          // Modified key
+          changes.push({
+            languageCode: lang.code,
+            languageName: lang.name,
+            status: 'modified',
+            oldValue: originalLang.data[key],
+            newValue: lang.data[key]
+          })
+        }
+      })
+      
+      return changes.length > 0 ? changes : null
+    }
   },
   
   actions: {
@@ -493,6 +581,9 @@ export const useFilesStore = defineStore('files', {
       // Sync language-column structure to legacy structure for compatibility
       this.syncLanguagesToFiles()
       
+      // Snapshot original state for changes tracking
+      this.snapshotOriginalState()
+      
       console.log('Loaded project:', project.name, 'Languages:', this.languages)
     },
 
@@ -660,5 +751,23 @@ export const useFilesStore = defineStore('files', {
       // Reset to default state with empty languages
       this.languages = []
     },
+    
+    // Changes tracking actions
+    snapshotOriginalState() {
+      // Deep clone current languages state as original
+      this.originalLanguages = JSON.parse(JSON.stringify(this.languages))
+    },
+    
+    resetToOriginalState() {
+      // Reset to original state
+      if (this.originalLanguages.length > 0) {
+        this.languages = JSON.parse(JSON.stringify(this.originalLanguages))
+        this.syncLanguagesToFiles() // Update legacy structure
+      }
+    },
+    
+    hasChanges(): boolean {
+      return this.changedKeys.length > 0
+    }
   }
 })

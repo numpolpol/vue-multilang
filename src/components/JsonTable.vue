@@ -11,6 +11,7 @@
       :dual-keys-mode="props.dualKeysMode"
       :searching="searching"
       @update:search="search = $event"
+      @update:mode="mode = $event"
       @add-key="$emit('addKey')"
     />
 
@@ -90,6 +91,7 @@
                 :is-editing="editingKey === key"
                 :edit-key-value="editKeyValue"
                 :edit-key-error="editKeyError"
+                :change-details="filesStore.getKeyChangeDetails(key)"
                 @start-edit-key="startEditKey(key)"
                 @save-edit-key="saveEditKey"
                 @update-edit-key-value="editKeyValue = $event"
@@ -118,7 +120,7 @@ import PageTabs from './PageTabs.vue'
 import TableRow from './TableRow.vue'
 
 const emit = defineEmits<{
-  (e: 'update:mode', value: 'all' | 'paging'): void
+  (e: 'update:mode', value: 'all' | 'paging' | 'changes'): void
   (e: 'update:search', value: string): void
   (e: 'change', payload: { key: string, fileName: string }): void
   (e: 'back'): void
@@ -134,7 +136,7 @@ const props = defineProps<{
   dualKeysMode?: boolean
 }>()
 
-const mode = ref<'all' | 'paging'>('all')
+const mode = ref<'all' | 'paging' | 'changes'>('all')
 const selectedPage = ref('')
 const search = ref('')
 const debouncedSearch = ref('')
@@ -244,6 +246,7 @@ const pagePrefixes = computed(() => {
 
 const visibleKeys = computed(() => {
   if (mode.value === 'all') return allKeys.value
+  if (mode.value === 'changes') return filesStore.changedKeys
   if (!selectedPage.value) return []
   return allKeys.value.filter(key => getPagePrefix(key) === selectedPage.value)
 })
