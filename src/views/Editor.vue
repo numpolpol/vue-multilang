@@ -308,10 +308,34 @@ function toggleDrawer() {
 }
 
 function saveProjectToLocalStorage() {
+  // Check if there's a current project first
+  if (!filesStore.currentProject) {
+    alert('No project to save. Please create a project or load languages first.')
+    return
+  }
+
+  // Check if there's any data to save
+  const hasData = filesStore.languages.some(lang => lang.hasFile && Object.keys(lang.data).length > 0)
+  if (!hasData) {
+    alert('No language data to save. Please import some files first.')
+    return
+  }
+
+  console.log('Attempting to save project:', filesStore.currentProject.name)
+  console.log('Languages to save:', filesStore.languages.filter(l => l.hasFile).length)
+  
   if (filesStore.saveProjectToLocalStorage()) {
     alert('Project saved to local storage successfully!')
   } else {
-    alert('Failed to save project. Please try again.')
+    // Check if it's a quota issue and provide helpful guidance
+    const isQuotaIssue = localStorage.getItem('savedProjects') === null ||
+                        JSON.stringify(filesStore.currentProject).length > 100000
+    
+    if (isQuotaIssue) {
+      alert('Project is too large for browser storage. Please use "Save to File" instead to download your project as a JSON file.')
+    } else {
+      alert('Failed to save project. Check the browser console for details, or try refreshing the page.')
+    }
   }
 }
 

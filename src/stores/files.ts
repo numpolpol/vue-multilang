@@ -386,12 +386,12 @@ export const useFilesStore = defineStore('files', {
         
         // Update project languages with current data from language-column structure
         if (this.hasLanguageFiles) {
-          // Use the new language-column structure if available
+          // Use the complete language-column structure to preserve comment data
           this.currentProject.languages = this.languages
             .filter(lang => lang.hasFile)
             .map(lang => ({
-              name: lang.code,
-              data: { ...lang.data }
+              ...lang, // Preserve all properties including originalStructure and originalContent
+              data: { ...lang.data } // Deep copy data to avoid reference issues
             }))
         } else {
           // Fallback to legacy structure
@@ -404,7 +404,10 @@ export const useFilesStore = defineStore('files', {
     },
 
     saveProjectToLocalStorage() {
-      if (!this.currentProject) return false
+      if (!this.currentProject) {
+        console.error('Save failed: No current project')
+        return false
+      }
       
       try {
         this.updateCurrentProject()
@@ -420,11 +423,62 @@ export const useFilesStore = defineStore('files', {
           existingProjects.push(this.currentProject)
         }
         
-        // Save to localStorage
-        localStorage.setItem('savedProjects', JSON.stringify(existingProjects))
-        return true
+        // Try saving with full data first
+        try {
+          localStorage.setItem('savedProjects', JSON.stringify(existingProjects))
+          console.log('Project saved successfully with full comment data:', this.currentProject.name, 'with', this.currentProject.languages.length, 'languages')
+          return true
+        } catch (quotaError) {
+          // If quota exceeded, try saving without comment structure data
+          console.warn('localStorage quota exceeded with comment data, trying compact save...')
+          return this.saveProjectCompact(existingProjects, projectIndex)
+        }
+        
       } catch (error) {
         console.error('Failed to save project to localStorage:', error)
+        
+        // Specific error detection
+        if (error instanceof Error) {
+          if (error.message.includes('quota') || error.message.includes('storage')) {
+            console.error('localStorage quota exceeded - try exporting project as file instead')
+          } else if (error.message.includes('circular') || error.message.includes('JSON')) {
+            console.error('JSON serialization error - data may contain circular references')
+          }
+        }
+        return false
+      }
+    },
+
+    // Fallback save method without comment structure data
+    saveProjectCompact(existingProjects: Project[], projectIndex: number) {
+      if (!this.currentProject) return false
+      
+      try {
+        // Create a compact version without comment structure
+        const compactProject = {
+          ...this.currentProject,
+          languages: this.currentProject.languages.map(lang => {
+            if ('code' in lang && 'hasFile' in lang) {
+              // Remove comment structure data to save space
+              const { originalStructure, originalContent, ...compactLang } = lang as any
+              return compactLang
+            }
+            return lang // Legacy format
+          })
+        }
+        
+        // Update the projects array with compact version
+        if (projectIndex >= 0) {
+          existingProjects[projectIndex] = compactProject
+        } else {
+          existingProjects.push(compactProject)
+        }
+        
+        localStorage.setItem('savedProjects', JSON.stringify(existingProjects))
+        console.warn('Project saved in compact mode (without comment preservation data):', this.currentProject.name)
+        return true
+      } catch (error) {
+        console.error('Failed to save even compact project:', error)
         return false
       }
     },
@@ -483,14 +537,17 @@ export const useFilesStore = defineStore('files', {
       project.languages.forEach((projectLang) => {        
         // Check if it's new LanguageColumn structure or legacy structure
         if ('code' in projectLang && 'hasFile' in projectLang) {
-          // New LanguageColumn structure
+          // New LanguageColumn structure - preserve all properties including comment data
           const langCol = projectLang as LanguageColumn
           this.languages.push({
             code: langCol.code,
             name: langCol.name,
             data: { ...langCol.data },
             hasFile: langCol.hasFile,
-            fileType: langCol.fileType
+            fileType: langCol.fileType,
+            // Preserve comment structure data for structure preservation
+            originalStructure: langCol.originalStructure,
+            originalContent: langCol.originalContent
           })
         } else {
           // Legacy structure - convert to new structure
