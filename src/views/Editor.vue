@@ -15,7 +15,6 @@
       @update:searchQuery="searchQuery = $event"
       @clearSearch="clearSearch"
       @goBack="goBack"
-      @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
       @languageAdded="onLanguageAdded"
       @languageRemoved="onLanguageRemoved"
@@ -30,9 +29,6 @@
         :total-keys="totalKeys"
         :filtered-count="filteredCount"
         :search-query="searchQuery"
-        :show-save="!!filesStore.currentProject"
-        :has-unsaved-changes="false"
-        :is-saving="false"
         :project-name="filesStore.currentProject?.name"
         :language-count="filesStore.languages.length"
         :view-mode="viewMode"
@@ -42,7 +38,7 @@
         @update:view-mode="viewMode = $event"
         @update:highlight-mode="highlightMode = $event"
         @update:skip-columns="skipColumns = $event"
-        @save-project="saveProjectToLocalStorage"
+        @save-project="saveProjectToFile"
         @export-all-columns="exportAllColumns"
       />
 
@@ -307,8 +303,7 @@ function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
 }
 
-function saveProjectToLocalStorage() {
-  // Check if there's a current project first
+function saveProjectToFile() {
   if (!filesStore.currentProject) {
     alert('No project to save. Please create a project or load languages first.')
     return
@@ -321,26 +316,8 @@ function saveProjectToLocalStorage() {
     return
   }
 
-  console.log('Attempting to save project:', filesStore.currentProject.name)
-  console.log('Languages to save:', filesStore.languages.filter(l => l.hasFile).length)
-  
-  if (filesStore.saveProjectToLocalStorage()) {
-    alert('Project saved to local storage successfully!')
-  } else {
-    // Check if it's a quota issue and provide helpful guidance
-    const isQuotaIssue = localStorage.getItem('savedProjects') === null ||
-                        JSON.stringify(filesStore.currentProject).length > 100000
-    
-    if (isQuotaIssue) {
-      alert('Project is too large for browser storage. Please use "Save to File" instead to download your project as a JSON file.')
-    } else {
-      alert('Failed to save project. Check the browser console for details, or try refreshing the page.')
-    }
-  }
-}
-
-function saveProjectToFile() {
   filesStore.saveProjectToFile()
+  alert('Project file downloaded successfully!')
 }
 
 // Language column management
