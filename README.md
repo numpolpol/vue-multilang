@@ -9,21 +9,42 @@ A Vue 3 + TypeScript webapp for editing multiple iOS .strings files side-by-side
 
 ## 🚀 Quick Start
 
-### Features
-- Upload multiple iOS .strings files (same keys/structure)
-- View and edit all string values side-by-side
-- Image annotation system for UI mapping
-- Project management with save/load
-- Export to iOS (.strings) and Android (.xml) formats
-- Inline key editing capabilities
-- Multi-column paste functionality
+### Core Features
+- **Multi-Format Support**: iOS .strings, Android .xml, JSON with automatic flattening
+- **Import Options**: Individual file uploads or complete folder imports
+- **Complete Comment Preservation**: All comments, structure, and formatting maintained from import to export
+- **Side-by-Side Editing**: View and edit all languages simultaneously
+- **Dual-Key Mode**: Merge identical values across languages for efficient editing
+- **Advanced Export**: Structure-preserving exports with original comments and formatting
+- **Project Management**: Save/load projects with full state preservation
+- **Visual Annotation**: Upload UI images and map text positions
+- **Search & Filter**: Powerful filtering and search capabilities
 
-### How to use
-1. Upload multiple .strings files (e.g. en.strings, th.strings)
-2. Click Ready to view and edit all keys/values side-by-side
-3. Upload UI images and annotate text positions
-4. Edit values directly, or use Paste to fill multiple languages at once
-5. Export files in your preferred format when done
+### How to Use
+
+#### Method 1: Individual File Upload
+1. **Upload Files**: Use "Upload File" to add individual .strings files (en.strings, th.strings, etc.)
+2. **Edit Content**: View all languages side-by-side, edit values directly in the table
+3. **Export**: Download individual language files with all comments preserved
+
+#### Method 2: Folder Import (Recommended)
+1. **Select Folder**: Click "Import Folder" and select a folder containing .strings files
+2. **Auto-Detection**: Language codes are automatically detected from filenames (en.strings, th.strings, etc.)
+3. **Batch Processing**: All files processed simultaneously with structure preservation
+4. **Project Creation**: Automatically creates a new project with all languages loaded
+
+#### Advanced Features
+- **Comment Preservation**: All comments (header, inline, block) are preserved exactly during editing
+- **Dual-Key Mode**: Toggle to merge keys with identical values across all languages
+- **JSON Flattening**: Import nested JSON and automatically flatten for localization
+- **Multi-Format Export**: Export to iOS .strings, Android .xml, or JSON formats
+- **Visual Annotation**: Upload UI screenshots and annotate text positions for context
+
+#### Export Options
+- **Single Language**: Click column header menu → "Export Language"
+- **All Languages**: Use export controls to download all languages at once
+- **Format Selection**: Choose between iOS .strings, Android .xml, or JSON format
+- **Structure Preservation**: All original comments and formatting maintained
 
 ## 🛠 Tech Stack
 - Vue 3 + TypeScript + Pinia + Vite
