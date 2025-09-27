@@ -26,7 +26,7 @@ export interface FolderImportResult {
  * Extract language code from filename
  * Supports patterns like: en.strings, Localizable_en.strings, en_US.strings
  */
-export function extractLanguageCode(filename: string): { code: string; name: string } {
+export function extractLanguageCode(filename: string): { code: string; name: string } | null {
   // Remove .strings extension
   const nameWithoutExt = filename.replace(/\.strings$/i, '')
   
@@ -46,48 +46,30 @@ export function extractLanguageCode(filename: string): { code: string; name: str
     const match = nameWithoutExt.match(pattern)
     if (match) {
       const code = match[1].toLowerCase()
-      return {
-        code,
-        name: getLanguageName(code)
+      const languageName = getLanguageName(code)
+      if (languageName) {
+        return { code, name: languageName }
       }
     }
   }
 
-  // Fallback: use filename as language code
-  const fallbackCode = nameWithoutExt.toLowerCase()
-  return {
-    code: fallbackCode,
-    name: getLanguageName(fallbackCode) || fallbackCode.charAt(0).toUpperCase() + fallbackCode.slice(1)
-  }
+  // If no supported language found, return null
+  return null
+}
+
+// Supported languages - only these will be accepted in folder import (iOS only)
+const SUPPORTED_LANGUAGES: Record<string, string> = {
+  'en': 'English',
+  'th': 'ไทย (Thai)',
+  'km': 'ខ្មែរ (Khmer)',
+  'my': 'မြန်မာ (Myanmar)',
 }
 
 /**
- * Get display name for language code
+ * Get display name for language code - only return supported languages
  */
-function getLanguageName(code: string): string {
-  const languageNames: Record<string, string> = {
-    'en': 'English',
-    'th': 'ไทย (Thai)',
-    'km': 'ខ្មែរ (Khmer)',
-    'my': 'မြန်မာ (Myanmar)',
-    'zh': '中文 (Chinese)',
-    'ja': '日本語 (Japanese)',
-    'ko': '한국어 (Korean)',
-    'vi': 'Tiếng Việt (Vietnamese)',
-    'id': 'Bahasa Indonesia',
-    'ms': 'Bahasa Melayu',
-    'tl': 'Filipino',
-    'es': 'Español (Spanish)',
-    'fr': 'Français (French)',
-    'de': 'Deutsch (German)',
-    'it': 'Italiano (Italian)',
-    'pt': 'Português (Portuguese)',
-    'ru': 'Русский (Russian)',
-    'ar': 'العربية (Arabic)',
-    'hi': 'हिन्दी (Hindi)',
-  }
-
-  return languageNames[code] || code.toUpperCase()
+function getLanguageName(code: string): string | null {
+  return SUPPORTED_LANGUAGES[code] || null // Return null for unsupported languages
 }
 
 /**
@@ -135,7 +117,17 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       const content = await readFileAsText(file)
       const parseResult = parseStrings(content, true)
       const structuredResult = parseStringsWithStructure(content)
-      const { code, name } = extractLanguageCode(file.name)
+      const languageInfo = extractLanguageCode(file.name)
+      
+      // Skip files with unsupported languages
+      if (!languageInfo) {
+        result.hasErrors = true
+        const fileName = file.name.replace(/\.strings$/i, '')
+        result.errors.push(`Language '${fileName}' is not supported. Supported languages: ${Object.keys(SUPPORTED_LANGUAGES).join(', ')}`)
+        continue
+      }
+      
+      const { code, name } = languageInfo
 
       // Check if parsing actually found valid .strings content
       const hasValidContent = Object.keys(parseResult.data).length > 0 || 
@@ -170,7 +162,8 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       result.errors.push(`Failed to process file ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       
       // Still add the file but mark as invalid
-      const { code, name } = extractLanguageCode(file.name)
+      const languageInfo = extractLanguageCode(file.name)
+      const { code, name } = languageInfo || { code: 'unknown', name: 'Unknown' }
       result.files.push({
         file,
         name: file.name,
