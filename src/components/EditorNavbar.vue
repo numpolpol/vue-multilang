@@ -81,19 +81,6 @@
           </div>
         </div>
         
-        <!-- Highlight Mode Toggle -->
-        <div class="form-control">
-          <label class="label pb-1">
-            <span class="label-text text-xs font-medium">Highlight Changes</span>
-          </label>
-          <input 
-            type="checkbox" 
-            :checked="highlightMode"
-            @change="$emit('update:highlightMode', ($event.target as HTMLInputElement).checked)"
-            class="toggle toggle-sm toggle-primary" 
-          />
-        </div>
-        
         <!-- Skip Columns Configuration -->
         <div class="form-control">
           <label class="label pb-1">
@@ -178,7 +165,6 @@ interface Props {
   projectName?: string
   languageCount?: number
   viewMode: 'all' | 'paging'
-  highlightMode: boolean
   skipColumns: number
 }
 
@@ -187,7 +173,6 @@ defineProps<Props>()
 defineEmits<{
   toggleDrawer: []
   'update:viewMode': [value: 'all' | 'paging']
-  'update:highlightMode': [value: boolean]
   'update:skipColumns': [value: number]
   saveProject: []
   exportAllColumns: []

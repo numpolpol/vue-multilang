@@ -8,7 +8,6 @@
       :visible-keys-length="visibleKeys.length"
       :selected-page="selectedPage"
       :page-prefixes-length="pagePrefixes.length"
-      :highlight-mode="highlightMode"
       :dual-keys-mode="props.dualKeysMode"
       @update:search="search = $event"
       @add-key="$emit('addKey')"
@@ -81,7 +80,6 @@
             <template v-else v-for="key in filteredKeys" :key="key">
                             <TableRow
                 :key-name="key"
-                :row-class="rowClass(key)"
                 :column-widths="columnWidths"
                 :key-column-width="keyColumnWidth"
                 :ordered-languages="orderedLanguages"
@@ -121,7 +119,6 @@ import TableRow from './TableRow.vue'
 const emit = defineEmits<{
   (e: 'update:mode', value: 'all' | 'paging'): void
   (e: 'update:search', value: string): void
-  (e: 'update:highlightMode', value: boolean): void
   (e: 'change', payload: { key: string, fileName: string }): void
   (e: 'back'): void
   (e: 'export', files: Record<string, Record<string, string>>): void
@@ -138,7 +135,6 @@ const props = defineProps<{
 
 const mode = ref<'all' | 'paging'>('all')
 const selectedPage = ref('')
-const highlightMode = ref(false)
 const search = ref('')
 const skipColumns = ref(props.skipColumns || 0)
 
@@ -264,14 +260,6 @@ const filteredKeys = computed(() => {
   return result
 })
 
-// Track original values for highlight
-const originalData = ref(props.data ? props.data.map(obj => ({ ...obj })) : [])
-watch(() => props.data, (newVal) => {
-  if (newVal && originalData.value.length !== newVal.length) {
-    originalData.value = newVal.map(obj => ({ ...obj }))
-  }
-}, { deep: true })
-
 // Watch for skipColumns prop changes
 watch(() => props.skipColumns, (newVal) => {
   skipColumns.value = newVal || 0
@@ -289,42 +277,7 @@ onBeforeUnmount(() => {
   // No cleanup needed since we're using data URLs stored in the store
 })
 
-function isAllEqual(key: string): boolean {
-  if (!props.data || props.data.length === 0) return false
-  const values = props.data.map(obj => obj?.[key] ?? '')
-  return values.length > 0 && values.every(v => v === values[0])
-}
 
-function isEdited(key: string): boolean {
-  if (!props.data || props.data.length === 0) return false
-  for (let i = 0; i < props.data.length; i++) {
-    if ((props.data[i]?.[key] ?? '') !== (originalData.value[i]?.[key] ?? '')) {
-      return true
-    }
-  }
-  return false
-}
-
-function isDuplicateValue(key: string): boolean {
-  if (!props.data || props.data.length === 0) return false
-  const valueCount: Record<string, number> = {};
-  for (const obj of props.data) {
-    if (!obj) continue
-    const val = (obj[key] ?? '').trim();
-    if (!val) continue;
-    valueCount[val] = (valueCount[val] || 0) + 1;
-    if (valueCount[val] > 1) return true;
-  }
-  return false;
-}
-
-function rowClass(key: string) {
-  if (!highlightMode.value) return ''
-  if (isEdited(key)) return 'row-edited'
-  if (isDuplicateValue(key)) return 'row-duplicate'
-  if (isAllEqual(key)) return 'row-all-equal'
-  return ''
-}
 
 if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
   selectedPage.value = pagePrefixes.value[0]
@@ -669,7 +622,6 @@ function saveEditKey() {
 
 defineExpose({
   mode,
-  highlightMode,
   search,
   skipColumns,
   exportAllColumns
@@ -773,9 +725,7 @@ td:nth-of-type(2) {
   color: #222;
   box-shadow: 0 2px 8px 0 #0001;
 }
-.row-edited { background: #e6ffe6 !important; color: #222 !important; }
-.row-all-equal { background: #ffeaea !important; color: #222 !important; }
-.row-duplicate { background: #fff3cd !important; color: #222 !important; }
+
 .toolbar-descs {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,5 @@
 <template>
-  <tr :class="rowClass">
+  <tr>
     <!-- Key Column -->
     <td class="sticky left-0 z-10 bg-base-100" :style="{ width: columnWidths['key'] || '200px' }">
       <div v-if="isMergedKey" class="space-y-1">
@@ -93,7 +93,6 @@ interface Language {
 
 const props = defineProps<{
   keyName: string
-  rowClass: string
   columnWidths: Record<string, string>
   keyColumnWidth: number
   orderedLanguages: Language[]

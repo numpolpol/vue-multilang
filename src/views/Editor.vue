@@ -32,11 +32,9 @@
         :project-name="filesStore.currentProject?.name"
         :language-count="filesStore.languages.length"
         :view-mode="viewMode"
-        :highlight-mode="highlightMode"
         :skip-columns="skipColumns"
         @toggle-drawer="toggleDrawer"
         @update:view-mode="viewMode = $event"
-        @update:highlight-mode="highlightMode = $event"
         @update:skip-columns="skipColumns = $event"
         @save-project="saveProjectToFile"
         @export-all-columns="exportAllColumns"
@@ -184,7 +182,6 @@ import EditorNavbar from '../components/EditorNavbar.vue'
 
 interface JsonTableWithControls {
   mode: 'all' | 'paging'
-  highlightMode: boolean
   search: string
   skipColumns: number
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
@@ -199,7 +196,6 @@ const jsonTable = ref<JsonTableWithControls | null>(null)
 
 // View controls
 const viewMode = ref<'all' | 'paging'>('all')
-const highlightMode = ref(false)
 const searchQuery = ref('')
 const skipColumns = ref(0)
 
@@ -242,13 +238,6 @@ onMounted(() => {
 watch(viewMode, (newMode) => {
   if (jsonTable.value) {
     jsonTable.value.mode = newMode
-  }
-})
-
-// Watch for highlightMode changes
-watch(highlightMode, (newValue) => {
-  if (jsonTable.value) {
-    jsonTable.value.highlightMode = newValue
   }
 })
 

@@ -13,9 +13,6 @@
       <span v-if="mode === 'paging'">
         | {{ pagePrefixesLength }} sections available
       </span>
-      <span v-if="highlightMode">
-        | Highlight: ON
-      </span>
       <span v-if="dualKeysMode">
         | Multi Key Mode: ON
       </span>
@@ -57,7 +54,6 @@ defineProps<{
   visibleKeysLength: number
   selectedPage: string
   pagePrefixesLength: number
-  highlightMode: boolean
   dualKeysMode?: boolean
 }>()
 
