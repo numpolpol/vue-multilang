@@ -321,6 +321,9 @@ const importProject = async () => {
         filesStore.languages[columnIndex].data = { ...language.data }
         filesStore.languages[columnIndex].hasFile = true
         filesStore.languages[columnIndex].fileType = 'strings'
+        // Preserve structure data for comment preservation
+        filesStore.languages[columnIndex].originalStructure = language.originalStructure
+        filesStore.languages[columnIndex].originalContent = language.originalContent
       }
     }
     

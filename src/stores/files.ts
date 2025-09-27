@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { FileGroup, ParsedStringsFile } from '../utils/strings'
+import type { FileGroup } from '../utils/strings'
 
 export interface LanguageColumn {
   code: string
@@ -7,7 +7,7 @@ export interface LanguageColumn {
   data: Record<string, string>
   hasFile: boolean
   fileType?: 'strings' | 'xml' | 'json'
-  originalStructure?: ParsedStringsFile['structure'] // Preserve original file structure
+  originalStructure?: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }> // Preserve original file structure
   originalContent?: string // Preserve original file content
 }
 

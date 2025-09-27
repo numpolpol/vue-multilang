@@ -22,6 +22,7 @@ export interface ParsedStringsFile {
     content: string
     key?: string
     value?: string
+    inlineComment?: string // Capture inline comments after key-value pairs
   }>
   originalContent: string
 }
@@ -146,7 +147,7 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
 // Enhanced parsing with structure preservation
 export function parseStringsWithStructure(content: string): ParsedStringsFile {
   const data: Record<string, string> = {}
-  const structure: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string }> = []
+  const structure: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }> = []
   
   if (!content || content.trim().length === 0) {
     return { data, structure, originalContent: content }
@@ -167,32 +168,10 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
         continue
       }
       
-      // Handle block comments
-      if (trimmedLine.includes('/*') && !inBlockComment) {
-        inBlockComment = true
-        structure.push({ type: 'comment', content: line })
-        if (trimmedLine.includes('*/')) {
-          inBlockComment = false
-        }
-        continue
-      }
-      
-      if (inBlockComment) {
-        structure.push({ type: 'comment', content: line })
-        if (trimmedLine.includes('*/')) {
-          inBlockComment = false
-        }
-        continue
-      }
-      
-      // Handle line comments
-      if (trimmedLine.startsWith('//')) {
-        structure.push({ type: 'comment', content: line })
-        continue
-      }
-      
+      // Prioritize key-value pairs over comments
       // Handle key-value pairs with proper escaped quote handling
-      const keyMatch = trimmedLine.match(/^"?(.*?)"?\s*=\s*"/)
+      // Look for pattern anywhere in the line: "key" = "value"
+      const keyMatch = trimmedLine.match(/"([^"]+)"\s*=\s*"/)
       if (keyMatch) {
         const key = keyMatch[1]
         if (key) {
@@ -232,13 +211,40 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
             }
           }
           
+          // Extract inline comment if present (after the closing quote and semicolon)
+          let inlineComment = ''
+          const afterValue = trimmedLine.substring(i + 1).trim() // Everything after the closing quote
+          if (afterValue.startsWith(';')) {
+            const afterSemicolon = afterValue.substring(1).trim()
+            if (afterSemicolon.startsWith('//') || afterSemicolon.startsWith('/*')) {
+              inlineComment = afterSemicolon
+            }
+          }
+          
           // Always update data to keep the latest value (like regular parseStrings)
           data[key] = value
-          structure.push({ type: 'key', content: line, key, value })
+          structure.push({ type: 'key', content: line, key, value, inlineComment: inlineComment || undefined })
         }
       } else {
-        // Unknown line format, preserve as comment
-        structure.push({ type: 'comment', content: line })
+        // Handle block comments
+        if (trimmedLine.includes('/*') && !inBlockComment) {
+          inBlockComment = true
+          structure.push({ type: 'comment', content: line })
+          if (trimmedLine.includes('*/')) {
+            inBlockComment = false
+          }
+        } else if (inBlockComment) {
+          structure.push({ type: 'comment', content: line })
+          if (trimmedLine.includes('*/')) {
+            inBlockComment = false
+          }
+        } else if (trimmedLine.startsWith('//')) {
+          // Handle line comments
+          structure.push({ type: 'comment', content: line })
+        } else {
+          // Unknown line format, preserve as comment
+          structure.push({ type: 'comment', content: line })
+        }
       }
     }
   } catch (error) {
@@ -280,7 +286,31 @@ export function toStringsWithStructure(
           } else {
             // Value has changed - create new line with proper escaping
             const escapedValue = escapeQuotesForExport(currentValue)
-            lines.push(`"${item.key}" = "${escapedValue}";`)
+            
+            // Preserve prefix comments (comments before the key-value pair)
+            const originalContent = item.content || ''
+            const keyValueMatch = originalContent.match(/"[^"]+"\s*=\s*"[^"]*"/)
+            
+            if (keyValueMatch) {
+              const keyValueStart = originalContent.indexOf(keyValueMatch[0])
+              const prefix = keyValueStart > 0 ? originalContent.substring(0, keyValueStart) : ''
+              
+              let newLine = prefix + `"${item.key}" = "${escapedValue}";`
+              
+              // Preserve inline comment if it exists
+              if (item.inlineComment) {
+                newLine += ` ${item.inlineComment}`
+              }
+              
+              lines.push(newLine)
+            } else {
+              // Fallback to simple format
+              let newLine = `"${item.key}" = "${escapedValue}";`
+              if (item.inlineComment) {
+                newLine += ` ${item.inlineComment}`
+              }
+              lines.push(newLine)
+            }
           }
           processedKeys.add(item.key)
         }

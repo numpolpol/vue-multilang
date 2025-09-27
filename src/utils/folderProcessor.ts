@@ -9,7 +9,7 @@ export interface FolderFile {
   size: number
   isValidStrings: boolean
   parseResult?: ParseResult
-  originalStructure?: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string }>
+  originalStructure?: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }>
   originalContent?: string
 }
 
