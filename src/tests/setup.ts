@@ -48,18 +48,33 @@ global.FileReader = class FileReader extends EventTarget {
   result: string | ArrayBuffer | null = null
   error: DOMException | null = null
   readyState: number = 0
+  onload: ((event: ProgressEvent<FileReader>) => void) | null = null
+  onerror: ((event: ProgressEvent<FileReader>) => void) | null = null
   
-  readAsDataURL() {
+  readAsDataURL(file: File) {
     this.result = 'data:image/png;base64,mockData'
     setTimeout(() => {
-      this.dispatchEvent(new Event('load'))
+      const event = new Event('load') as any
+      if (this.onload) {
+        this.onload(event)
+      }
+      this.dispatchEvent(event)
     }, 0)
   }
   
-  readAsText() {
-    this.result = 'mock text'
+  readAsText(file: File) {
+    // If it's a MockFile, get the actual content
+    if (file && typeof (file as any).content === 'string') {
+      this.result = (file as any).content
+    } else {
+      this.result = 'mock text'
+    }
     setTimeout(() => {
-      this.dispatchEvent(new Event('load'))
+      const event = new Event('load') as any
+      if (this.onload) {
+        this.onload(event)
+      }
+      this.dispatchEvent(event)
     }, 0)
   }
 } as any

@@ -272,8 +272,7 @@ watch(
   { immediate: true }
 )
 
-function updateTheme(event: Event) {
-  const newTheme = (event.target as HTMLSelectElement).value
+function updateTheme(newTheme: string) {
   document.documentElement.setAttribute('data-theme', newTheme)
   localStorage.setItem('theme', newTheme)
   theme.value = newTheme

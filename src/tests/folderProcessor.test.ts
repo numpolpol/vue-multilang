@@ -9,9 +9,55 @@ import {
   type FolderFile 
 } from '../utils/folderProcessor'
 
-// Simple test helper
-function createTestFile(name: string, type: string = 'text/plain') {
-  return { name, type, size: 100 } as File
+// Mock File implementation
+class MockFile implements File {
+  public readonly lastModified: number = Date.now()
+  public readonly webkitRelativePath: string = ''
+  
+  constructor(
+    public readonly content: string,
+    public readonly name: string,
+    public readonly type: string = 'text/plain'
+  ) {}
+  
+  get size(): number {
+    return this.content.length
+  }
+  
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    return new TextEncoder().encode(this.content).buffer
+  }
+  
+  async bytes(): Promise<Uint8Array> {
+    const encoder = new TextEncoder()
+    const uint8Array = encoder.encode(this.content)
+    return new Uint8Array(uint8Array.buffer)
+  }
+  
+  stream(): ReadableStream<Uint8Array> {
+    const content = this.content
+    return new ReadableStream({
+      start(controller) {
+        const encoder = new TextEncoder()
+        const uint8Array = encoder.encode(content)
+        controller.enqueue(new Uint8Array(uint8Array.buffer))
+        controller.close()
+      }
+    })
+  }
+  
+  async text(): Promise<string> {
+    return this.content
+  }
+  
+  slice(start?: number, end?: number, contentType?: string): Blob {
+    const sliced = this.content.slice(start, end)
+    return new MockFile(sliced, this.name, contentType || this.type) as unknown as Blob
+  }
+}
+
+function createMockFile(content: string, name: string, type: string = 'text/plain'): File {
+  return new MockFile(content, name, type) as unknown as File
 }
 
 describe('Folder Processor', () => {
@@ -343,7 +389,7 @@ describe('Folder Processor', () => {
   describe('Integration Tests', () => {
     it('should handle complete folder import workflow', async () => {
       const createFile = (name: string, content: string) => {
-        return new MockFile([content], name, { type: 'text/plain' })
+        return new MockFile(content, name, 'text/plain') as unknown as File
       }
 
       const files = [
@@ -386,7 +432,7 @@ describe('Folder Processor', () => {
 
     it('should handle edge cases gracefully', async () => {
       const createFile = (name: string, content: string) => {
-        return new MockFile([content], name, { type: 'text/plain' })
+        return new MockFile(content, name, 'text/plain') as unknown as File
       }
 
       const files = [
