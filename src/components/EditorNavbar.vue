@@ -81,19 +81,6 @@
           </div>
         </div>
         
-        <!-- Highlight Mode Toggle -->
-        <div class="form-control">
-          <label class="label pb-1">
-            <span class="label-text text-xs font-medium">Highlight Changes</span>
-          </label>
-          <input 
-            type="checkbox" 
-            :checked="highlightMode"
-            @change="$emit('update:highlightMode', ($event.target as HTMLInputElement).checked)"
-            class="toggle toggle-sm toggle-primary" 
-          />
-        </div>
-        
         <!-- Skip Columns Configuration -->
         <div class="form-control">
           <label class="label pb-1">
@@ -138,21 +125,16 @@
 
       <!-- Save Button with enhanced status -->
       <button 
-        class="btn btn-sm mr-2 group transition-all duration-300" 
-        :class="{
-          'btn-warning shadow-lg shadow-warning/25': props.hasUnsavedChanges,
-          'btn-success': !props.hasUnsavedChanges,
-          'hover:scale-105': true
-        }"
+        class="btn btn-sm mr-2 group transition-all duration-300 btn-primary hover:scale-105"
         @click="$emit('saveProject')" 
-        :title="props.hasUnsavedChanges ? 'You have unsaved changes - Click to save' : 'Project saved'"
+        :title="'Download project as JSON file'"
       >
         <div class="flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <span class="font-medium">Save</span>
-          <div v-if="props.hasUnsavedChanges" class="w-2 h-2 bg-current rounded-full animate-pulse"></div>
+          <span class="font-medium">Save Project</span>
+
         </div>
       </button>
 
@@ -180,22 +162,17 @@ interface Props {
   totalKeys: number
   filteredCount: number
   searchQuery: string
-  showSave: boolean
-  hasUnsavedChanges: boolean
-  isSaving: boolean
   projectName?: string
   languageCount?: number
   viewMode: 'all' | 'paging'
-  highlightMode: boolean
   skipColumns: number
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 defineEmits<{
   toggleDrawer: []
   'update:viewMode': [value: 'all' | 'paging']
-  'update:highlightMode': [value: boolean]
   'update:skipColumns': [value: number]
   saveProject: []
   exportAllColumns: []

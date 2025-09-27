@@ -8,9 +8,10 @@
       :visible-keys-length="visibleKeys.length"
       :selected-page="selectedPage"
       :page-prefixes-length="pagePrefixes.length"
-      :highlight-mode="highlightMode"
       :dual-keys-mode="props.dualKeysMode"
+      :searching="searching"
       @update:search="search = $event"
+      @update:mode="mode = $event"
       @add-key="$emit('addKey')"
     />
 
@@ -81,7 +82,6 @@
             <template v-else v-for="key in filteredKeys" :key="key">
                             <TableRow
                 :key-name="key"
-                :row-class="rowClass(key)"
                 :column-widths="columnWidths"
                 :key-column-width="keyColumnWidth"
                 :ordered-languages="orderedLanguages"
@@ -91,6 +91,7 @@
                 :is-editing="editingKey === key"
                 :edit-key-value="editKeyValue"
                 :edit-key-error="editKeyError"
+                :change-details="filesStore.getKeyChangeDetails(key)"
                 @start-edit-key="startEditKey(key)"
                 @save-edit-key="saveEditKey"
                 @update-edit-key-value="editKeyValue = $event"
@@ -119,9 +120,8 @@ import PageTabs from './PageTabs.vue'
 import TableRow from './TableRow.vue'
 
 const emit = defineEmits<{
-  (e: 'update:mode', value: 'all' | 'paging'): void
+  (e: 'update:mode', value: 'all' | 'paging' | 'changes'): void
   (e: 'update:search', value: string): void
-  (e: 'update:highlightMode', value: boolean): void
   (e: 'change', payload: { key: string, fileName: string }): void
   (e: 'back'): void
   (e: 'export', files: Record<string, Record<string, string>>): void
@@ -136,13 +136,15 @@ const props = defineProps<{
   dualKeysMode?: boolean
 }>()
 
-const mode = ref<'all' | 'paging'>('all')
+const mode = ref<'all' | 'paging' | 'changes'>('all')
 const selectedPage = ref('')
-const highlightMode = ref(false)
 const search = ref('')
+const debouncedSearch = ref('')
+const searchTimeout = ref<NodeJS.Timeout | null>(null)
 const skipColumns = ref(props.skipColumns || 0)
 
 const loading = ref(false)
+const searching = ref(false)
 
 // Key editing state
 const editingKey = ref<string | null>(null)
@@ -194,6 +196,45 @@ props.data.forEach(obj => {
   return Array.from(keySet)
 })
 
+// Debounced search implementation with adaptive delay
+watch(search, (newValue) => {
+  searching.value = true
+  
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+  
+  // Adaptive delay based on search complexity and data size
+  let delay = 300 // Default 300ms
+  
+  const query = newValue.trim()
+  const dataSize = allKeys.value.length
+  
+  // Increase delay for complex searches
+  if (query.includes(',') || query.startsWith('/') || query.includes(':')) {
+    delay = 500 // Complex search modes
+  }
+  
+  // Increase delay for large datasets
+  if (dataSize > 500) {
+    delay += 200
+  }
+  if (dataSize > 1000) {
+    delay += 300
+  }
+  
+  // Instant search for empty query
+  if (!query) {
+    delay = 0
+    searching.value = false
+  }
+  
+  searchTimeout.value = setTimeout(() => {
+    debouncedSearch.value = newValue
+    searching.value = false
+  }, delay)
+}, { immediate: true })
+
 const pagePrefixes = computed(() => {
   const prefixes = new Set<string>()
   allKeys.value.forEach(key => {
@@ -205,22 +246,84 @@ const pagePrefixes = computed(() => {
 
 const visibleKeys = computed(() => {
   if (mode.value === 'all') return allKeys.value
+  if (mode.value === 'changes') return filesStore.changedKeys
   if (!selectedPage.value) return []
   return allKeys.value.filter(key => getPagePrefix(key) === selectedPage.value)
 })
 
-// Multi-key search and regex support
+// Enhanced search with multiple modes and better UX
 const filteredKeys = computed(() => {
-  const query = search.value.trim()
+  const query = debouncedSearch.value.trim()
   if (!query) return visibleKeys.value
 
-  // Regex mode: if query starts and ends with /, treat as regex
+  // Special search modes
+  // 1. Empty values search: empty: or blank:
+  if (query === 'empty:' || query === 'blank:') {
+    return visibleKeys.value.filter(key => {
+      if (!props.data || props.data.length === 0) return false
+      return props.data.some(obj => {
+        const value = obj?.[key] ?? ''
+        return value === '' || value.trim() === ''
+      })
+    })
+  }
+
+  // 2. Duplicate values search: duplicate:
+  if (query === 'duplicate:') {
+    return visibleKeys.value.filter(key => {
+      if (!props.data || props.data.length === 0) return false
+      const values = props.data.map(obj => (obj?.[key] ?? '').trim()).filter(Boolean)
+      const uniqueValues = new Set(values)
+      return values.length > uniqueValues.size
+    })
+  }
+
+  // 3. Key-only search: key:pattern
+  if (query.startsWith('key:')) {
+    const keyQuery = query.substring(4).toLowerCase()
+    return visibleKeys.value.filter(key => key.toLowerCase().includes(keyQuery))
+  }
+
+  // 4. Value-only search: value:pattern
+  if (query.startsWith('value:')) {
+    const valueQuery = query.substring(6).toLowerCase()
+    return visibleKeys.value.filter(key => {
+      if (!props.data || props.data.length === 0) return false
+      return props.data.some(obj => {
+        const value = obj?.[key] ?? ''
+        return value.toLowerCase().includes(valueQuery)
+      })
+    })
+  }
+
+  // 5. Language-specific search: lang:th:pattern
+  const langMatch = query.match(/^lang:([a-z]{2,3}):(.*)/)
+  if (langMatch) {
+    const [, langCode, searchPattern] = langMatch
+    const langIndex = props.data?.findIndex((_, index) => {
+      // Find language by checking store or use index
+      const filesStore = useFilesStore()
+      return filesStore.languages[index]?.code === langCode
+    })
+    
+    if (langIndex >= 0) {
+      const pattern = searchPattern.toLowerCase()
+      return visibleKeys.value.filter(key => {
+        const value = props.data?.[langIndex]?.[key] ?? ''
+        return value.toLowerCase().includes(pattern)
+      })
+    }
+  }
+
+  // 6. Regex mode: if query starts and ends with /, treat as regex
   if (query.length > 2 && query.startsWith('/') && query.endsWith('/')) {
     try {
       const pattern = query.slice(1, -1)
       const regex = new RegExp(pattern, 'i')
       return visibleKeys.value.filter(key => {
+        // Search in key name
         if (regex.test(key)) return true
+        // Search in values
         if (props.data && props.data.length > 0) {
           for (const obj of props.data) {
             if (obj && regex.test(obj[key] ?? '')) return true
@@ -229,23 +332,27 @@ const filteredKeys = computed(() => {
         return false
       })
     } catch (e) {
-      // Invalid regex, fallback to normal search
-      // Optionally, could show an error
+      // Invalid regex, show no results and optionally display error
+      console.warn('Invalid regex pattern:', query)
       return []
     }
   }
 
-  // Multi-key search: split by comma, filter by order, show results for first, then second, etc.
+  // 7. Multi-term search: split by comma, search in priority order
   const terms = query.split(',').map(s => s.trim()).filter(Boolean)
   if (terms.length === 0) return visibleKeys.value
+  
   const seen = new Set<string>()
   const result: string[] = []
+  
   terms.forEach(term => {
     const q = term.toLowerCase()
     visibleKeys.value.forEach(key => {
       if (!seen.has(key)) {
-        // Match key or value
+        // Match key name
         let match = key.toLowerCase().includes(q)
+        
+        // Match values if not found in key
         if (!match && props.data && props.data.length > 0) {
           for (const obj of props.data) {
             if (obj && (obj[key] ?? '').toLowerCase().includes(q)) {
@@ -254,6 +361,7 @@ const filteredKeys = computed(() => {
             }
           }
         }
+        
         if (match) {
           seen.add(key)
           result.push(key)
@@ -261,16 +369,9 @@ const filteredKeys = computed(() => {
       }
     })
   })
+  
   return result
 })
-
-// Track original values for highlight
-const originalData = ref(props.data ? props.data.map(obj => ({ ...obj })) : [])
-watch(() => props.data, (newVal) => {
-  if (newVal && originalData.value.length !== newVal.length) {
-    originalData.value = newVal.map(obj => ({ ...obj }))
-  }
-}, { deep: true })
 
 // Watch for skipColumns prop changes
 watch(() => props.skipColumns, (newVal) => {
@@ -284,47 +385,14 @@ watch([mode, pagePrefixes], () => {
   }
 })
 
-// Cleanup is handled by the store now
+// Cleanup search timeout on unmount
 onBeforeUnmount(() => {
-  // No cleanup needed since we're using data URLs stored in the store
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
 })
 
-function isAllEqual(key: string): boolean {
-  if (!props.data || props.data.length === 0) return false
-  const values = props.data.map(obj => obj?.[key] ?? '')
-  return values.length > 0 && values.every(v => v === values[0])
-}
 
-function isEdited(key: string): boolean {
-  if (!props.data || props.data.length === 0) return false
-  for (let i = 0; i < props.data.length; i++) {
-    if ((props.data[i]?.[key] ?? '') !== (originalData.value[i]?.[key] ?? '')) {
-      return true
-    }
-  }
-  return false
-}
-
-function isDuplicateValue(key: string): boolean {
-  if (!props.data || props.data.length === 0) return false
-  const valueCount: Record<string, number> = {};
-  for (const obj of props.data) {
-    if (!obj) continue
-    const val = (obj[key] ?? '').trim();
-    if (!val) continue;
-    valueCount[val] = (valueCount[val] || 0) + 1;
-    if (valueCount[val] > 1) return true;
-  }
-  return false;
-}
-
-function rowClass(key: string) {
-  if (!highlightMode.value) return ''
-  if (isEdited(key)) return 'row-edited'
-  if (isDuplicateValue(key)) return 'row-duplicate'
-  if (isAllEqual(key)) return 'row-all-equal'
-  return ''
-}
 
 if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
   selectedPage.value = pagePrefixes.value[0]
@@ -405,9 +473,12 @@ function exportLanguageColumn(languageCode: string) {
     return
   }
 
-  // Get the filtered keys data for this language
+  // Get ALL keys data for this language (not just filtered keys)
+  // This ensures structure preservation and complete export
   const columnData: Record<string, string> = {}
-  filteredKeys.value.forEach(key => {
+  
+  // Use all keys from the language data to preserve complete structure
+  Object.keys(language.data).forEach(key => {
     if (isMergedKey(key)) {
       const primaryKey = getMergedKeyPrimary(key)
       columnData[primaryKey] = language.data[primaryKey] || ''
@@ -421,14 +492,8 @@ function exportLanguageColumn(languageCode: string) {
     return
   }
 
-  // Create filename with current filter info
+  // Create filename (always exports complete file regardless of filters)
   let filename = `${languageCode}`
-  if (search.value.trim()) {
-    filename += `_filtered`
-  }
-  if (mode.value === 'paging' && selectedPage.value) {
-    filename += `_${selectedPage.value}`
-  }
 
   // Generate iOS .strings content with structure preservation
   let content: string
@@ -672,7 +737,6 @@ function saveEditKey() {
 
 defineExpose({
   mode,
-  highlightMode,
   search,
   skipColumns,
   exportAllColumns
@@ -776,9 +840,7 @@ td:nth-of-type(2) {
   color: #222;
   box-shadow: 0 2px 8px 0 #0001;
 }
-.row-edited { background: #e6ffe6 !important; color: #222 !important; }
-.row-all-equal { background: #ffeaea !important; color: #222 !important; }
-.row-duplicate { background: #fff3cd !important; color: #222 !important; }
+
 .toolbar-descs {
   display: flex;
   flex-wrap: wrap;

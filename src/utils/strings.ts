@@ -1,3 +1,19 @@
+// Helper function to safely escape quotes and backslashes for export
+function escapeQuotesForExport(value: string): string {
+  let result = value
+  
+  // Escape backslashes first (must be done before quotes)
+  result = result.replace(/\\/g, '\\\\')
+  
+  // Escape quotes
+  result = result.replace(/"/g, '\\"')
+  
+  // Handle newlines
+  result = result.replace(/\n/g, '\\n')
+  
+  return result
+}
+
 // Enhanced structure to preserve original file format
 export interface ParsedStringsFile {
   data: Record<string, string>
@@ -6,6 +22,7 @@ export interface ParsedStringsFile {
     content: string
     key?: string
     value?: string
+    inlineComment?: string // Capture inline comments after key-value pairs
   }>
   originalContent: string
 }
@@ -78,15 +95,19 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
           const nextChar = i + 1 < line.length ? line[i + 1] : null
           
           if (char === '\\' && nextChar === '"') {
-            // This is an escaped quote (\") - add both characters to the value
-            value += '\\"'
+            // This is an escaped quote (\") - unescape it to just a quote
+            value += '"'
             i += 2 // Skip both the backslash and the quote
           } else if (char === '\\' && nextChar === '\\') {
-            // This is an escaped backslash (\\) - add both characters to the value  
-            value += '\\\\'
+            // This is an escaped backslash (\\) - unescape it to a single backslash
+            value += '\\'
             i += 2 // Skip both backslashes
+          } else if (char === '\\' && nextChar === 'n') {
+            // This is an escaped newline (\n) - convert to actual newline
+            value += '\n'
+            i += 2
           } else if (char === '\\' && nextChar) {
-            // This is a backslash followed by some other character - keep both
+            // This is a backslash followed by some other character - keep both for now
             value += char + nextChar
             i += 2
           } else if (char === '"') {
@@ -126,7 +147,7 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
 // Enhanced parsing with structure preservation
 export function parseStringsWithStructure(content: string): ParsedStringsFile {
   const data: Record<string, string> = {}
-  const structure: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string }> = []
+  const structure: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }> = []
   
   if (!content || content.trim().length === 0) {
     return { data, structure, originalContent: content }
@@ -147,32 +168,10 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
         continue
       }
       
-      // Handle block comments
-      if (trimmedLine.includes('/*') && !inBlockComment) {
-        inBlockComment = true
-        structure.push({ type: 'comment', content: line })
-        if (trimmedLine.includes('*/')) {
-          inBlockComment = false
-        }
-        continue
-      }
-      
-      if (inBlockComment) {
-        structure.push({ type: 'comment', content: line })
-        if (trimmedLine.includes('*/')) {
-          inBlockComment = false
-        }
-        continue
-      }
-      
-      // Handle line comments
-      if (trimmedLine.startsWith('//')) {
-        structure.push({ type: 'comment', content: line })
-        continue
-      }
-      
+      // Prioritize key-value pairs over comments
       // Handle key-value pairs with proper escaped quote handling
-      const keyMatch = trimmedLine.match(/^"?(.*?)"?\s*=\s*"/)
+      // Look for pattern anywhere in the line: "key" = "value"
+      const keyMatch = trimmedLine.match(/"([^"]+)"\s*=\s*"/)
       if (keyMatch) {
         const key = keyMatch[1]
         if (key) {
@@ -187,15 +186,19 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
             const nextChar = i + 1 < trimmedLine.length ? trimmedLine[i + 1] : null
             
             if (char === '\\' && nextChar === '"') {
-              // This is an escaped quote (\") - add both characters to the value
-              value += '\\"'
+              // This is an escaped quote (\") - unescape it to just a quote
+              value += '"'
               i += 2 // Skip both the backslash and the quote
             } else if (char === '\\' && nextChar === '\\') {
-              // This is an escaped backslash (\\) - add both characters to the value
-              value += '\\\\'
+              // This is an escaped backslash (\\) - unescape it to a single backslash
+              value += '\\'
               i += 2 // Skip both backslashes
+            } else if (char === '\\' && nextChar === 'n') {
+              // This is an escaped newline (\n) - convert to actual newline
+              value += '\n'
+              i += 2
             } else if (char === '\\' && nextChar) {
-              // This is a backslash followed by some other character - keep both
+              // This is a backslash followed by some other character - keep both for now
               value += char + nextChar
               i += 2
             } else if (char === '"') {
@@ -208,13 +211,40 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
             }
           }
           
+          // Extract inline comment if present (after the closing quote and semicolon)
+          let inlineComment = ''
+          const afterValue = trimmedLine.substring(i + 1).trim() // Everything after the closing quote
+          if (afterValue.startsWith(';')) {
+            const afterSemicolon = afterValue.substring(1).trim()
+            if (afterSemicolon.startsWith('//') || afterSemicolon.startsWith('/*')) {
+              inlineComment = afterSemicolon
+            }
+          }
+          
           // Always update data to keep the latest value (like regular parseStrings)
           data[key] = value
-          structure.push({ type: 'key', content: line, key, value })
+          structure.push({ type: 'key', content: line, key, value, inlineComment: inlineComment || undefined })
         }
       } else {
-        // Unknown line format, preserve as comment
-        structure.push({ type: 'comment', content: line })
+        // Handle block comments
+        if (trimmedLine.includes('/*') && !inBlockComment) {
+          inBlockComment = true
+          structure.push({ type: 'comment', content: line })
+          if (trimmedLine.includes('*/')) {
+            inBlockComment = false
+          }
+        } else if (inBlockComment) {
+          structure.push({ type: 'comment', content: line })
+          if (trimmedLine.includes('*/')) {
+            inBlockComment = false
+          }
+        } else if (trimmedLine.startsWith('//')) {
+          // Handle line comments
+          structure.push({ type: 'comment', content: line })
+        } else {
+          // Unknown line format, preserve as comment
+          structure.push({ type: 'comment', content: line })
+        }
       }
     }
   } catch (error) {
@@ -254,9 +284,33 @@ export function toStringsWithStructure(
           if (currentValue === item.value) {
             lines.push(item.content)
           } else {
-            // Value has changed - create new line with proper multi-line handling
-            const escapedValue = currentValue.replace(/"/g, '\\"').replace(/\n/g, '\\n')
-            lines.push(`"${item.key}" = "${escapedValue}";`)
+            // Value has changed - create new line with proper escaping
+            const escapedValue = escapeQuotesForExport(currentValue)
+            
+            // Preserve prefix comments (comments before the key-value pair)
+            const originalContent = item.content || ''
+            const keyValueMatch = originalContent.match(/"[^"]+"\s*=\s*"[^"]*"/)
+            
+            if (keyValueMatch) {
+              const keyValueStart = originalContent.indexOf(keyValueMatch[0])
+              const prefix = keyValueStart > 0 ? originalContent.substring(0, keyValueStart) : ''
+              
+              let newLine = prefix + `"${item.key}" = "${escapedValue}";`
+              
+              // Preserve inline comment if it exists
+              if (item.inlineComment) {
+                newLine += ` ${item.inlineComment}`
+              }
+              
+              lines.push(newLine)
+            } else {
+              // Fallback to simple format
+              let newLine = `"${item.key}" = "${escapedValue}";`
+              if (item.inlineComment) {
+                newLine += ` ${item.inlineComment}`
+              }
+              lines.push(newLine)
+            }
           }
           processedKeys.add(item.key)
         }
@@ -287,7 +341,7 @@ export function toStringsWithStructure(
       lines.push('// New keys added during editing')
       for (const key of newKeys) {
         const value = data[key] || ''
-        const escapedValue = value.replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        const escapedValue = escapeQuotesForExport(value)
         lines.push(`"${key}" = "${escapedValue}";`)
       }
     }
@@ -306,7 +360,7 @@ export function toStrings(obj: Record<string, string>): string {
     return Object.entries(splitData)
       .filter(([key, value]) => key && value !== undefined)
       .map(([k, v]) => {
-        const escapedValue = (v || '').replace(/"/g, '\\"').replace(/\n/g, '\\n')
+        const escapedValue = escapeQuotesForExport(v || '')
         return `"${k}" = "${escapedValue}";`
       })
       .join('\n')

@@ -27,10 +27,12 @@ Multi Language Editor is a specialized tool designed to streamline and reduce er
 
 ## Multi Language Editor Solutions
 
-### 1. Centralized Language File Management
-- **Supports iOS (.strings) and Android (strings.xml)** in one interface
+### 1. Advanced Language File Management
+- **Multi-Format Support**: iOS (.strings), Android (.xml), JSON with automatic flattening
+- **Folder Import**: Import entire folders of language files with automatic detection
+- **Complete Comment Preservation**: All comments, headers, and formatting preserved from import to export
 - **Simultaneous Editing**: Edit all languages in one view without opening multiple files
-- **Automatic Export**: Export to appropriate file formats for each platform
+- **Structure-Preserving Export**: Export with original comments and formatting intact
 
 ### 2. Unified Key System and Naming Standards
 - **Shared Keys**: iOS and Android use identical keys
@@ -43,11 +45,14 @@ Multi Language Editor is a specialized tool designed to streamline and reduce er
 - **Numbered Indicators**: Display numbers on images to identify text positions
 - **Position Storage**: Automatically save annotation positions
 
-### 4. Editing Tools
+### 4. Advanced Editing Tools
 - **Direct Key Editing**: Click to edit key names instantly
 - **Multi-Column Paste**: Paste multiple language content simultaneously
-- **Search and Filter**: Easily search keys or content
+- **Dual-Key Mode**: Merge identical values across languages for efficient editing
+- **Search and Filter**: Powerful filtering with multiple criteria
 - **Highlight Mode**: Highlight edited, duplicate, or identical text across languages
+- **JSON Flattening**: Automatic conversion of nested JSON to flat key structures
+- **Project Management**: Save/load complete project states with all data preserved
 
 ### 5. Project Management
 - **Save and Load Projects**: Save work and resume later
@@ -99,27 +104,38 @@ profile_name      | Paste | Profile      | โปรไฟล์       | ប្�
 
 ## Usage Guide
 
-### 1. Starting a Project
-1. Select "Create New Project" 
-2. Choose desired languages (English, Thai, Khmer, Myanmar)
-3. System creates basic keys (`common_ok`, `common_cancel`, `common_welcome`)
+### Method 1: Individual File Upload
+1. **Upload Files**: Click "Upload File" to add individual .strings files
+2. **Language Detection**: System automatically detects language from filename
+3. **Comment Preservation**: All comments and formatting are preserved
+4. **Edit Content**: Use the side-by-side editor to modify values
+5. **Export**: Download files with original structure intact
 
-### 2. Adding New Keys
-1. Click "Add Key" 
-2. Specify key name (recommend `section_description` format)
-3. Fill in text for each language
+### Method 2: Folder Import (Recommended)
+1. **Select Folder**: Click "Import Folder" and choose a directory containing .strings files
+2. **Batch Processing**: All files are processed simultaneously
+3. **Auto-Detection**: Language codes extracted from filenames (en.strings, th.strings, etc.)
+4. **Project Creation**: Automatically creates a new project with all languages
+5. **Structure Preservation**: Complete comment and formatting preservation
 
-### 3. Uploading and Annotating Images
-1. Switch to "Page Sections View"
-2. Select desired section
-3. Upload UI images
-4. Drag keys from list onto image
-5. System automatically saves positions
+### Advanced Features
 
-### 4. Exporting
-1. Select languages to export
-2. Choose format (iOS or Android)
-3. System generates ready-to-use files
+#### Dual-Key Mode
+1. **Toggle Mode**: Enable dual-key mode in the navigation bar
+2. **Key Merging**: Keys with identical values across all languages are merged
+3. **Efficient Editing**: Edit merged values once to update all languages
+4. **Visual Indicators**: Merged keys are marked with chain icons
+
+#### JSON Flattening
+1. **Upload JSON**: Import nested JSON files directly
+2. **Automatic Flattening**: System converts nested objects to flat key structure
+3. **Dot Notation**: Uses dot notation for nested keys (e.g., `user.profile.name`)
+4. **Export Options**: Can export back to nested JSON or flat formats
+
+#### Project Management
+1. **Save Projects**: Projects are automatically saved to browser storage
+2. **Load Projects**: Resume work from previously saved projects
+3. **Export All**: Bulk export all languages in selected formats
 
 ## Best Practices
 

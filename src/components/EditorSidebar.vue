@@ -5,7 +5,7 @@
       <div class="space-y-3 flex flex-col h-full">
         <!-- Theme Selector -->
         <div class="flex-shrink-0">
-          <ThemeSelector :theme="theme" @updateTheme="$emit('updateTheme', $event)" />
+          <ThemeSelector :theme="theme" @updateTheme="(event) => $emit('updateTheme', (event.target as HTMLSelectElement).value)" />
         </div>
 
         <!-- Project Management -->
@@ -14,17 +14,11 @@
           
           <!-- Save Project -->
           <div class="flex gap-1">
-            <button class="btn btn-xs btn-outline flex-1 text-xs" @click="$emit('saveProjectToLocalStorage')">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Save
-            </button>
             <button class="btn btn-xs btn-outline flex-1 text-xs" @click="$emit('saveProjectToFile')">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Download
+              💾 Save Project
             </button>
           </div>
         </div>
@@ -85,14 +79,13 @@ interface Props {
 defineProps<Props>()
 
 defineEmits<{
-  updateTheme: [event: Event]
-  'update:searchQuery': [value: string]
+  updateTheme: [theme: string]
+  'update:searchQuery': [query: string]
   clearSearch: []
   goBack: []
-  saveProjectToLocalStorage: []
   saveProjectToFile: []
-  languageAdded: [languageCode: string]
-  languageRemoved: [languageCode: string]
-  languagesReordered: [fromIndex: number, toIndex: number]
+  languageAdded: [code: string]
+  languageRemoved: [code: string]
+  languagesReordered: [from: number, to: number]
 }>()
 </script>

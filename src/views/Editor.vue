@@ -15,7 +15,6 @@
       @update:searchQuery="searchQuery = $event"
       @clearSearch="clearSearch"
       @goBack="goBack"
-      @saveProjectToLocalStorage="saveProjectToLocalStorage"
       @saveProjectToFile="saveProjectToFile"
       @languageAdded="onLanguageAdded"
       @languageRemoved="onLanguageRemoved"
@@ -30,19 +29,14 @@
         :total-keys="totalKeys"
         :filtered-count="filteredCount"
         :search-query="searchQuery"
-        :show-save="!!filesStore.currentProject"
-        :has-unsaved-changes="false"
-        :is-saving="false"
         :project-name="filesStore.currentProject?.name"
         :language-count="filesStore.languages.length"
         :view-mode="viewMode"
-        :highlight-mode="highlightMode"
         :skip-columns="skipColumns"
         @toggle-drawer="toggleDrawer"
         @update:view-mode="viewMode = $event"
-        @update:highlight-mode="highlightMode = $event"
         @update:skip-columns="skipColumns = $event"
-        @save-project="saveProjectToLocalStorage"
+        @save-project="saveProjectToFile"
         @export-all-columns="exportAllColumns"
       />
 
@@ -188,7 +182,6 @@ import EditorNavbar from '../components/EditorNavbar.vue'
 
 interface JsonTableWithControls {
   mode: 'all' | 'paging'
-  highlightMode: boolean
   search: string
   skipColumns: number
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
@@ -203,7 +196,6 @@ const jsonTable = ref<JsonTableWithControls | null>(null)
 
 // View controls
 const viewMode = ref<'all' | 'paging'>('all')
-const highlightMode = ref(false)
 const searchQuery = ref('')
 const skipColumns = ref(0)
 
@@ -246,13 +238,6 @@ onMounted(() => {
 watch(viewMode, (newMode) => {
   if (jsonTable.value) {
     jsonTable.value.mode = newMode
-  }
-})
-
-// Watch for highlightMode changes
-watch(highlightMode, (newValue) => {
-  if (jsonTable.value) {
-    jsonTable.value.highlightMode = newValue
   }
 })
 
@@ -307,16 +292,21 @@ function toggleDrawer() {
   isDrawerOpen.value = !isDrawerOpen.value
 }
 
-function saveProjectToLocalStorage() {
-  if (filesStore.saveProjectToLocalStorage()) {
-    alert('Project saved to local storage successfully!')
-  } else {
-    alert('Failed to save project. Please try again.')
-  }
-}
-
 function saveProjectToFile() {
+  if (!filesStore.currentProject) {
+    alert('No project to save. Please create a project or load languages first.')
+    return
+  }
+
+  // Check if there's any data to save
+  const hasData = filesStore.languages.some(lang => lang.hasFile && Object.keys(lang.data).length > 0)
+  if (!hasData) {
+    alert('No language data to save. Please import some files first.')
+    return
+  }
+
   filesStore.saveProjectToFile()
+  alert('Project file downloaded successfully!')
 }
 
 // Language column management
