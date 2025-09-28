@@ -1,34 +1,34 @@
-# Multi Language Editor
+# Vue Multi-Language Editor - iOS .strings File Manager
 
-A Vue 3 + TypeScript webapp for editing multiple iOS .strings files side-by-side, designed to streamline multilingual app development workflows.
+A Vue 3 + TypeScript webapp specialized for editing iOS `.strings` files. The app supports side-by-side editing of localization keys across 4 supported languages with comment preservation and project management features.
 
-## 📚 Documentation
-
-- **[Thai Documentation](./MULTI_LANGUAGE_EDITOR_DOCUMENTATION.md)** - เอกสารภาษาไทยแบบละเอียด
-- **[English Documentation](./MULTI_LANGUAGE_EDITOR_DOCUMENTATION_EN.md)** - Comprehensive English documentation
+## 🎯 Supported Languages (iOS Only)
+- **Thai (th)**: ไทย (Thai)
+- **English (en)**: English  
+- **Myanmar (my)**: မြန်မာ (Myanmar)
+- **Khmer (km)**: ខ្មែរ (Khmer)
 
 ## 🚀 Quick Start
 
 ### Core Features
-- **Multi-Format Support**: iOS .strings, Android .xml, JSON with automatic flattening
-- **Import Options**: Individual file uploads or complete folder imports
-- **Complete Comment Preservation**: All comments, structure, and formatting maintained from import to export
+- **iOS .strings Only**: Specialized support for iOS localization files
+- **Comment Preservation**: All comments, structure, and formatting maintained from import to export
 - **Side-by-Side Editing**: View and edit all languages simultaneously
-- **Dual-Key Mode**: Merge identical values across languages for efficient editing
-- **Advanced Export**: Structure-preserving exports with original comments and formatting
-- **Project Management**: Save/load projects with full state preservation
-- **Visual Annotation**: Upload UI images and map text positions
+- **Project Management**: Save/load projects with full state preservation including comments
+- **Folder Import Validation**: Only accepts supported language files
 - **Search & Filter**: Powerful filtering and search capabilities
 
 ### How to Use
 
 #### Method 1: Individual File Upload
-1. **Upload Files**: Use "Upload File" to add individual .strings files (en.strings, th.strings, etc.)
+1. **Upload Files**: Use "Upload File" to add individual .strings files for supported languages (en.strings, th.strings, my.strings, km.strings)
 2. **Edit Content**: View all languages side-by-side, edit values directly in the table
-3. **Export**: Download individual language files with all comments preserved
+3. **Export**: Download individual language files with all comments and structure preserved
 
 #### Method 2: Folder Import (Recommended)
 1. **Select Folder**: Click "Import Folder" and select a folder containing .strings files
+2. **Automatic Filtering**: Only files from supported languages (th, en, my, km) will be imported
+3. **Validation**: Unsupported languages will be rejected with clear error messages
 2. **Auto-Detection**: Language codes are automatically detected from filenames (en.strings, th.strings, etc.)
 3. **Batch Processing**: All files processed simultaneously with structure preservation
 4. **Project Creation**: Automatically creates a new project with all languages loaded

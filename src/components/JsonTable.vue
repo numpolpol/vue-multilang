@@ -8,7 +8,6 @@
       :visible-keys-length="visibleKeys.length"
       :selected-page="selectedPage"
       :page-prefixes-length="pagePrefixes.length"
-      :dual-keys-mode="props.dualKeysMode"
       :searching="searching"
       @update:search="search = $event"
       @update:mode="mode = $event"
@@ -35,11 +34,6 @@
                 <th class="sticky left-0 z-20 bg-white border-r border-base-200" :style="{ width: columnWidths['key'] || '200px', minWidth: '150px' }">
                   <div class="flex items-center gap-2">
                     <span>Key</span>
-                      <!-- Multi key mode indicator -->
-                      <div v-if="props.dualKeysMode" 
-                         class="badge badge-accent badge-xs">
-                      🔗
-                      </div>
                     <div class="resizer" @mousedown="startResizing($event, 'key')"></div>
                   </div>
                 </th>
@@ -85,9 +79,7 @@
                 :column-widths="columnWidths"
                 :key-column-width="keyColumnWidth"
                 :ordered-languages="orderedLanguages"
-                :is-merged-key="isMergedKey(key)"
-                :merged-key-primary="getMergedKeyPrimary(key)"
-                :merged-key-secondary="getMergedKeySecondary(key)"
+                :is-merged-key="false"
                 :is-editing="editingKey === key"
                 :edit-key-value="editKeyValue"
                 :edit-key-error="editKeyError"
@@ -133,7 +125,6 @@ const props = defineProps<{
   data: Record<string, string>[]
   files: File[]
   skipColumns?: number
-  dualKeysMode?: boolean
 }>()
 
 const mode = ref<'all' | 'paging' | 'changes'>('all')
@@ -177,13 +168,8 @@ watch(editingKey, async () => {
 const allKeys = computed(() => {
   // Use language data from store instead of props.data
   if (filesStore.hasLanguageFiles) {
-    if (props.dualKeysMode) {
-      // Use merged keys when dual key mode is enabled
-      return filesStore.allKeysFromLanguages
-    } else {
-      // Normal mode - get all unique keys
-      return filesStore.allKeysFromLanguages
-    }
+    // Get all unique keys
+    return filesStore.allKeysFromLanguages
   }
   
   // Fallback to legacy structure
@@ -427,15 +413,8 @@ async function onPaste(key: string) {
         const language = orderedLanguages.value[i]
         const value = values[i].trim()
         
-        // ถ้าเป็น merged key ต้องอัพเดททุก key ที่ถูกรวมไว้
-        if (isMergedKey(key)) {
-          const allMergedKeys = getAllKeysFromMergedKey(key)
-          allMergedKeys.forEach((individualKey: string) => {
-            filesStore.updateKeyValue(language.code, individualKey, value)
-          })
-        } else {
-          filesStore.updateKeyValue(language.code, key, value)
-        }
+        // Update key value directly
+        filesStore.updateKeyValue(language.code, key, value)
       }
     }
   } catch (e) {
@@ -451,15 +430,8 @@ function onUpdateValue(key: string, languageCode: string, value: string) {
 // Delete key functionality
 function onDeleteKey(key: string) {
   if (confirm(`Are you sure you want to delete the key "${key}"? This will remove it from all languages.`)) {
-    // If it's a merged key, we need to delete all individual keys
-    if (isMergedKey(key)) {
-      const allMergedKeys = getAllKeysFromMergedKey(key)
-      allMergedKeys.forEach((individualKey: string) => {
-        filesStore.deleteKeyFromAllLanguages(individualKey)
-      })
-    } else {
-      filesStore.deleteKeyFromAllLanguages(key)
-    }
+    // Delete key from all languages
+    filesStore.deleteKeyFromAllLanguages(key)
   }
 }
 
@@ -479,12 +451,7 @@ function exportLanguageColumn(languageCode: string) {
   
   // Use all keys from the language data to preserve complete structure
   Object.keys(language.data).forEach(key => {
-    if (isMergedKey(key)) {
-      const primaryKey = getMergedKeyPrimary(key)
-      columnData[primaryKey] = language.data[primaryKey] || ''
-    } else {
-      columnData[key] = language.data[key] || ''
-    }
+    columnData[key] = language.data[key] || ''
   })
 
   if (Object.keys(columnData).length === 0) {
@@ -642,47 +609,12 @@ onBeforeUnmount(() => {
 
 // Safe data access functions
 function setLanguageDataValue(languageCode: string, key: string, value: string) {
-  // ถ้าเป็น merged key ต้องอัพเดททุก key ที่ถูกรวมไว้
-  if (isMergedKey(key)) {
-    // ดึงทุก key ที่ถูกรวมไว้
-    const allMergedKeys = getAllKeysFromMergedKey(key)
-    
-    // อัพเดททุก key
-    allMergedKeys.forEach(individualKey => {
-      filesStore.updateKeyValue(languageCode, individualKey, value)
-    })
-    
-    // ส่ง event สำหรับ primary key
-    const primaryKey = getMergedKeyPrimary(key)
-    emit('change', { key: primaryKey, fileName: languageCode })
-  } else {
-    // กรณี key ปกติ
-    filesStore.updateKeyValue(languageCode, key, value)
-    emit('change', { key, fileName: languageCode })
-  }
+  // Simple key update - no merged key logic needed in iOS-only mode
+  filesStore.updateKeyValue(languageCode, key, value)
+  emit('change', { key, fileName: languageCode })
 }
 
-// Helper functions for merged keys
-function isMergedKey(key: string): boolean {
-  return key.includes(' + ')
-}
 
-function getMergedKeyPrimary(key: string): string {
-  if (!isMergedKey(key)) return key
-  return key.split(' + ')[0] || key
-}
-
-function getMergedKeySecondary(key: string): string {
-  if (!isMergedKey(key)) return ''
-  const parts = key.split(' + ')
-  // Return all keys except the first one (primary key)
-  return parts.slice(1).join(' + ') || ''
-}
-
-function getAllKeysFromMergedKey(key: string): string[] {
-  if (!isMergedKey(key)) return [key]
-  return key.split(' + ')
-}
 
 // Key editing functions
 function startEditKey(key: string) {

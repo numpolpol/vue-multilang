@@ -45,9 +45,6 @@
         <span v-if="mode === 'paging'">
           | {{ pagePrefixesLength }} sections available
         </span>
-        <span v-if="dualKeysMode">
-          | Multi Key Mode: ON
-        </span>
       </div>
     </div>
     

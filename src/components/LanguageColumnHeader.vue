@@ -109,7 +109,7 @@
                   type="file" 
                   accept=".strings"
                   class="hidden"
-                  @change="onFileSelected($event, 'strings')"
+                  @change="onFileSelected($event)"
                 />
               </label>
             </div>
@@ -235,16 +235,16 @@ const copySnippet = async () => {
   }
 }
 
-async function onFileSelected(event: Event, fileType: 'strings') {
+async function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   
   if (file) {
     try {
-      await filesStore.uploadFileToLanguage(props.language.code, file, fileType)
+      await filesStore.uploadFileToLanguage(props.language.code, file)
       
       // Show success message
-      console.log(`Uploaded ${fileType} file for ${props.language.name}`)
+      console.log(`Uploaded .strings file for ${props.language.name}`)
       
       // Clear input and close modal
       input.value = ''

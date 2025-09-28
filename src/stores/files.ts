@@ -1,12 +1,11 @@
 import { defineStore } from 'pinia'
-import type { FileGroup } from '../utils/strings'
 
 export interface LanguageColumn {
   code: string
   name: string
   data: Record<string, string>
   hasFile: boolean
-  fileType?: 'strings' | 'xml' | 'json'
+  fileType?: 'strings' // Only support .strings files
   originalStructure?: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }> // Preserve original file structure
   originalContent?: string // Preserve original file content
 }
@@ -27,15 +26,28 @@ export interface Project {
   createdAt: number
 }
 
-// Default language columns - start with just English, users can add more
-const DEFAULT_LANGUAGES: LanguageColumn[] = [
-  { code: 'en', name: 'English', data: {}, hasFile: false }
+// Type guard to check if language is LanguageColumn format
+function isLanguageColumn(lang: any): lang is LanguageColumn {
+  return 'code' in lang && 'data' in lang
+}
+
+// Type guard to check if language is legacy format
+function isLegacyLanguage(lang: any): lang is { name: string; data: Record<string, string> } {
+  return 'name' in lang && 'data' in lang && !('code' in lang)
+}
+
+// Supported languages only (removed Android/other platform languages)
+const SUPPORTED_LANGUAGES: LanguageColumn[] = [
+  { code: 'th', name: 'ไทย (Thai)', data: {}, hasFile: false },
+  { code: 'en', name: 'English', data: {}, hasFile: false },
+  { code: 'my', name: 'မြန်မာ (Myanmar)', data: {}, hasFile: false },
+  { code: 'km', name: 'ខ្មែរ (Khmer)', data: {}, hasFile: false }
 ]
 
 export const useFilesStore = defineStore('files', {
   state: () => ({
-    // New language-column based structure
-    languages: [...DEFAULT_LANGUAGES] as LanguageColumn[],
+    // New language-column based structure (iOS .strings only)
+    languages: [...SUPPORTED_LANGUAGES] as LanguageColumn[],
     
     // Changes tracking for new structure
     originalLanguages: [] as LanguageColumn[], // Store original state when project is loaded
@@ -45,12 +57,6 @@ export const useFilesStore = defineStore('files', {
     stringsData: [] as Record<string, string>[],
     originalData: [] as Record<string, string>[],
     currentProject: null as Project | null,
-    fileGroups: [] as FileGroup[], // Track file groups for dual key support
-    useDualKeys: false, // Flag to indicate if dual key merging is active
-    
-    // Multi-key mode state
-    mergedKeys: [] as string[],
-    mergedData: [] as Record<string, string>[]
   }),
   
   getters: {
@@ -63,122 +69,67 @@ export const useFilesStore = defineStore('files', {
       return Array.from(keySet).sort()
     },
     
-    // New getters for language-column structure
-    allKeysFromLanguages: (state) => {
-      const hasLanguageFiles = state.languages.some(lang => lang.hasFile)
-      
-      if (state.useDualKeys && hasLanguageFiles) {
-        // For dual key mode, we need to process in an action instead of getter
-        // because getters should be synchronous
-        return state.mergedKeys || []
-      }
-      
-      // Normal mode without merging
+    // Keys from new language-column structure (iOS only)
+    visibleKeys: (state) => {
+      // Simple mode - get all keys from language data (iOS only)
       const keySet = new Set<string>()
       state.languages.forEach(lang => 
-        Object.keys(lang.data).forEach(k => keySet.add(k))
+        Object.keys(lang.data).forEach(key => keySet.add(key))
       )
       return Array.from(keySet).sort()
     },
     
-    // Get merged data for dual key mode
-    mergedLanguageData: (state) => {
-      return state.mergedData || state.languages
-        .filter(lang => lang.hasFile)
-        .map(lang => lang.data)
+    // Simple language data - no merging needed
+    languageData: (state) => {
+      return state.languages
     },
-    
-    hasLanguageFiles: (state) => state.languages.some(lang => lang.hasFile),
-    
-    // Get keys that have changes compared to original state
+
+    // Changes tracking getters
+    hasChanges: (state) => {
+      if (state.originalLanguages.length === 0) return false
+      
+      // Deep compare languages with original
+      return JSON.stringify(state.languages.map(l => ({ code: l.code, data: l.data }))) !== 
+             JSON.stringify(state.originalLanguages.map(l => ({ code: l.code, data: l.data })))
+    },
+
     changedKeys: (state) => {
-      if (!state.originalLanguages.length) return []
+      if (state.originalLanguages.length === 0) return []
       
-      const changedKeys = new Set<string>()
+      const changed: string[] = []
+      const allKeys = new Set<string>()
       
-      // Check each language for changes
-      state.languages.forEach((lang, langIndex) => {
-        if (!lang.hasFile) return
-        
-        const originalLang = state.originalLanguages[langIndex]
-        if (!originalLang) return
-        
-        // Check for new keys
-        Object.keys(lang.data).forEach(key => {
-          if (!(key in originalLang.data)) {
-            changedKeys.add(key) // New key
-          } else if (lang.data[key] !== originalLang.data[key]) {
-            changedKeys.add(key) // Changed value
-          }
-        })
-        
-        // Check for deleted keys (exist in original but not in current)
-        Object.keys(originalLang.data).forEach(key => {
-          if (!(key in lang.data)) {
-            changedKeys.add(key) // Deleted key
-          }
-        })
-      })
+      // Get all keys from both current and original
+      state.languages.forEach(lang => Object.keys(lang.data).forEach(k => allKeys.add(k)))
+      state.originalLanguages.forEach(lang => Object.keys(lang.data).forEach(k => allKeys.add(k)))
       
-      return Array.from(changedKeys).sort()
-    },
-    
-    // Get details about what changed for a specific key
-    getKeyChangeDetails: (state) => (key: string) => {
-      if (!state.originalLanguages.length) return null
-      
-      const changes: Array<{
-        languageCode: string,
-        languageName: string,
-        status: 'new' | 'modified' | 'deleted',
-        oldValue?: string,
-        newValue?: string
-      }> = []
-      
-      state.languages.forEach((lang, langIndex) => {
-        if (!lang.hasFile) return
+      // Check each key for changes
+      allKeys.forEach(key => {
+        const currentValues = state.languages.map(lang => lang.data[key] || '')
+        const originalValues = state.originalLanguages.map(lang => lang.data[key] || '')
         
-        const originalLang = state.originalLanguages[langIndex]
-        if (!originalLang) return
-        
-        const hasOriginal = key in originalLang.data
-        const hasCurrent = key in lang.data
-        
-        if (!hasOriginal && hasCurrent) {
-          // New key
-          changes.push({
-            languageCode: lang.code,
-            languageName: lang.name,
-            status: 'new',
-            newValue: lang.data[key]
-          })
-        } else if (hasOriginal && !hasCurrent) {
-          // Deleted key
-          changes.push({
-            languageCode: lang.code,
-            languageName: lang.name,
-            status: 'deleted',
-            oldValue: originalLang.data[key]
-          })
-        } else if (hasOriginal && hasCurrent && lang.data[key] !== originalLang.data[key]) {
-          // Modified key
-          changes.push({
-            languageCode: lang.code,
-            languageName: lang.name,
-            status: 'modified',
-            oldValue: originalLang.data[key],
-            newValue: lang.data[key]
-          })
+        if (JSON.stringify(currentValues) !== JSON.stringify(originalValues)) {
+          changed.push(key)
         }
       })
       
-      return changes.length > 0 ? changes : null
+      return changed.sort()
+    },
+
+    hasLanguageFiles: (state) => state.languages.some(lang => lang.hasFile),
+    
+    allKeysFromLanguages: (state) => {
+      const keySet = new Set<string>()
+      state.languages.forEach(language => {
+        Object.keys(language.data).forEach(key => keySet.add(key))
+      })
+      return Array.from(keySet).sort()
     }
   },
-  
+
   actions: {
-    // New actions for language-column structure
-    async uploadFileToLanguage(languageCode: string, file: File, fileType: 'strings' | 'xml' | 'json') {
+    // iOS .strings file upload only
+    async uploadFileToLanguage(languageCode: string, file: File) {
       const { parseStrings, parseStringsWithStructure } = await import('../utils/strings')
       const { useNotifications } = await import('../composables/useNotifications')
       const { warning, info } = useNotifications()
@@ -190,54 +141,47 @@ export const useFilesStore = defineStore('files', {
       let duplicateCount = 0
       
       try {
-        if (fileType === 'strings') {
-          // Use enhanced parsing for .strings files to preserve structure
-          parsedFile = parseStringsWithStructure(content)
-          
-          // Also get duplicate info by using the regular parseStrings with details
-          const parseResult = parseStrings(content, true)
-          data = parseResult.data
-          duplicateCount = parseResult.duplicateCount
-        } else {
-          // Use regular parsing for other file types
-          const parseResult = parseStrings(content, true)
-          data = parseResult.data
-          duplicateCount = parseResult.duplicateCount
-        }
+        // Only support .strings files - use enhanced parsing to preserve structure
+        parsedFile = parseStringsWithStructure(content)
+        
+        // Also get duplicate info by using the regular parseStrings with details
+        const parseResult = parseStrings(content, true)
+        data = parseResult.data
+        duplicateCount = parseResult.duplicateCount
+        
       } catch (error) {
-        console.error('Failed to parse file:', error)
-        throw new Error(`Failed to parse ${fileType} file. Please check the format.`)
+        warning('Failed to parse file', error instanceof Error ? error.message : 'Unknown error')
+        return
       }
+
+      // Find and update the language
+      const language = this.languages.find(lang => lang.code === languageCode)
+      if (!language) {
+        warning('Language not found', `Language code: ${languageCode}`)
+        return
+      }
+
+      // Update language data (replace existing keys, keep others)
+      language.data = { ...language.data, ...data }
+      language.hasFile = true
+      language.fileType = 'strings'
       
-      // Show notifications for duplicates if any were found
+      // Store structure if available
+      if (parsedFile) {
+        language.originalStructure = parsedFile.structure
+        language.originalContent = parsedFile.originalContent
+      }
+
+      // Show notification
+      const keyCount = Object.keys(data).length
       if (duplicateCount > 0) {
-        warning(
-          `${duplicateCount} duplicate key${duplicateCount > 1 ? 's' : ''} detected`,
-          `Duplicate keys in ${file.name} were replaced with latest values. Check console for details.`
-        )
-      } else {
-        info(
-          `File uploaded successfully`,
-          `${file.name} imported with ${Object.keys(data).length} keys`
-        )
+        warning(`${duplicateCount} duplicate keys`, 'Latest values kept')
       }
       
-      const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
-      if (langIndex !== -1) {
-        // Merge new data with existing data (replace keys that exist)
-        this.languages[langIndex].data = { ...this.languages[langIndex].data, ...data }
-        this.languages[langIndex].hasFile = true
-        this.languages[langIndex].fileType = fileType
-        
-        // Store original structure for .strings files
-        if (fileType === 'strings' && parsedFile) {
-          this.languages[langIndex].originalStructure = parsedFile.structure
-          this.languages[langIndex].originalContent = parsedFile.originalContent
-        }
-        
-        // Update legacy structure for compatibility
-        this.syncLanguagesToFiles()
-      }
+      info(`${language.name} updated`, `${keyCount} keys loaded`)
+      
+      // Sync to legacy structure for compatibility
+      this.syncLanguagesToFiles()
     },
     
     syncLanguagesToFiles() {
@@ -247,95 +191,93 @@ export const useFilesStore = defineStore('files', {
       
       this.languages.forEach(lang => {
         if (lang.hasFile) {
-          // Create a mock file for compatibility
-          const extension = lang.fileType === 'xml' ? 'xml' : 
-                          lang.fileType === 'json' ? 'json' : 'strings'
-          const mockFile = new File([''], `${lang.code}.${extension}`)
+          // Create a mock file for compatibility - only .strings files supported
+          const mockFile = new File([''], `${lang.code}.strings`)
           this.files.push(mockFile)
           this.stringsData.push({ ...lang.data })
         }
       })
       
       this.originalData = this.stringsData.map(data => ({ ...data }))
-      
-      // Reprocess merged keys if dual key mode is enabled
-      if (this.useDualKeys) {
-        this.processMergedKeys()
-      }
     },
     
     clearLanguageData(languageCode: string) {
-      const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
-      if (langIndex !== -1) {
-        this.languages[langIndex].data = {}
-        this.languages[langIndex].hasFile = false
-        this.languages[langIndex].fileType = undefined
+      const language = this.languages.find(lang => lang.code === languageCode)
+      if (language) {
+        language.data = {}
+        language.hasFile = false
+        language.fileType = undefined
+        language.originalStructure = undefined
+        language.originalContent = undefined
+        
+        // Sync to legacy structure
         this.syncLanguagesToFiles()
       }
     },
     
     addKeyToAllLanguages(key: string, defaultValue: string = '') {
-      // Ensure we have at least one language
-      if (this.languages.length === 0) {
-        console.warn('No languages available to add key to')
-        return
-      }
-      
+      // Add key to all languages with default or empty value
       this.languages.forEach(lang => {
-        if (!lang.data[key]) {
+        if (!lang.data.hasOwnProperty(key)) {
           lang.data[key] = defaultValue
         }
       })
-      this.syncLanguagesToFiles()
       
-      console.log('Added key to all languages:', key, 'Languages count:', this.languages.length)
+      // Sync to legacy structure
+      this.syncLanguagesToFiles()
     },
     
     deleteKeyFromAllLanguages(key: string) {
-      // Remove the key from all languages
+      // Remove key from all languages
       this.languages.forEach(lang => {
-        if (lang.data[key] !== undefined) {
-          delete lang.data[key]
-        }
+        delete lang.data[key]
       })
-      this.syncLanguagesToFiles()
       
-      console.log('Deleted key from all languages:', key)
-    },
-    updateKeyWithFirstValueForAllLanguages(key: string) {
-      // Set the value for the given key in all languages, but only if the key exists in that language
-      const value = this.languages[0].data[key] // Use the first language's value
-      console.log('Updating key:', key, 'with value:', value)
-      this.languages.forEach(lang => {
-        if (lang.data.hasOwnProperty(key)) {
-          lang.data[key] = value
-        }
-      })
+      // Sync to legacy structure
       this.syncLanguagesToFiles()
     },
+
+    updateKeyWithFirstValueForAllLanguages(key: string) {
+      // Find first non-empty value
+      let firstValue = ''
+      for (const lang of this.languages) {
+        if (lang.data[key] && lang.data[key].trim()) {
+          firstValue = lang.data[key]
+          break
+        }
+      }
+      
+      // Update all languages with this value
+      if (firstValue) {
+        this.languages.forEach(lang => {
+          lang.data[key] = firstValue
+        })
+        
+        // Sync to legacy structure
+        this.syncLanguagesToFiles()
+      }
+    },
+
     // Rename/edit a key across all languages
     renameKey(oldKey: string, newKey: string): boolean {
-      // Validate new key
-      if (!newKey || newKey.trim() === '' || newKey === oldKey) {
-        return false
-      }
+      if (oldKey === newKey) return true
       
       // Check if new key already exists
-      const allKeys = this.allKeysFromLanguages
-      if (allKeys.includes(newKey)) {
-        return false
+      const hasNewKey = this.languages.some(lang => lang.data.hasOwnProperty(newKey))
+      if (hasNewKey) {
+        return false // Key already exists
       }
       
-      // Rename the key in all languages
-      this.languages.forEach(language => {
-        if (language.data && language.data[oldKey] !== undefined) {
-          language.data[newKey] = language.data[oldKey]
-          delete language.data[oldKey]
+      // Rename key in all languages
+      this.languages.forEach(lang => {
+        if (lang.data.hasOwnProperty(oldKey)) {
+          lang.data[newKey] = lang.data[oldKey]
+          delete lang.data[oldKey]
         }
       })
       
+      // Sync to legacy structure
       this.syncLanguagesToFiles()
-      console.log('Renamed key:', oldKey, '->', newKey)
       return true
     },
     
@@ -352,146 +294,78 @@ export const useFilesStore = defineStore('files', {
     
     createDefaultLanguage() {
       if (this.languages.length === 0) {
-        // Create default English language with a mock file
-        const defaultContent = '// Default English strings file created automatically\n'
-        const mockFile = new File([defaultContent], 'en.strings', { type: 'text/plain' })
-        
-        // Add to new language structure
-        this.addLanguage({
-          code: 'en',
-          name: 'English',
-          data: {},
-          hasFile: true,
-          fileType: 'strings'
-        })
-        
-        // Add to legacy files structure for compatibility
-        this.addFile(mockFile, {})
-        
-        // Update current project if it exists
-        if (this.currentProject) {
-          this.currentProject.languages = [...this.languages]
-          this.updateCurrentProject()
-        }
-        
-        console.log('Created default English language with strings file')
+        // Reset to supported languages
+        this.languages = [...SUPPORTED_LANGUAGES].map(lang => ({ ...lang }))
+        console.log('Reset to default supported languages (iOS only)')
       }
     },
     
     updateKeyValue(languageCode: string, key: string, value: string) {
-      const langIndex = this.languages.findIndex(lang => lang.code === languageCode)
-      if (langIndex !== -1) {
-        this.languages[langIndex].data[key] = value
-        this.syncLanguagesToFiles()
-      }
-    },
-    
-    // Toggle dual keys mode
-    setDualKeysMode(enabled: boolean) {
-      this.useDualKeys = enabled
-      if (enabled) {
-        this.processMergedKeys()
-      } else {
-        this.mergedKeys = []
-        this.mergedData = []
-      }
-    },
-    
-    // Process merged keys for dual key mode
-    async processMergedKeys() {
-      const hasLanguageFiles = this.languages.some(lang => lang.hasFile)
-      
-      if (!this.useDualKeys || !hasLanguageFiles) {
-        this.mergedKeys = []
-        this.mergedData = []
-        return
-      }
-      
-      try {
-        const { findMergeableKeys, applyKeyMerging } = await import('../utils/strings')
-        const languageData = this.languages
-          .filter(lang => lang.hasFile)
-          .map(lang => lang.data)
+      const language = this.languages.find(lang => lang.code === languageCode)
+      if (language) {
+        language.data[key] = value
         
-        if (languageData.length > 0) {
-          const keyMappings = findMergeableKeys(languageData)
-          const mockFiles = this.languages
-            .filter(lang => lang.hasFile)
-            .map(lang => new File([''], `${lang.code}.${lang.fileType || 'strings'}`))
-          
-          const { data: mergedData } = applyKeyMerging(mockFiles, languageData, keyMappings)
-          
-          // Update state
-          this.mergedData = mergedData
-          
-          const keySet = new Set<string>()
-          mergedData.forEach((obj: Record<string, string>) => 
-            Object.keys(obj).forEach(k => keySet.add(k))
-          )
-          this.mergedKeys = Array.from(keySet).sort()
+        // Also update legacy structure if it exists
+        const languageIndex = this.languages.findIndex(lang => lang.code === languageCode)
+        if (languageIndex >= 0 && this.stringsData[languageIndex]) {
+          this.stringsData[languageIndex][key] = value
         }
-      } catch (error) {
-        console.error('Failed to process merged keys:', error)
-        this.mergedKeys = []
-        this.mergedData = []
       }
     },
+
+    // iOS-only mode - no dual keys needed
     
-    // Helper function
-    async readFileContent(file: File): Promise<string> {
+    readFileContent(file: File): Promise<string> {
       return new Promise((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(reader.error)
+        reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`))
         reader.readAsText(file)
       })
     },
 
-    setFiles(files: File[]) {
-      this.files = files
-    },
-    
-    setStringsData(data: Record<string, string>[]) {
-      this.stringsData = data
-      // Store original data for change tracking
-      this.originalData = data.map(obj => ({ ...obj }))
-    },
-
-    setCurrentProject(project: Project) {
-      this.currentProject = project
-    },
-
-    updateProjectName(newName: string) {
-      if (this.currentProject) {
-        this.currentProject.name = newName.trim()
-        this.currentProject.lastModified = Date.now()
-      }
+    // Project management
+    getCurrentProject(): Project | null {
+      return this.currentProject
     },
 
     updateCurrentProject() {
       if (this.currentProject) {
         this.currentProject.lastModified = Date.now()
         
-        // Update project languages with current data from language-column structure
-        if (this.hasLanguageFiles) {
-          // Use the complete language-column structure to preserve comment data
-          this.currentProject.languages = this.languages
-            .filter(lang => lang.hasFile)
-            .map(lang => ({
-              ...lang, // Preserve all properties including originalStructure and originalContent
-              data: { ...lang.data } // Deep copy data to avoid reference issues
-            }))
-        } else {
-          // Fallback to legacy structure
-          this.currentProject.languages = this.files.map((file, index) => ({
-            name: file.name.replace(/\.(strings|xml)$/, ''),
-            data: this.stringsData[index] || {}
-          }))
-        }
+        // Update languages in project - preserve full structure for comments
+        this.currentProject.languages = this.languages.map(lang => ({
+          code: lang.code,
+          name: lang.name,
+          data: { ...lang.data },
+          hasFile: lang.hasFile,
+          fileType: lang.fileType,
+          originalStructure: lang.originalStructure ? [...lang.originalStructure] : undefined,
+          originalContent: lang.originalContent
+        }))
       }
     },
 
+    saveProject(name: string): Project {
+      const project: Project = {
+        id: Date.now().toString(),
+        name: name,
+        languages: this.languages.map(lang => ({
+          code: lang.code,
+          name: lang.name,
+          data: { ...lang.data },
+          hasFile: lang.hasFile,
+          fileType: lang.fileType,
+          originalStructure: lang.originalStructure ? [...lang.originalStructure] : undefined,
+          originalContent: lang.originalContent
+        })),
+        lastModified: Date.now(),
+        createdAt: Date.now()
+      }
 
+      this.currentProject = project
+      return project
+    },
 
     saveProjectToFile() {
       if (!this.currentProject) return
@@ -510,73 +384,55 @@ export const useFilesStore = defineStore('files', {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     },
-    
-    reset() {
-      this.files = []
-      this.stringsData = []
-      this.originalData = []
-      this.currentProject = null
-      
-      // Reset languages to default state
-      this.languages = [...DEFAULT_LANGUAGES].map(lang => ({
-        ...lang,
-        data: {},
-        hasFile: false,
-        fileType: undefined
-      }))
-      
-      // Reset dual key mode state
-      this.useDualKeys = false
-      this.mergedKeys = []
-      this.mergedData = []
-      this.fileGroups = []
-    },
 
     loadProject(project: Project) {
-      // Set the current project
       this.currentProject = project
+      this.languages = [...SUPPORTED_LANGUAGES].map(defaultLang => ({ ...defaultLang }))
       
-      // Clear existing data
-      this.files = []
-      this.stringsData = []
-      
-      // Clear languages first
-      this.languages = []
-      
-      // Load project data into language-column structure
-      project.languages.forEach((projectLang) => {        
-        // Check if it's new LanguageColumn structure or legacy structure
-        if ('code' in projectLang && 'hasFile' in projectLang) {
-          // New LanguageColumn structure - preserve all properties including comment data
-          const langCol = projectLang as LanguageColumn
-          this.languages.push({
-            code: langCol.code,
-            name: langCol.name,
-            data: { ...langCol.data },
-            hasFile: langCol.hasFile,
-            fileType: langCol.fileType,
-            // Preserve comment structure data for structure preservation
-            originalStructure: langCol.originalStructure,
-            originalContent: langCol.originalContent
-          })
-        } else {
-          // Legacy structure - convert to new structure
-          const langCode = projectLang.name.toLowerCase().replace(/\.(strings|xml)$/, '')
-          const code = langCode === 'english' ? 'en' : 
-                      langCode === 'thai' ? 'th' :
-                      langCode === 'khmer' ? 'km' :
-                      langCode === 'myanmar' ? 'my' : 
-                      langCode
+      // Load data from project
+      if (Array.isArray(project.languages)) {
+        project.languages.forEach(projectLang => {
+          let code: string
           
-          this.languages.push({
-            code: code,
-            name: projectLang.name,
-            data: { ...projectLang.data },
-            hasFile: true,
-            fileType: 'strings'
-          })
-        }
-      })
+          // Handle both old format (legacy) and new format (LanguageColumn)
+          if (isLanguageColumn(projectLang)) {
+            // New format - use code directly
+            code = projectLang.code
+            const targetLang = this.languages.find(l => l.code === code)
+            if (targetLang) {
+              targetLang.data = { ...projectLang.data }
+              targetLang.hasFile = projectLang.hasFile
+              targetLang.fileType = projectLang.fileType
+              targetLang.name = projectLang.name
+              
+              // Restore structure and content if available (for comment preservation)
+              if (projectLang.originalStructure) {
+                targetLang.originalStructure = [...projectLang.originalStructure]
+              }
+              if (projectLang.originalContent) {
+                targetLang.originalContent = projectLang.originalContent
+              }
+            }
+          } else if (isLegacyLanguage(projectLang)) {
+            // Legacy format - convert name to code
+            const langCode = projectLang.name.toLowerCase().replace(/\.strings$/, '')
+            code = langCode === 'english' ? 'en' : 
+                   langCode === 'thai' ? 'th' :
+                   langCode === 'khmer' ? 'km' :
+                   langCode === 'myanmar' ? 'my' : 
+                   langCode
+            
+            const targetLang = this.languages.find(l => l.code === code)
+            if (targetLang) {
+              targetLang.data = { ...projectLang.data }
+              targetLang.hasFile = true
+              targetLang.fileType = 'strings'
+            }
+          } else {
+            console.warn('Invalid language format in project:', projectLang)
+          }
+        })
+      }
       
       // Sync language-column structure to legacy structure for compatibility
       this.syncLanguagesToFiles()
@@ -587,87 +443,78 @@ export const useFilesStore = defineStore('files', {
       console.log('Loaded project:', project.name, 'Languages:', this.languages)
     },
 
-    // Legacy method for backward compatibility
+    reset() {
+      this.files = []
+      this.stringsData = []
+      this.originalData = []
+      this.currentProject = null
+      
+      // Reset languages to default supported languages
+      this.languages = [...SUPPORTED_LANGUAGES].map(lang => ({
+        ...lang,
+        data: {},
+        hasFile: false,
+        fileType: undefined
+      }))
+    },
+
+    removeLanguageColumn(languageCode: string) {
+      this.languages = this.languages.filter(lang => lang.code !== languageCode)
+      this.originalLanguages = this.originalLanguages.filter(lang => lang.code !== languageCode)
+      this.syncLanguagesToFiles()
+    },
+
+    reorderLanguageColumns(fromIndex: number, toIndex: number) {
+      const languages = [...this.languages]
+      const [movedItem] = languages.splice(fromIndex, 1)
+      languages.splice(toIndex, 0, movedItem)
+      this.languages = languages
+      this.syncLanguagesToFiles()
+    },
+
+    updateProjectName(name: string) {
+      if (this.currentProject) {
+        this.currentProject.name = name
+      }
+    },
+
+    setCurrentProject(project: Project) {
+      this.currentProject = project
+      this.languages = project.languages?.map(lang => ({
+        code: lang.name.toLowerCase().replace(/\.strings$/, ''),
+        name: lang.name,
+        data: { ...lang.data },
+        hasFile: true,
+        fileType: 'strings' as const
+      })) || []
+      this.originalLanguages = JSON.parse(JSON.stringify(this.languages))
+      this.syncLanguagesToFiles()
+    },
+
     addKey(key: string, defaultValue: string = ''): boolean {
-      try {
-        // Check if key already exists
-        const keyExists = this.stringsData.some(data => data.hasOwnProperty(key))
-        if (keyExists) {
-          return false
+      // Add key to all language columns
+      this.languages.forEach(language => {
+        if (!language.data[key]) {
+          language.data[key] = defaultValue
         }
-
-        // Add to stringsData (legacy structure)
-        this.stringsData.forEach(data => {
-          data[key] = defaultValue
-        })
-        
-        // Add to originalData
-        this.originalData.forEach(data => {
-          data[key] = defaultValue
-        })
-        
-        return true
-      } catch (error) {
-        console.error('Failed to add key:', error)
-        return false
-      }
-    },
-
-    // Remove a key from all language files
-    removeKey(key: string): boolean {
-      try {
-        // Remove from stringsData
-        this.stringsData.forEach(data => {
-          delete data[key]
-        })
-        
-        // Remove from originalData
-        this.originalData.forEach(data => {
-          delete data[key]
-        })
-
-        // Remove from languages data structure
-        this.languages.forEach(lang => {
-          delete lang.data[key]
-        })
-        
-        return true
-      } catch (error) {
-        console.error('Failed to remove key:', error)
-        return false
-      }
-    },
-
-    // Update a value for a specific file and key
-    updateValue(fileIndex: number, key: string, value: string): boolean {
-      try {
-        // Validate file index
-        if (fileIndex < 0 || fileIndex >= this.stringsData.length) {
-          return false
+      })
+      this.originalLanguages.forEach(language => {
+        if (!language.data[key]) {
+          language.data[key] = defaultValue
         }
-
-        // Update stringsData
-        this.stringsData[fileIndex][key] = value
-
-        // Update languages data structure if it exists
-        if (fileIndex < this.languages.length) {
-          this.languages[fileIndex].data[key] = value
-        }
-        
-        return true
-      } catch (error) {
-        console.error('Failed to update value:', error)
-        return false
-      }
+      })
+      this.syncLanguagesToFiles()
+      return true
     },
 
-    // Legacy method alias for backward compatibility
-    setUseDualKeys(enabled: boolean) {
-      this.setDualKeysMode(enabled)
-    },
-    
     // Language column management actions
     addLanguageColumn(languageCode: string, languageName: string) {
+      // Only allow supported languages
+      if (!SUPPORTED_LANGUAGES.find(sl => sl.code === languageCode)) {
+        console.warn(`Language ${languageCode} is not supported. Supported: ${SUPPORTED_LANGUAGES.map(l => l.code).join(', ')}`)
+        return
+      }
+
       // Check if language already exists
       const exists = this.languages.find(lang => lang.code === languageCode)
       if (exists) {
@@ -696,37 +543,6 @@ export const useFilesStore = defineStore('files', {
       
       console.log(`Added language column: ${languageName} (${languageCode}) with ${existingKeys.size} keys`)
     },
-    
-    removeLanguageColumn(languageCode: string) {
-      const index = this.languages.findIndex(lang => lang.code === languageCode)
-      if (index !== -1) {
-        this.languages.splice(index, 1)
-        
-        // Also remove from original data if exists
-        if (this.originalData[index]) {
-          this.originalData.splice(index, 1)
-        }
-      }
-    },
-    
-    reorderLanguageColumns(fromIndex: number, toIndex: number) {
-      if (fromIndex < 0 || fromIndex >= this.languages.length || 
-          toIndex < 0 || toIndex >= this.languages.length) {
-        return
-      }
-      
-      // Move language column
-      const [movedLanguage] = this.languages.splice(fromIndex, 1)
-      this.languages.splice(toIndex, 0, movedLanguage)
-      
-      // Also reorder original data if exists
-      if (this.originalData.length > fromIndex) {
-        const [movedOriginal] = this.originalData.splice(fromIndex, 1)
-        if (movedOriginal) {
-          this.originalData.splice(toIndex, 0, movedOriginal)
-        }
-      }
-    },
 
     // Create new project (for folder import)
     createNewProject(projectName: string) {
@@ -734,10 +550,6 @@ export const useFilesStore = defineStore('files', {
       this.files = []
       this.stringsData = []
       this.originalData = []
-      this.fileGroups = []
-      this.mergedKeys = []
-      this.mergedData = []
-      this.useDualKeys = false
       
       // Set project info
       this.currentProject = {
@@ -748,16 +560,20 @@ export const useFilesStore = defineStore('files', {
         lastModified: Date.now()
       }
       
-      // Reset to default state with empty languages
-      this.languages = []
+      // Reset to default supported languages with empty data
+      this.languages = [...SUPPORTED_LANGUAGES].map(lang => ({
+        ...lang,
+        data: {},
+        hasFile: false
+      }))
     },
-    
+
     // Changes tracking actions
     snapshotOriginalState() {
       // Deep clone current languages state as original
       this.originalLanguages = JSON.parse(JSON.stringify(this.languages))
     },
-    
+
     resetToOriginalState() {
       // Reset to original state
       if (this.originalLanguages.length > 0) {
@@ -765,9 +581,35 @@ export const useFilesStore = defineStore('files', {
         this.syncLanguagesToFiles() // Update legacy structure
       }
     },
-    
-    hasChanges(): boolean {
-      return this.changedKeys.length > 0
+
+    getKeyChangeDetails(key: string) {
+      if (this.originalLanguages.length === 0) return null
+      
+      const changes: Array<{
+        languageCode: string,
+        languageName: string,
+        status: 'new' | 'modified' | 'deleted',
+        oldValue?: string,
+        newValue?: string
+      }> = []
+      
+      this.languages.forEach(language => {
+        const currentValue = language.data[key] || ''
+        const originalLang = this.originalLanguages.find(orig => orig.code === language.code)
+        const originalValue = originalLang?.data[key] || ''
+        
+        if (currentValue !== originalValue) {
+          changes.push({
+            languageCode: language.code,
+            languageName: language.name,
+            status: originalValue ? 'modified' : 'new',
+            oldValue: originalValue,
+            newValue: currentValue
+          })
+        }
+      })
+      
+      return changes.length > 0 ? changes : null
     }
   }
 })
