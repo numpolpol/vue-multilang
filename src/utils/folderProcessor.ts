@@ -23,10 +23,15 @@ export interface FolderImportResult {
 }
 
 /**
- * Extract language code from filename
- * Supports patterns like: en.strings, Localizable_en.strings, en_US.strings
+ * Extract language code from filename (iOS .strings files only)
+ * Returns null for unsupported languages or invalid patterns
  */
-export function extractLanguageCode(filename: string): { code: string; name: string } | null {
+export function extractLanguageCode(filename: string): string | null {
+  // Only process .strings files
+  if (!filename.toLowerCase().endsWith('.strings')) {
+    return null
+  }
+  
   // Remove .strings extension
   const nameWithoutExt = filename.replace(/\.strings$/i, '')
   
@@ -46,9 +51,9 @@ export function extractLanguageCode(filename: string): { code: string; name: str
     const match = nameWithoutExt.match(pattern)
     if (match) {
       const code = match[1].toLowerCase()
-      const languageName = getLanguageName(code)
-      if (languageName) {
-        return { code, name: languageName }
+      // Only return if it's a supported language
+      if (isValidLanguageCode(code)) {
+        return code
       }
     }
   }
@@ -70,6 +75,13 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
  */
 function getLanguageName(code: string): string | null {
   return SUPPORTED_LANGUAGES[code] || null // Return null for unsupported languages
+}
+
+/**
+ * Check if a language code is valid/supported
+ */
+export function isValidLanguageCode(code: string): boolean {
+  return code in SUPPORTED_LANGUAGES
 }
 
 /**
@@ -117,17 +129,18 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       const content = await readFileAsText(file)
       const parseResult = parseStrings(content, true)
       const structuredResult = parseStringsWithStructure(content)
-      const languageInfo = extractLanguageCode(file.name)
+      const languageCode = extractLanguageCode(file.name)
       
       // Skip files with unsupported languages
-      if (!languageInfo) {
+      if (!languageCode) {
         result.hasErrors = true
         const fileName = file.name.replace(/\.strings$/i, '')
         result.errors.push(`Language '${fileName}' is not supported. Supported languages: ${Object.keys(SUPPORTED_LANGUAGES).join(', ')}`)
         continue
       }
       
-      const { code, name } = languageInfo
+      const code = languageCode
+      const name = getLanguageName(languageCode)!
 
       // Check if parsing actually found valid .strings content
       const hasValidContent = Object.keys(parseResult.data).length > 0 || 
@@ -162,8 +175,9 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       result.errors.push(`Failed to process file ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       
       // Still add the file but mark as invalid
-      const languageInfo = extractLanguageCode(file.name)
-      const { code, name } = languageInfo || { code: 'unknown', name: 'Unknown' }
+      const languageCode = extractLanguageCode(file.name)
+      const code = languageCode || 'unknown'
+      const name = languageCode ? getLanguageName(languageCode)! : 'Unknown'
       result.files.push({
         file,
         name: file.name,
