@@ -17,7 +17,7 @@
     <!-- Page Tabs -->
     <PageTabs
       :mode="mode"
-      :page-prefixes="pagePrefixes"
+      :page-prefixes="filteredPagePrefixes"
       :selected-page="selectedPage"
       @update:selected-page="selectedPage = $event"
     />
@@ -99,6 +99,69 @@
       </div>
     </div>
     
+    <!-- Export Changes Modal -->
+    <dialog id="export_changes_modal" class="modal">
+      <div class="modal-box w-11/12 max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <h3 class="font-bold text-lg mb-4">Export All Languages - Changes Summary</h3>
+        
+        <div v-if="exportSummary" class="text-sm text-base-content/70 mb-4">
+          Exporting {{ exportSummary.totalLanguages }} languages with {{ exportSummary.totalKeys }} keys total.
+          <span v-if="exportSummary.changedKeys > 0" class="text-warning font-medium">
+            {{ exportSummary.changedKeys }} keys have been modified from original import.
+          </span>
+          <span v-else class="text-success">
+            No changes detected from original import.
+          </span>
+        </div>
+
+        <!-- Changes List -->
+        <div v-if="changedKeysWithDetails.length > 0" class="flex-1 overflow-hidden flex flex-col">
+          <h4 class="font-semibold mb-2 text-warning">Modified Keys ({{ changedKeysWithDetails.length }})</h4>
+          <div class="overflow-y-auto flex-1 space-y-2">
+            <div v-for="keyDetail in changedKeysWithDetails" :key="keyDetail.key" 
+                 class="border rounded-lg p-3 bg-base-100">
+              <div class="font-medium text-sm mb-2">{{ keyDetail.key }}</div>
+              <div class="space-y-1">
+                <div v-for="change in keyDetail.changes" :key="change.languageCode" 
+                     class="text-xs">
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-xs" :class="{
+                      'badge-success': change.status === 'new',
+                      'badge-warning': change.status === 'modified',
+                      'badge-error': change.status === 'deleted'
+                    }">{{ change.status }}</span>
+                    <span class="font-medium">{{ change.languageName }}</span>
+                  </div>
+                  <div v-if="change.status === 'modified'" class="ml-4 space-y-0.5">
+                    <div class="text-error">- {{ change.oldValue || '(empty)' }}</div>
+                    <div class="text-success">+ {{ change.newValue || '(empty)' }}</div>
+                  </div>
+                  <div v-else-if="change.status === 'new'" class="ml-4">
+                    <div class="text-success">+ {{ change.newValue || '(empty)' }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else-if="exportSummary" class="text-center py-8 text-base-content/50">
+          <div class="text-4xl mb-2">✅</div>
+          <div>No changes detected. All files will be exported as originally imported.</div>
+        </div>
+        
+        <div class="modal-action mt-4">
+          <button class="btn" @click="closeExportChangesModal">Cancel</button>
+          <button class="btn btn-primary" @click="confirmExportAll">
+            <span v-if="exportSummary && exportSummary.changedKeys > 0">Export {{ exportSummary.totalLanguages }} Files with Changes</span>
+            <span v-else>Export {{ exportSummary?.totalLanguages || 0 }} Files</span>
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button @click="closeExportChangesModal">close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -142,6 +205,23 @@ const editingKey = ref<string | null>(null)
 const editKeyValue = ref<string>('')
 const editKeyError = ref<string>('')
 const editKeyInput = ref<HTMLInputElement | null>(null)
+
+// Export changes modal state
+const exportSummary = ref<{
+  totalLanguages: number
+  totalKeys: number
+  changedKeys: number
+} | null>(null)
+const changedKeysWithDetails = ref<Array<{
+  key: string
+  changes: Array<{
+    languageCode: string
+    languageName: string
+    status: 'new' | 'modified' | 'deleted'
+    oldValue?: string
+    newValue?: string
+  }>
+}>>([]) 
 
 // Get store instance
 const filesStore = useFilesStore()
@@ -230,6 +310,24 @@ const pagePrefixes = computed(() => {
   return Array.from(prefixes)
 })
 
+// Filtered page prefixes - only show sections that have matching keys after search
+const filteredPagePrefixes = computed(() => {
+  const query = debouncedSearch.value.trim()
+  if (!query) return pagePrefixes.value
+  
+  // Get all keys that match the search
+  const matchingKeys = getFilteredKeysForQuery(query, allKeys.value)
+  
+  // Get prefixes of matching keys
+  const matchingPrefixes = new Set<string>()
+  matchingKeys.forEach(key => {
+    const prefix = getPagePrefix(key)
+    if (prefix) matchingPrefixes.add(prefix)
+  })
+  
+  return Array.from(matchingPrefixes)
+})
+
 const visibleKeys = computed(() => {
   if (mode.value === 'all') return allKeys.value
   if (mode.value === 'changes') return filesStore.changedKeys
@@ -237,15 +335,14 @@ const visibleKeys = computed(() => {
   return allKeys.value.filter(key => getPagePrefix(key) === selectedPage.value)
 })
 
-// Enhanced search with multiple modes and better UX
-const filteredKeys = computed(() => {
-  const query = debouncedSearch.value.trim()
-  if (!query) return visibleKeys.value
+// Enhanced search function - extracted for reuse
+const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
+  if (!query) return keysToFilter
 
   // Special search modes
   // 1. Empty values search: empty: or blank:
   if (query === 'empty:' || query === 'blank:') {
-    return visibleKeys.value.filter(key => {
+    return keysToFilter.filter(key => {
       if (!props.data || props.data.length === 0) return false
       return props.data.some(obj => {
         const value = obj?.[key] ?? ''
@@ -256,7 +353,7 @@ const filteredKeys = computed(() => {
 
   // 2. Duplicate values search: duplicate:
   if (query === 'duplicate:') {
-    return visibleKeys.value.filter(key => {
+    return keysToFilter.filter(key => {
       if (!props.data || props.data.length === 0) return false
       const values = props.data.map(obj => (obj?.[key] ?? '').trim()).filter(Boolean)
       const uniqueValues = new Set(values)
@@ -267,13 +364,13 @@ const filteredKeys = computed(() => {
   // 3. Key-only search: key:pattern
   if (query.startsWith('key:')) {
     const keyQuery = query.substring(4).toLowerCase()
-    return visibleKeys.value.filter(key => key.toLowerCase().includes(keyQuery))
+    return keysToFilter.filter(key => key.toLowerCase().includes(keyQuery))
   }
 
   // 4. Value-only search: value:pattern
   if (query.startsWith('value:')) {
     const valueQuery = query.substring(6).toLowerCase()
-    return visibleKeys.value.filter(key => {
+    return keysToFilter.filter(key => {
       if (!props.data || props.data.length === 0) return false
       return props.data.some(obj => {
         const value = obj?.[key] ?? ''
@@ -294,7 +391,7 @@ const filteredKeys = computed(() => {
     
     if (langIndex >= 0) {
       const pattern = searchPattern.toLowerCase()
-      return visibleKeys.value.filter(key => {
+      return keysToFilter.filter(key => {
         const value = props.data?.[langIndex]?.[key] ?? ''
         return value.toLowerCase().includes(pattern)
       })
@@ -306,7 +403,7 @@ const filteredKeys = computed(() => {
     try {
       const pattern = query.slice(1, -1)
       const regex = new RegExp(pattern, 'i')
-      return visibleKeys.value.filter(key => {
+      return keysToFilter.filter(key => {
         // Search in key name
         if (regex.test(key)) return true
         // Search in values
@@ -326,14 +423,14 @@ const filteredKeys = computed(() => {
 
   // 7. Multi-term search: split by comma, search in priority order
   const terms = query.split(',').map(s => s.trim()).filter(Boolean)
-  if (terms.length === 0) return visibleKeys.value
+  if (terms.length === 0) return keysToFilter
   
   const seen = new Set<string>()
   const result: string[] = []
   
   terms.forEach(term => {
     const q = term.toLowerCase()
-    visibleKeys.value.forEach(key => {
+    keysToFilter.forEach(key => {
       if (!seen.has(key)) {
         // Match key name
         let match = key.toLowerCase().includes(q)
@@ -357,6 +454,12 @@ const filteredKeys = computed(() => {
   })
   
   return result
+}
+
+// Enhanced search with multiple modes and better UX
+const filteredKeys = computed(() => {
+  const query = debouncedSearch.value.trim()
+  return getFilteredKeysForQuery(query, visibleKeys.value)
 })
 
 // Watch for skipColumns prop changes
@@ -371,6 +474,18 @@ watch([mode, pagePrefixes], () => {
   }
 })
 
+// Auto-switch to first available section when search filters sections
+watch([filteredPagePrefixes, debouncedSearch], () => {
+  if (mode.value === 'paging' && debouncedSearch.value.trim()) {
+    // If current page is not in filtered list, switch to first available
+    if (selectedPage.value && !filteredPagePrefixes.value.includes(selectedPage.value)) {
+      if (filteredPagePrefixes.value.length > 0) {
+        selectedPage.value = filteredPagePrefixes.value[0]
+      }
+    }
+  }
+})
+
 // Cleanup search timeout on unmount
 onBeforeUnmount(() => {
   if (searchTimeout.value) {
@@ -380,8 +495,8 @@ onBeforeUnmount(() => {
 
 
 
-if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
-  selectedPage.value = pagePrefixes.value[0]
+if (mode.value === 'paging' && !selectedPage.value && filteredPagePrefixes.value.length > 0) {
+  selectedPage.value = filteredPagePrefixes.value[0]
 }
 
 /**
@@ -512,17 +627,43 @@ function onLanguageColumnExport(data: { language: string }) {
   exportLanguageColumn(data.language)
 }
 
-// Export all columns functionality
+// Export all columns functionality - show changes modal first
 function exportAllColumns() {
   if (orderedLanguages.value.length === 0) {
     alert('No languages available to export')
     return
   }
 
-  // Confirm the export
-  const confirmation = confirm(`Export all ${orderedLanguages.value.length} language columns as separate .strings files?`)
-  if (!confirmation) return
+  // Prepare export summary
+  const totalKeys = allKeys.value.length
+  const changedKeys = filesStore.changedKeys
+  
+  exportSummary.value = {
+    totalLanguages: orderedLanguages.value.length,
+    totalKeys,
+    changedKeys: changedKeys.length
+  }
+  
+  // Get detailed changes for each changed key
+  changedKeysWithDetails.value = changedKeys.map(key => {
+    const changes = filesStore.getKeyChangeDetails(key)
+    return {
+      key,
+      changes: changes || []
+    }
+  }).filter(item => item.changes.length > 0)
+  
+  // Show the modal
+  const modal = document.getElementById('export_changes_modal') as HTMLDialogElement
+  if (modal) {
+    modal.showModal()
+  }
+}
 
+// Confirm export after viewing changes
+function confirmExportAll() {
+  if (!exportSummary.value) return
+  
   // Export each language column with a delay to prevent browser blocking
   orderedLanguages.value.forEach((language, index) => {
     setTimeout(() => {
@@ -532,8 +673,21 @@ function exportAllColumns() {
 
   // Show success message
   setTimeout(() => {
-    alert(`Started downloading ${orderedLanguages.value.length} language files. Please check your downloads folder.`)
-  }, orderedLanguages.value.length * 100 + 500)
+    alert(`Started downloading ${exportSummary.value?.totalLanguages} language files. Please check your downloads folder.`)
+  }, (exportSummary.value?.totalLanguages || 0) * 100 + 500)
+  
+  // Close modal
+  closeExportChangesModal()
+}
+
+// Close export changes modal
+function closeExportChangesModal() {
+  const modal = document.getElementById('export_changes_modal') as HTMLDialogElement
+  if (modal) {
+    modal.close()
+  }
+  exportSummary.value = null
+  changedKeysWithDetails.value = []
 }
 
 // Event handlers for LanguageColumnHeader (removed unused ones)

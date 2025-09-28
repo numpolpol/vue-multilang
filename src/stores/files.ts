@@ -182,6 +182,11 @@ export const useFilesStore = defineStore('files', {
       
       // Sync to legacy structure for compatibility
       this.syncLanguagesToFiles()
+      
+      // Snapshot original state if this is the first file upload
+      if (this.originalLanguages.length === 0) {
+        this.snapshotOriginalState()
+      }
     },
     
     syncLanguagesToFiles() {

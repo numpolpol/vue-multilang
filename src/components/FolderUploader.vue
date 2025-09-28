@@ -330,6 +330,9 @@ const importProject = async () => {
     // Sync to legacy structure
     filesStore.syncLanguagesToFiles()
     
+    // CRITICAL: Snapshot the original state for change tracking
+    filesStore.snapshotOriginalState()
+    
     success(`Successfully imported ${importResult.value.languages.length} languages`, 
            `Project "${projectName.value}" created with ${importResult.value.keyCount} keys`)
     
