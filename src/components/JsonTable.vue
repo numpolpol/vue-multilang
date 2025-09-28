@@ -17,7 +17,7 @@
     <!-- Page Tabs -->
     <PageTabs
       :mode="mode"
-      :page-prefixes="pagePrefixes"
+      :page-prefixes="filteredPagePrefixes"
       :selected-page="selectedPage"
       @update:selected-page="selectedPage = $event"
     />
@@ -310,6 +310,24 @@ const pagePrefixes = computed(() => {
   return Array.from(prefixes)
 })
 
+// Filtered page prefixes - only show sections that have matching keys after search
+const filteredPagePrefixes = computed(() => {
+  const query = debouncedSearch.value.trim()
+  if (!query) return pagePrefixes.value
+  
+  // Get all keys that match the search
+  const matchingKeys = getFilteredKeysForQuery(query, allKeys.value)
+  
+  // Get prefixes of matching keys
+  const matchingPrefixes = new Set<string>()
+  matchingKeys.forEach(key => {
+    const prefix = getPagePrefix(key)
+    if (prefix) matchingPrefixes.add(prefix)
+  })
+  
+  return Array.from(matchingPrefixes)
+})
+
 const visibleKeys = computed(() => {
   if (mode.value === 'all') return allKeys.value
   if (mode.value === 'changes') return filesStore.changedKeys
@@ -317,15 +335,14 @@ const visibleKeys = computed(() => {
   return allKeys.value.filter(key => getPagePrefix(key) === selectedPage.value)
 })
 
-// Enhanced search with multiple modes and better UX
-const filteredKeys = computed(() => {
-  const query = debouncedSearch.value.trim()
-  if (!query) return visibleKeys.value
+// Enhanced search function - extracted for reuse
+const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
+  if (!query) return keysToFilter
 
   // Special search modes
   // 1. Empty values search: empty: or blank:
   if (query === 'empty:' || query === 'blank:') {
-    return visibleKeys.value.filter(key => {
+    return keysToFilter.filter(key => {
       if (!props.data || props.data.length === 0) return false
       return props.data.some(obj => {
         const value = obj?.[key] ?? ''
@@ -336,7 +353,7 @@ const filteredKeys = computed(() => {
 
   // 2. Duplicate values search: duplicate:
   if (query === 'duplicate:') {
-    return visibleKeys.value.filter(key => {
+    return keysToFilter.filter(key => {
       if (!props.data || props.data.length === 0) return false
       const values = props.data.map(obj => (obj?.[key] ?? '').trim()).filter(Boolean)
       const uniqueValues = new Set(values)
@@ -347,13 +364,13 @@ const filteredKeys = computed(() => {
   // 3. Key-only search: key:pattern
   if (query.startsWith('key:')) {
     const keyQuery = query.substring(4).toLowerCase()
-    return visibleKeys.value.filter(key => key.toLowerCase().includes(keyQuery))
+    return keysToFilter.filter(key => key.toLowerCase().includes(keyQuery))
   }
 
   // 4. Value-only search: value:pattern
   if (query.startsWith('value:')) {
     const valueQuery = query.substring(6).toLowerCase()
-    return visibleKeys.value.filter(key => {
+    return keysToFilter.filter(key => {
       if (!props.data || props.data.length === 0) return false
       return props.data.some(obj => {
         const value = obj?.[key] ?? ''
@@ -374,7 +391,7 @@ const filteredKeys = computed(() => {
     
     if (langIndex >= 0) {
       const pattern = searchPattern.toLowerCase()
-      return visibleKeys.value.filter(key => {
+      return keysToFilter.filter(key => {
         const value = props.data?.[langIndex]?.[key] ?? ''
         return value.toLowerCase().includes(pattern)
       })
@@ -386,7 +403,7 @@ const filteredKeys = computed(() => {
     try {
       const pattern = query.slice(1, -1)
       const regex = new RegExp(pattern, 'i')
-      return visibleKeys.value.filter(key => {
+      return keysToFilter.filter(key => {
         // Search in key name
         if (regex.test(key)) return true
         // Search in values
@@ -406,14 +423,14 @@ const filteredKeys = computed(() => {
 
   // 7. Multi-term search: split by comma, search in priority order
   const terms = query.split(',').map(s => s.trim()).filter(Boolean)
-  if (terms.length === 0) return visibleKeys.value
+  if (terms.length === 0) return keysToFilter
   
   const seen = new Set<string>()
   const result: string[] = []
   
   terms.forEach(term => {
     const q = term.toLowerCase()
-    visibleKeys.value.forEach(key => {
+    keysToFilter.forEach(key => {
       if (!seen.has(key)) {
         // Match key name
         let match = key.toLowerCase().includes(q)
@@ -437,6 +454,12 @@ const filteredKeys = computed(() => {
   })
   
   return result
+}
+
+// Enhanced search with multiple modes and better UX
+const filteredKeys = computed(() => {
+  const query = debouncedSearch.value.trim()
+  return getFilteredKeysForQuery(query, visibleKeys.value)
 })
 
 // Watch for skipColumns prop changes
@@ -451,6 +474,18 @@ watch([mode, pagePrefixes], () => {
   }
 })
 
+// Auto-switch to first available section when search filters sections
+watch([filteredPagePrefixes, debouncedSearch], () => {
+  if (mode.value === 'paging' && debouncedSearch.value.trim()) {
+    // If current page is not in filtered list, switch to first available
+    if (selectedPage.value && !filteredPagePrefixes.value.includes(selectedPage.value)) {
+      if (filteredPagePrefixes.value.length > 0) {
+        selectedPage.value = filteredPagePrefixes.value[0]
+      }
+    }
+  }
+})
+
 // Cleanup search timeout on unmount
 onBeforeUnmount(() => {
   if (searchTimeout.value) {
@@ -460,8 +495,8 @@ onBeforeUnmount(() => {
 
 
 
-if (mode.value === 'paging' && !selectedPage.value && pagePrefixes.value.length > 0) {
-  selectedPage.value = pagePrefixes.value[0]
+if (mode.value === 'paging' && !selectedPage.value && filteredPagePrefixes.value.length > 0) {
+  selectedPage.value = filteredPagePrefixes.value[0]
 }
 
 /**
