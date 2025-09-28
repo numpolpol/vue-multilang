@@ -138,9 +138,6 @@ const emit = defineEmits<{
 const editKeyInput = ref<HTMLInputElement | null>(null)
 
 function getDisplayValue(language: Language): string {
-  if (props.isMergedKey && props.mergedKeyPrimary) {
-    return language.data[props.mergedKeyPrimary] || ''
-  }
   return language.data[props.keyName] || ''
 }
 

@@ -3,28 +3,33 @@
 # Vue Multi-Language Editor - iOS .strings File Manager
 
 ## Core Architecture
-This is a **Vue 3 + TypeScript + Pinia + Vite** webapp specialized for editing iOS `.strings` files in a multi-language workflow. The app supports side-by-side editing of localization keys across multiple languages with advanced features like key merging, JSON flattening, and dual-key mode.
+This is a **Vue 3 + TypeScript + Pinia + Vite** webapp specialized for editing iOS `.strings` files. The app supports side-by-side editing of localization keys across 4 supported languages with comment preservation and project management features.
+
+## Supported Languages (iOS Only)
+- **Thai (th)**: ไทย (Thai)
+- **English (en)**: English  
+- **Myanmar (my)**: မြန်မာ (Myanmar)
+- **Khmer (km)**: ខ្មែរ (Khmer)
 
 ## Key Data Structures & Patterns
 
-### Dual State Management
-The app maintains **two parallel data structures** for backward compatibility:
-- **New Structure**: `LanguageColumn[]` in `src/stores/files.ts` with `{code, name, data, hasFile, fileType}`
-- **Legacy Structure**: `File[]` + `Record<string, string>[]` for existing components
-- **Critical**: Always call `syncLanguagesToFiles()` after language column updates
+### Language Column Structure
+The app uses `LanguageColumn[]` in `src/stores/files.ts`:
+```typescript
+interface LanguageColumn {
+  code: string                    // Language code (th, en, my, km)
+  name: string                    // Display name
+  data: Record<string, string>    // Key-value pairs
+  hasFile: boolean               // Whether file was uploaded
+  fileType?: 'strings'           // Only iOS .strings supported
+  originalStructure?: Array<...> // Preserve comments & formatting
+  originalContent?: string       // Original file content
+}
+```
 
 ### File Format Support
-- **iOS .strings**: `"key" = "value";` - Primary format with structure preservation
-- **Android .xml**: `<string name="key">value</string>` - Secondary for dual-key mode  
-- **JSON**: Nested objects with automatic flattening via `src/utils/jsonFlattening.ts`
-- **TSV**: Tab-separated multi-language import (key + th/en/km/my columns)
-
-### Key Merging Logic (Dual-Key Mode)
-When enabled via navbar toggle, keys with **identical values across ALL languages** are merged:
-```typescript
-// Example: "common_ok" + "android_common_ok" if both = "OK" in all languages
-// Implemented in findMergeableKeys() and applyKeyMerging()
-```
+- **iOS .strings**: `"key" = "value";` - ONLY supported format with full structure preservation
+- **Comment Preservation**: Full support for `/* */`, `//` comments and original formatting
 
 ## Essential Developer Workflows
 
@@ -40,13 +45,13 @@ npm run deploy       # Build + deploy to GitHub Pages
 ### Testing Key Features
 Use sample files in `src/sample/` for testing:
 - `test_en.strings` + `test_th.strings` for basic multi-language
-- `test_en.xml` for dual-key mode testing
-- JSON files for flattening tests
+- `multi_en.strings` + `multi_th.strings` for structure preservation tests
+- Any `.strings` files for comment preservation validation
 
 ### Key File Locations
-- **State Management**: `src/stores/files.ts` - Main store with language columns + dual-key logic
+- **State Management**: `src/stores/files.ts` - Main store with language columns (iOS-only)
 - **String Parsing**: `src/utils/strings.ts` - iOS .strings parser with structure preservation
-- **JSON Flattening**: `src/utils/jsonFlattening.ts` - Nested JSON ↔ flat key conversion
+- **Folder Processing**: `src/utils/folderProcessor.ts` - Language validation and filtering
 - **Main Editor**: `src/views/Editor.vue` + `src/components/JsonTable.vue`
 
 ## Project-Specific Conventions
@@ -75,16 +80,10 @@ store.syncLanguagesToFiles()
 ```
 
 ### Export Format Rules
-- **iOS Export**: Uses `splitMergedData()` to separate merged keys back to iOS format
-- **Android Export**: Extracts Android-specific keys from merged pairs
-- **JSON Export**: Uses `unflattenObject()` to reconstruct nested structure
+- **iOS Export**: Uses `toStringsWithStructure()` to preserve comments and original structure when available
+- **Structure Preservation**: Maintains original file formatting and comments through save/load cycle
 
 ## Critical Integration Points
-
-### Dual-Key Mode State
-- Toggle in navbar sets `store.useDualKeys` 
-- Triggers `processMergedKeys()` which calls `findMergeableKeys()` + `applyKeyMerging()`
-- Visual indicator: chain icon (🔗) in table header + "merged" badges on rows
 
 ### Notification System
 Uses `src/composables/useNotifications.ts` for user feedback:
@@ -104,4 +103,4 @@ warning(`${duplicateCount} duplicate keys`, 'Details...')
 - **Store reactivity**: Components reactively update when store getters change
 - **Modal patterns**: Uses DaisyUI modals with `dialog` elements for key editing
 
-Focus on iOS `.strings` format as primary use case, with Android XML and JSON as secondary supported formats.
+Focus on iOS `.strings` format as primary use case, supporting only 4 languages (th, en, my, km) with full comment preservation.
