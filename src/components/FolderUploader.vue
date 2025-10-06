@@ -1,5 +1,11 @@
 <template>
   <div class="folder-uploader">
+    <!-- Duplicate Keys Modal -->
+    <DuplicateKeysModal 
+      ref="duplicateModal"
+      :duplicate-data="duplicateData"
+    />
+    
     <!-- Folder Upload Area -->
     <div class="upload-area mb-6">
       <div 
@@ -189,6 +195,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFilesStore } from '../stores/files'
 import { useNotifications } from '../composables/useNotifications'
+import DuplicateKeysModal from './DuplicateKeysModal.vue'
 import { 
   processFolderFiles, 
   validateFolderStructure, 
@@ -204,6 +211,7 @@ const { success, error, warning } = useNotifications()
 
 // Refs
 const folderInput = ref<HTMLInputElement>()
+const duplicateModal = ref<InstanceType<typeof DuplicateKeysModal>>()
 const isDragging = ref(false)
 const isProcessing = ref(false)
 const isImporting = ref(false)
@@ -211,6 +219,7 @@ const hasError = ref(false)
 const errorMessage = ref('')
 const importResult = ref<FolderImportResult | null>(null)
 const projectName = ref('')
+const duplicateData = ref<any>(null)
 
 // Computed
 const validFileCount = computed(() => 
@@ -289,9 +298,39 @@ const processFiles = async (files: File[]) => {
     importResult.value = result
     projectName.value = generateProjectName(result.files)
     
+    // Check for duplicates and prepare modal data
+    if (result.totalDuplicates > 0) {
+      const duplicateDetails: any[] = []
+      const duplicateKeys = new Set<string>()
+      
+      result.files.forEach(file => {
+        if (file.parseResult && file.parseResult.duplicateDetails) {
+          file.parseResult.duplicateDetails.forEach((detail: any) => {
+            duplicateKeys.add(detail.key)
+            duplicateDetails.push({
+              ...detail,
+              fileName: file.name
+            })
+          })
+        }
+      })
+      
+      duplicateData.value = {
+        duplicateCount: duplicateKeys.size,
+        duplicateKeys: Array.from(duplicateKeys),
+        duplicateDetails,
+        affectedFiles: result.files.filter(f => f.parseResult && f.parseResult.duplicateCount > 0).length
+      }
+      
+      // Show modal after processing
+      setTimeout(() => {
+        duplicateModal.value?.showModal()
+      }, 100)
+    }
+    
     // Show warnings if any
     if (result.totalDuplicates > 0) {
-      warning(`Found ${result.totalDuplicates} duplicate keys across files`, 'Latest values will be used')
+      warning(`Found ${result.totalDuplicates} duplicate keys across files`, 'Click "View Details" to see which values were kept')
     }
     
   } catch (err) {

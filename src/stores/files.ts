@@ -52,6 +52,22 @@ export const useFilesStore = defineStore('files', {
     // Changes tracking for new structure
     originalLanguages: [] as LanguageColumn[], // Store original state when project is loaded
     
+    // Store last duplicate data for modal display
+    lastDuplicateData: null as {
+      duplicateCount: number
+      duplicateKeys: string[]
+      duplicateDetails: Array<{
+        key: string
+        occurrences: Array<{
+          value: string
+          lineNumber: number
+          used: boolean
+        }>
+      }>
+      fileName?: string
+      affectedFiles?: number
+    } | null,
+    
     // Legacy structure (keep for compatibility)
     files: [] as File[],
     stringsData: [] as Record<string, string>[],
@@ -129,7 +145,7 @@ export const useFilesStore = defineStore('files', {
 
   actions: {
     // iOS .strings file upload only
-    async uploadFileToLanguage(languageCode: string, file: File) {
+    async uploadFileToLanguage(languageCode: string, file: File): Promise<{ showDuplicateModal: boolean; duplicateData: any } | void> {
       const { parseStrings, parseStringsWithStructure } = await import('../utils/strings')
       const { useNotifications } = await import('../composables/useNotifications')
       const { warning, info } = useNotifications()
@@ -139,15 +155,18 @@ export const useFilesStore = defineStore('files', {
       let data: Record<string, string>
       let parsedFile: any = null
       let duplicateCount = 0
+      let duplicateDetails: any[] = []
+      let parseResult: any = null
       
       try {
         // Only support .strings files - use enhanced parsing to preserve structure
         parsedFile = parseStringsWithStructure(content)
         
         // Also get duplicate info by using the regular parseStrings with details
-        const parseResult = parseStrings(content, true)
+        parseResult = parseStrings(content, true)
         data = parseResult.data
         duplicateCount = parseResult.duplicateCount
+        duplicateDetails = parseResult.duplicateDetails
         
       } catch (error) {
         warning('Failed to parse file', error instanceof Error ? error.message : 'Unknown error')
@@ -172,10 +191,22 @@ export const useFilesStore = defineStore('files', {
         language.originalContent = parsedFile.originalContent
       }
 
-      // Show notification
+      // Show notification and duplicate details if any
       const keyCount = Object.keys(data).length
       if (duplicateCount > 0) {
-        warning(`${duplicateCount} duplicate keys`, 'Latest values kept')
+        // Store duplicate data for modal
+        this.lastDuplicateData = {
+          duplicateCount,
+          duplicateKeys: parseResult.duplicateKeys,
+          duplicateDetails,
+          fileName: file.name,
+          affectedFiles: 1
+        }
+        
+        warning(`${duplicateCount} duplicate keys`, 'Click to view details')
+        
+        // Return signal to show modal
+        return { showDuplicateModal: true, duplicateData: this.lastDuplicateData }
       }
       
       info(`${language.name} updated`, `${keyCount} keys loaded`)

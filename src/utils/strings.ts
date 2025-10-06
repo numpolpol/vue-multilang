@@ -32,6 +32,14 @@ export interface ParseResult {
   data: Record<string, string>
   duplicateCount: number
   duplicateKeys: string[]
+  duplicateDetails: Array<{
+    key: string
+    occurrences: Array<{
+      value: string
+      lineNumber: number
+      used: boolean // true if this value was kept
+    }>
+  }>
 }
 
 export function parseStrings(content: string): Record<string, string>
@@ -39,10 +47,19 @@ export function parseStrings(content: string, returnDetails: true): ParseResult
 export function parseStrings(content: string, returnDetails?: boolean): Record<string, string> | ParseResult {
   const result: Record<string, string> = {}
   const duplicateKeys = new Set<string>()
+  const duplicateDetails: Array<{
+    key: string
+    occurrences: Array<{
+      value: string
+      lineNumber: number
+      used: boolean
+    }>
+  }> = []
+  const keyOccurrences = new Map<string, Array<{ value: string, lineNumber: number }>>()
   
   if (!content || content.trim().length === 0) {
     return returnDetails 
-      ? { data: result, duplicateCount: 0, duplicateKeys: [] }
+      ? { data: result, duplicateCount: 0, duplicateKeys: [], duplicateDetails: [] }
       : result
   }
   
@@ -77,7 +94,10 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
     .map(l => l.trim())
     .filter(l => l && /=/g.test(l))
   
-  for (const line of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      const line = lines[lineIndex]
+      const lineNumber = lineIndex + 1
+      
       // Parse key-value pairs with proper handling of escaped quotes
       const keyMatch = line.match(/^"?(.*?)"?\s*=\s*"/)
       if (keyMatch) {
@@ -121,6 +141,12 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
         }
         
         if (key) {
+          // Track all occurrences
+          if (!keyOccurrences.has(key)) {
+            keyOccurrences.set(key, [])
+          }
+          keyOccurrences.get(key)!.push({ value, lineNumber })
+          
           // Check for duplicate keys and log them
           if (key in result) {
             duplicateKeys.add(key)
@@ -128,6 +154,20 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
           }
           result[key] = value
         }
+      }
+    }
+    
+    // Process duplicates to create detailed information
+    for (const [key, occurrences] of keyOccurrences) {
+      if (occurrences.length > 1) {
+        const finalValue = result[key]
+        duplicateDetails.push({
+          key,
+          occurrences: occurrences.map((occ, index) => ({
+            ...occ,
+            used: occ.value === finalValue && index === occurrences.length - 1 // Last occurrence with final value
+          }))
+        })
       }
     }
     
@@ -140,7 +180,7 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
   }
   
   return returnDetails 
-    ? { data: result, duplicateCount: duplicateKeys.size, duplicateKeys: Array.from(duplicateKeys) }
+    ? { data: result, duplicateCount: duplicateKeys.size, duplicateKeys: Array.from(duplicateKeys), duplicateDetails }
     : result
 }
 
