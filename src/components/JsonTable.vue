@@ -169,6 +169,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import { toStrings, toStringsWithStructure } from '../utils/strings'
+import { hasSpecialCharactersInLanguageData } from '../utils/specialCharacters'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 import TableSearchControls from './TableSearchControls.vue'
 import PageTabs from './PageTabs.vue'
@@ -379,7 +380,19 @@ const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
     })
   }
 
-  // 5. Language-specific search: lang:th:pattern
+  // 5. Special characters search: special:
+  if (query === 'special:') {
+    return keysToFilter.filter(key => {
+      if (!props.data || props.data.length === 0) return false
+      // Check if any language value for this key contains special characters
+      return props.data.some(obj => {
+        if (!obj || !obj[key]) return false
+        return hasSpecialCharactersInLanguageData({ [key]: obj[key] }, key)
+      })
+    })
+  }
+
+  // 6. Language-specific search: lang:th:pattern
   const langMatch = query.match(/^lang:([a-z]{2,3}):(.*)/)
   if (langMatch) {
     const [, langCode, searchPattern] = langMatch
@@ -398,7 +411,7 @@ const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
     }
   }
 
-  // 6. Regex mode: if query starts and ends with /, treat as regex
+  // 7. Regex mode: if query starts and ends with /, treat as regex
   if (query.length > 2 && query.startsWith('/') && query.endsWith('/')) {
     try {
       const pattern = query.slice(1, -1)
@@ -421,7 +434,7 @@ const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
     }
   }
 
-  // 7. Multi-term search: split by comma, search in priority order
+  // 8. Multi-term search: split by comma, search in priority order
   const terms = query.split(',').map(s => s.trim()).filter(Boolean)
   if (terms.length === 0) return keysToFilter
   

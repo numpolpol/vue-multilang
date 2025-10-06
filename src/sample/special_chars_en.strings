@@ -1,0 +1,29 @@
+/* Test file with special characters for special character detection feature */
+
+// Basic strings without special characters
+"hello" = "Hello World";
+"goodbye" = "Goodbye";
+
+// iOS placeholder strings
+"welcome_user" = "Welcome %@!";
+"user_count" = "You have %d messages";
+"percentage" = "Progress: %f%%";
+"long_number" = "Value: %ld items";
+
+// Line breaks and formatting
+"multiline_text" = "Line 1\nLine 2\nLine 3";
+"tab_separated" = "Name:\tJohn\tAge:\t25";
+"mixed_formatting" = "Hello %@,\nYou have %d new messages.\nCompletion: %f%%";
+
+// Template literals and curly braces
+"template_string" = "Hello {{username}}, welcome back!";
+"json_like" = "User: {name: '%@', age: %d}";
+"bracket_only" = "Select {option} from menu";
+
+// Complex combinations
+"complex_format" = "Dear %@,\n\nYour order {{orderNumber}} is ready.\nTotal: %f USD\n\nThank you!";
+"debug_info" = "Error %d: Failed to load %@ at line %ld\n\nDetails:\n\t- Code: %d\n\t- File: %@";
+
+// Normal strings for comparison
+"simple_text" = "This is just normal text";
+"another_simple" = "No special characters here";
