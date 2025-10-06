@@ -108,6 +108,32 @@
       </div>
     </div>
     <div class="navbar-end">
+      <!-- Test CSV Button -->
+      <button 
+        class="btn btn-sm mr-2 btn-warning group transition-all duration-300 hover:scale-105" 
+        @click="testCSVDownload" 
+        title="Test CSV Download"
+      >
+        <div class="flex items-center gap-2">
+          <span class="font-medium">Test</span>
+        </div>
+      </button>
+      
+      <!-- Export CSV Button -->
+      <button 
+        class="btn btn-sm mr-2 btn-success group transition-all duration-300 hover:scale-105" 
+        @click="() => { console.log('🔵 CSV button clicked in EditorNavbar'); $emit('export-csv'); console.log('🔵 Emitted export-csv event'); }" 
+        :title="'Export all keys and values as CSV spreadsheet'"
+        :disabled="languageCount === 0"
+      >
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          <span class="font-medium">CSV</span>
+        </div>
+      </button>
+      
       <!-- Export All Columns Button -->
       <button 
         class="btn btn-sm mr-2 btn-accent group transition-all duration-300 hover:scale-105" 
@@ -176,6 +202,7 @@ defineEmits<{
   'update:skipColumns': [value: number]
   saveProject: []
   exportAllColumns: []
+  'export-csv': []
 }>()
 
 const filesStore = useFilesStore()
@@ -205,5 +232,35 @@ function saveProjectName() {
 function cancelEditingProjectName() {
   isEditingProjectName.value = false
   editingProjectName.value = ''
+}
+
+// Test CSV download function
+function testCSVDownload() {
+  console.log('Test CSV download clicked')
+  
+  const csvContent = '"Key","English","Thai"\n"test","Hello","สวัสดี"\n"test2","World","โลก"'
+  const filename = 'test_download.csv'
+  
+  try {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    URL.revokeObjectURL(url)
+    
+    console.log('Test download initiated')
+    alert('Test CSV download initiated')
+  } catch (error) {
+    console.error('Test download failed:', error)
+    alert('Test download failed: ' + error)
+  }
 }
 </script>

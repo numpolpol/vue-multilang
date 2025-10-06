@@ -62,10 +62,10 @@
             :value="search" 
             @input="$emit('update:search', ($event.target as HTMLInputElement).value)" 
             type="text" 
-            placeholder="Search... (try: empty:, key:, value:, /regex/, lang:th:)" 
+            placeholder="Search... (try: empty:, special:, key:, value:, /regex/, lang:th:)" 
             class="input input-bordered w-full" 
             :class="{ 'input-warning': searching }"
-            title="Search modes: empty: (blank values), key:pattern (keys only), value:pattern (values only), lang:th:pattern (specific language), /regex/ (regex pattern), term1,term2 (multiple terms)" 
+            title="Search modes: empty: (blank values), special: (special chars like %@, %f, \n), key:pattern (keys only), value:pattern (values only), lang:th:pattern (specific language), /regex/ (regex pattern), term1,term2 (multiple terms)" 
           />
           <button class="btn btn-primary btn-sm" @click="$emit('addKey')" title="Add New Key">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

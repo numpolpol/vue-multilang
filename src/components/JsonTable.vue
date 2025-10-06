@@ -169,6 +169,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import { toStrings, toStringsWithStructure } from '../utils/strings'
+import { hasSpecialCharactersInLanguageData } from '../utils/specialCharacters'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 import TableSearchControls from './TableSearchControls.vue'
 import PageTabs from './PageTabs.vue'
@@ -379,7 +380,19 @@ const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
     })
   }
 
-  // 5. Language-specific search: lang:th:pattern
+  // 5. Special characters search: special:
+  if (query === 'special:') {
+    return keysToFilter.filter(key => {
+      if (!props.data || props.data.length === 0) return false
+      // Check if any language value for this key contains special characters
+      return props.data.some(obj => {
+        if (!obj || !obj[key]) return false
+        return hasSpecialCharactersInLanguageData({ [key]: obj[key] }, key)
+      })
+    })
+  }
+
+  // 6. Language-specific search: lang:th:pattern
   const langMatch = query.match(/^lang:([a-z]{2,3}):(.*)/)
   if (langMatch) {
     const [, langCode, searchPattern] = langMatch
@@ -398,7 +411,7 @@ const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
     }
   }
 
-  // 6. Regex mode: if query starts and ends with /, treat as regex
+  // 7. Regex mode: if query starts and ends with /, treat as regex
   if (query.length > 2 && query.startsWith('/') && query.endsWith('/')) {
     try {
       const pattern = query.slice(1, -1)
@@ -421,7 +434,7 @@ const getFilteredKeysForQuery = (query: string, keysToFilter: string[]) => {
     }
   }
 
-  // 7. Multi-term search: split by comma, search in priority order
+  // 8. Multi-term search: split by comma, search in priority order
   const terms = query.split(',').map(s => s.trim()).filter(Boolean)
   if (terms.length === 0) return keysToFilter
   
@@ -883,11 +896,133 @@ function saveEditKey() {
   }
 }
 
+// CSV Export functionality
+async function exportToCSV() {
+  console.log('🟡 exportToCSV called in JsonTable.vue')
+  console.log('🟡 orderedLanguages:', orderedLanguages.value)
+  console.log('filteredKeys:', filteredKeys.value)
+  
+  if (orderedLanguages.value.length === 0) {
+    alert('No languages available to export')
+    return
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  const projectName = filesStore.currentProject?.name || 'Unnamed Project'
+  
+  // Use filtered keys (respects current filtering and section mode)
+  const keysToExport = filteredKeys.value
+  
+  console.log('keysToExport length:', keysToExport.length)
+  
+  if (keysToExport.length === 0) {
+    alert('No keys to export (try clearing filters)')
+    return
+  }
+
+  // Create CSV content
+  let csvContent = ''
+  
+  // Header row
+  const headers = ['Key', ...orderedLanguages.value.map(lang => lang.name)]
+  csvContent += headers.map(header => `"${header.replace(/"/g, '""')}"`).join(',') + '\n'
+  
+  console.log('CSV headers:', headers)
+  
+  // Data rows
+  keysToExport.forEach(key => {
+    const row = [key]
+    
+    // Add values for each language
+    orderedLanguages.value.forEach(language => {
+      const value = language.data[key] || ''
+      // Escape quotes and wrap in quotes
+      const escapedValue = value.replace(/"/g, '""')
+      row.push(`"${escapedValue}"`)
+    })
+    
+    csvContent += row.join(',') + '\n'
+  })
+
+  // Create filename based on export context
+  let filename = `${projectName}_export_${timestamp}.csv`
+  
+  // Add context to filename if filtering is active
+  if (search.value.trim()) {
+    filename = `${projectName}_filtered_export_${timestamp}.csv`
+  } else if (mode.value === 'paging' && selectedPage.value) {
+    const section = selectedPage.value.replace(/[^a-zA-Z0-9]/g, '_')
+    filename = `${projectName}_section_${section}_export_${timestamp}.csv`
+  }
+
+  console.log('CSV filename:', filename)
+  console.log('CSV content preview:', csvContent.substring(0, 200))
+
+  // Simple and reliable CSV download
+  try {
+    // Create blob with BOM for better Excel compatibility
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8' })
+    
+    // Create download link
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    
+    link.href = url
+    link.download = filename
+    link.style.display = 'none'
+    
+    // Add to body and trigger download
+    document.body.appendChild(link)
+    link.click()
+    
+    // Clean up
+    setTimeout(() => {
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    }, 100)
+    
+    console.log('CSV download triggered successfully')
+    
+  } catch (error) {
+    console.error('Error creating CSV download:', error)
+    
+    // Fallback: copy to clipboard and show instructions
+    try {
+      await navigator.clipboard.writeText(csvContent)
+      alert(`CSV export failed to download, but the content has been copied to your clipboard.\n\nPlease:\n1. Create a new file with name: ${filename}\n2. Paste the content\n3. Save the file\n\nContent preview:\n${csvContent.substring(0, 200)}...`)
+    } catch (clipError) {
+      alert(`CSV export failed. Please copy this content manually and save as ${filename}:\n\n${csvContent.substring(0, 500)}...`)
+    }
+  }
+  
+  console.log('Download initiated')
+  
+  // Show success notification with download location hint
+  const contextInfo = search.value.trim() 
+    ? `filtered (${keysToExport.length} keys)` 
+    : mode.value === 'paging' && selectedPage.value 
+      ? `section "${selectedPage.value}" (${keysToExport.length} keys)`
+      : `all keys (${keysToExport.length} keys)`
+      
+  setTimeout(() => {
+    alert(`CSV export initiated!\n\n` +
+          `Exported: ${contextInfo}\n` +
+          `Languages: ${orderedLanguages.value.length}\n` +
+          `File: ${filename}\n\n` +
+          `If the download didn't start automatically, please check:\n` +
+          `• Your Downloads folder\n` +
+          `• Browser download settings\n` +
+          `• Pop-up blocker settings`)
+  }, 200)
+}
+
 defineExpose({
   mode,
   search,
   skipColumns,
-  exportAllColumns
+  exportAllColumns,
+  exportToCSV
 })
 </script>
 

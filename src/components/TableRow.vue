@@ -40,6 +40,16 @@
         <span class="flex-1 cursor-pointer" @click="$emit('startEditKey')" :title="'Click to edit key: ' + keyName">
           {{ keyName }}
         </span>
+        
+        <!-- Special Character Warning Icon -->
+        <div v-if="hasSpecialChars" 
+             class="mr-1 text-warning cursor-help" 
+             :title="specialCharTooltip">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.08 17.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        
         <!-- Change indicators -->
         <div v-if="changeDetails && changeDetails.length > 0" class="flex items-center gap-1 mr-1">
           <div v-for="change in changeDetails" :key="change.languageCode" 
@@ -97,7 +107,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, computed } from 'vue'
+import { getSpecialCharactersForKey, createSpecialCharacterTooltip } from '../utils/specialCharacters'
 
 interface Language {
   code: string
@@ -136,6 +147,19 @@ const emit = defineEmits<{
 }>()
 
 const editKeyInput = ref<HTMLInputElement | null>(null)
+
+// Special character detection
+const specialCharacters = computed(() => {
+  return getSpecialCharactersForKey(props.orderedLanguages, props.keyName)
+})
+
+const hasSpecialChars = computed(() => {
+  return specialCharacters.value.length > 0
+})
+
+const specialCharTooltip = computed(() => {
+  return createSpecialCharacterTooltip(specialCharacters.value)
+})
 
 function getDisplayValue(language: Language): string {
   return language.data[props.keyName] || ''
