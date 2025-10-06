@@ -38,6 +38,7 @@
         @update:skip-columns="skipColumns = $event"
         @save-project="saveProjectToFile"
         @export-all-columns="exportAllColumns"
+        @export-csv="exportCSV"
       />
 
       <div class="flex-1 overflow-hidden p-0 m-0 w-full">
@@ -186,6 +187,7 @@ interface JsonTableWithControls {
   skipColumns: number
   openExportModal: (mode: 'all' | 'changed' | 'original') => void
   exportAllColumns: () => void
+  exportToCSV: () => void
 }
 
 const router = useRouter()
@@ -446,6 +448,26 @@ function exportAllColumns() {
     jsonTable.value.exportAllColumns()
   } else {
     console.error('JsonTable reference not available or exportAllColumns method not found')
+  }
+}
+
+// CSV Export functionality
+function exportCSV() {
+  console.log('🟢 exportCSV called in Editor.vue')
+  console.log('🟢 jsonTable.value exists:', !!jsonTable.value)
+  console.log('jsonTable.value:', jsonTable.value)
+  
+  if (jsonTable.value && jsonTable.value.exportToCSV) {
+    console.log('🟢 Calling jsonTable.exportToCSV()')
+    jsonTable.value.exportToCSV()
+  } else {
+    console.error('🔴 JsonTable reference not available or exportToCSV method not found')
+    console.log('🔴 jsonTable.value:', jsonTable.value)
+    console.log('🔴 exportToCSV method exists:', jsonTable.value?.exportToCSV)
+    console.error('jsonTable.value:', jsonTable.value)
+    if (jsonTable.value) {
+      console.error('Available methods:', Object.keys(jsonTable.value))
+    }
   }
 }
 </script>
