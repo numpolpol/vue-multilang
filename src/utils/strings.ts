@@ -311,17 +311,26 @@ export function toStringsWithStructure(
     const lines: string[] = []
     const processedKeys = new Set<string>()
     
-    // Process structure and update key-value pairs
-    // Skip duplicate keys - only process the first occurrence
+    // Process structure in REVERSE order to find last occurrence of each key
+    // This ensures "latest wins" behavior for duplicate keys
+    const reversedStructure = [...originalStructure].reverse()
+    const keysToProcess = new Map<string, any>() // key -> structure item
+    
+    // First pass: collect the last occurrence of each key
+    for (const item of reversedStructure) {
+      if (item.type === 'key' && item.key && data.hasOwnProperty(item.key)) {
+        if (!keysToProcess.has(item.key)) {
+          keysToProcess.set(item.key, item) // Only keep the first one we encounter (which is the last in original order)
+        }
+      }
+    }
+    
+    // Second pass: process structure in original order, but only include keys we decided to keep
     for (const item of originalStructure) {
       if (item.type === 'key' && item.key) {
-        // Skip if we've already processed this key (deduplication)
-        if (processedKeys.has(item.key)) {
-          continue
-        }
-        
-        // Update with current value if key exists
-        if (data.hasOwnProperty(item.key)) {
+        // Only process this key if it's the last occurrence we want to keep
+        const keyToKeep = keysToProcess.get(item.key)
+        if (keyToKeep && keyToKeep === item && !processedKeys.has(item.key)) {
           const currentValue = data[item.key] || ''
           // If the value hasn't changed, preserve the original line exactly
           if (currentValue === item.value) {
@@ -357,7 +366,7 @@ export function toStringsWithStructure(
           }
           processedKeys.add(item.key)
         }
-        // Skip keys that no longer exist in data
+        // Skip keys that are duplicates or no longer exist in data
       } else if (item.type === 'comment' || item.type === 'blank') {
         // Check if this comment line contains a duplicate key that we should skip
         let shouldSkip = false
