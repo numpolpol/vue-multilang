@@ -920,6 +920,11 @@ async function exportToCSV() {
     return
   }
 
+  // Note: Duplicate handling is now done at the parsing level in strings.ts
+  // Keys are already deduplicated with latest-wins and bottom-position-preserved behavior
+  
+  console.log('Keys to export (already deduplicated):', keysToExport.length)
+
   // Create CSV content
   let csvContent = ''
   
@@ -929,7 +934,7 @@ async function exportToCSV() {
   
   console.log('CSV headers:', headers)
   
-  // Data rows
+  // Data rows - duplicates already handled at parsing level
   keysToExport.forEach(key => {
     const row = [key]
     

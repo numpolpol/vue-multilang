@@ -1,0 +1,33 @@
+/* Test file to verify commented keys are not counted as duplicates */
+
+// Normal key
+"BillPayResult_Amount" = "Payment amount";
+"BillPayResult_Total_Amount" = "Total";
+"BillPayResult_Fee" = "Fee";
+"BillPayResult_TotalAmount" = "Payment amount";
+"BillPayResult_Date" = "Date-Time";
+"BillPayResult_TransactionID" = "Reference number";
+"BillPayResult_Update_Text" = "ระบบจะทำการปรับยอดชำระใน 2 ชั่วโมง";
+"BillPayResult_Description_Message_Title" = "Complete";
+
+// Active key that will have a commented duplicate
+"BillPayResult_MoreInfo" = "อ่านรายละเอียดเพิ่มเติม";
+
+"BillPayResult_Customer_Address" = "Address";
+
+// Commented duplicate - should NOT be counted as duplicate
+//"BillPayResult_MoreInfo" = "Read for more details";
+
+"BillPayResult_Customer_Name" = "ชื่อผู้ใช้ไฟฟ้า";
+"BillPayResult_Remark" = "Remark";
+
+// Additional tests with different comment styles
+/* Block comment duplicate - should NOT be counted
+"BillPayResult_Amount" = "Different Payment amount";
+*/
+
+// Another commented line
+// "BillPayResult_Fee" = "Different Fee";
+
+// Active duplicate to test normal duplicate detection still works
+"BillPayResult_Customer_Name" = "ชื่อผู้ใช้ไฟฟ้า (FINAL - should be exported)";

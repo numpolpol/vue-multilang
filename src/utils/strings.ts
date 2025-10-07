@@ -147,11 +147,14 @@ export function parseStrings(content: string, returnDetails?: boolean): Record<s
           }
           keyOccurrences.get(key)!.push({ value, lineNumber })
           
-          // Check for duplicate keys and log them
+          // Check for duplicate keys and handle them with "latest wins" + position preservation
           if (key in result) {
             duplicateKeys.add(key)
-            console.warn(`Duplicate key detected and replaced: "${key}" - Previous value: "${result[key]}", New value: "${value}"`)
+            console.warn(`Duplicate key detected: "${key}" - Previous value: "${result[key]}", New value: "${value}" (keeping latest at bottom)`)
+            // Remove the old key to reinsert it at the bottom with new value
+            delete result[key]
           }
+          // Add/re-add the key at the end (bottom position)
           result[key] = value
         }
       }

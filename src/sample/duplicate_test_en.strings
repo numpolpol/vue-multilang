@@ -1,0 +1,33 @@
+/* Test file with duplicate keys to test latest-wins export behavior WITH ORDER PRESERVATION */
+
+// Position 1: First occurrence - should be REMOVED
+"hello" = "Hello (first - should be REMOVED)";
+"welcome" = "Welcome (first - should be REMOVED)";
+
+// Position 2-3: Some normal keys - should stay in position
+"goodbye" = "Goodbye";
+"thanks" = "Thank you";
+
+// Position 4: Second occurrence - should be REMOVED  
+"hello" = "Hello (second - should be REMOVED)";
+"test_key" = "Test Value";
+
+// Position 5-6: Final occurrence - should STAY IN BOTTOM POSITION (not moved to top)
+"hello" = "Hello (FINAL - should stay at BOTTOM)";
+"welcome" = "Welcome (FINAL - should stay at BOTTOM)";
+
+// Position 7-8: Another duplicate set
+"button_save" = "Save (first - should be REMOVED)";
+"button_cancel" = "Cancel";
+
+// Position 9: Final button_save - should STAY AT BOTTOM
+"button_save" = "Save (FINAL - should stay at BOTTOM)";
+
+// Expected CSV order:
+// 1. goodbye (position 2)
+// 2. thanks (position 3) 
+// 3. test_key (position 5)
+// 4. hello (position 6 - BOTTOM position preserved)
+// 5. welcome (position 7 - BOTTOM position preserved)
+// 6. button_cancel (position 8)
+// 7. button_save (position 9 - BOTTOM position preserved)
