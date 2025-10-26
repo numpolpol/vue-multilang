@@ -22,6 +22,80 @@
       @update:selected-page="selectedPage = $event"
     />
 
+    <!-- Pagination Controls for "all" mode -->
+    <div v-if="mode === 'all' && filteredKeys.length > 0" class="px-4 py-2 flex items-center justify-between border-b border-base-200">
+      <div class="flex items-center gap-2">
+        <span class="text-sm">Rows per page:</span>
+        <select v-model.number="rowsPerPage" class="select select-bordered select-sm">
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+        </select>
+        <span class="text-sm text-base-content/70">
+          Showing {{ (currentPage - 1) * rowsPerPage + 1 }}-{{ Math.min(currentPage * rowsPerPage, filteredKeys.length) }} of {{ filteredKeys.length }}
+        </span>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button 
+          @click="currentPage = 1" 
+          :disabled="currentPage === 1"
+          class="btn btn-sm btn-outline"
+          title="First page"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+        </button>
+        <button 
+          @click="currentPage--" 
+          :disabled="currentPage === 1"
+          class="btn btn-sm btn-outline"
+          title="Previous page"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        
+        <div class="flex items-center gap-1">
+          <template v-for="page in getPageNumbers()" :key="page">
+            <button 
+              v-if="page !== '...'"
+              @click="currentPage = page"
+              class="btn btn-sm"
+              :class="currentPage === page ? 'btn-primary' : 'btn-outline'"
+            >
+              {{ page }}
+            </button>
+            <span v-else class="px-2">...</span>
+          </template>
+        </div>
+        
+        <button 
+          @click="currentPage++" 
+          :disabled="currentPage === totalPages"
+          class="btn btn-sm btn-outline"
+          title="Next page"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+        <button 
+          @click="currentPage = totalPages" 
+          :disabled="currentPage === totalPages"
+          class="btn btn-sm btn-outline"
+          title="Last page"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Table wrapper with horizontal scroll -->
     <div class="flex-1 overflow-auto w-full px-4">
       <!-- Table container -->
@@ -38,10 +112,8 @@
                   </div>
                 </th>
                 <!-- Fixed paste column -->
-                <th class="sticky bg-white border-r border-base-200 z-20" :style="{ left: `${keyColumnWidth}px`, width: '80px', minWidth: '80px' }">
-                  <div class="flex items-center gap-2">
-                    <span>Paste</span>
-                  </div>
+                <th class="sticky z-20 bg-base-200" :style="{ left: `${keyColumnWidth}px`, width: '120px' }">
+                    <span>Paste/Undo</span>
                 </th>
               <!-- Language columns using LanguageColumnHeader -->
               <LanguageColumnHeader
@@ -73,7 +145,7 @@
                 No matching keys found
               </td>
             </tr>
-            <template v-else v-for="key in filteredKeys" :key="key">
+            <template v-else v-for="key in paginatedKeys" :key="key">
                             <TableRow
                 :key-name="key"
                 :column-widths="columnWidths"
@@ -89,8 +161,10 @@
                 @update-edit-key-value="editKeyValue = $event"
                 @cancel-edit-key="cancelEditKey"
                 @paste="onPaste(key)"
+                @undo-paste="onUndoPaste(key)"
                 @update-value="onUpdateValue(key, $event.languageCode, $event.value)"
                 @delete="onDeleteKey(key)"
+                :show-undo="showUndoForKey[key] === true"
               />
             </template>
           </tbody>
@@ -222,7 +296,15 @@ const changedKeysWithDetails = ref<Array<{
     oldValue?: string
     newValue?: string
   }>
-}>>([]) 
+}>>([])
+
+// Paste undo state
+const pasteHistory = ref<Map<string, Record<string, string>>>(new Map())
+const showUndoForKey = ref<Record<string, boolean>>({})
+
+// Pagination state for "all" mode
+const currentPage = ref(1)
+const rowsPerPage = ref(20)
 
 // Get store instance
 const filesStore = useFilesStore()
@@ -475,6 +557,28 @@ const filteredKeys = computed(() => {
   return getFilteredKeysForQuery(query, visibleKeys.value)
 })
 
+// Pagination computed properties
+const totalPages = computed(() => {
+  return Math.ceil(filteredKeys.value.length / rowsPerPage.value)
+})
+
+const paginatedKeys = computed(() => {
+  if (mode.value !== 'all') {
+    return filteredKeys.value
+  }
+  
+  const start = (currentPage.value - 1) * rowsPerPage.value
+  const end = start + rowsPerPage.value
+  return filteredKeys.value.slice(start, end)
+})
+
+// Reset to page 1 when filters change
+watch([filteredKeys, rowsPerPage], () => {
+  if (currentPage.value > totalPages.value && totalPages.value > 0) {
+    currentPage.value = 1
+  }
+})
+
 // Watch for skipColumns prop changes
 watch(() => props.skipColumns, (newVal) => {
   skipColumns.value = newVal || 0
@@ -506,6 +610,48 @@ onBeforeUnmount(() => {
   }
 })
 
+// Generate page numbers with ellipsis for pagination
+function getPageNumbers(): (number | string)[] {
+  const total = totalPages.value
+  const current = currentPage.value
+  const pages: (number | string)[] = []
+  
+  if (total <= 7) {
+    // Show all pages if 7 or less
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Always show first page
+    pages.push(1)
+    
+    if (current <= 3) {
+      // Near start: show 1 2 3 4 ... last
+      for (let i = 2; i <= 4; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 2) {
+      // Near end: show 1 ... last-3 last-2 last-1 last
+      pages.push('...')
+      for (let i = total - 3; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // In middle: show 1 ... current-1 current current+1 ... last
+      pages.push('...')
+      pages.push(current - 1)
+      pages.push(current)
+      pages.push(current + 1)
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+  
+  return pages
+}
+
 
 
 if (mode.value === 'paging' && !selectedPage.value && filteredPagePrefixes.value.length > 0) {
@@ -535,6 +681,13 @@ async function onPaste(key: string) {
       values = values.slice(skipCount);
     }
     
+    // Save current values for undo (before paste)
+    const previousValues: Record<string, string> = {}
+    orderedLanguages.value.forEach(language => {
+      previousValues[language.code] = language.data[key] || ''
+    })
+    pasteHistory.value.set(key, previousValues)
+    
     // Update language data
     for (let i = 0; i < orderedLanguages.value.length; i++) {
       if (values[i] !== undefined) {
@@ -545,8 +698,31 @@ async function onPaste(key: string) {
         filesStore.updateKeyValue(language.code, key, value)
       }
     }
+    
+    // Show undo button for this key
+    showUndoForKey.value[key] = true
+    
+    // Auto-hide undo button after 10 seconds
+    setTimeout(() => {
+      delete showUndoForKey.value[key]
+    }, 10000)
   } catch (e) {
     alert('Unable to read clipboard.');
+  }
+}
+
+// Undo paste operation
+function onUndoPaste(key: string) {
+  const previousValues = pasteHistory.value.get(key)
+  if (previousValues) {
+    // Restore all language values to their previous state
+    Object.entries(previousValues).forEach(([languageCode, value]) => {
+      filesStore.updateKeyValue(languageCode, key, value)
+    })
+    
+    // Remove from undo state
+    pasteHistory.value.delete(key)
+    delete showUndoForKey.value[key]
   }
 }
 
