@@ -77,8 +77,23 @@
     </td>
     
     <!-- Paste Column -->
-    <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '80px' }">
-      <button class="btn btn-xs btn-outline" @click="$emit('paste')">Paste</button>
+    <td class="sticky z-10 bg-base-100" :style="{ left: `${keyColumnWidth}px`, width: '120px' }">
+      <div class="flex gap-1">
+        <button class="btn btn-xs btn-outline" @click="$emit('paste')" :disabled="showUndo">
+          Paste
+        </button>
+        <button 
+          v-if="showUndo" 
+          class="btn btn-xs btn-warning"
+          @click="$emit('undoPaste')"
+          title="Undo paste - restore previous values"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+          Undo
+        </button>
+      </div>
     </td>
     
     <!-- Language Columns -->
@@ -127,6 +142,7 @@ const props = defineProps<{
   isEditing: boolean
   editKeyValue: string
   editKeyError: string
+  showUndo?: boolean
   changeDetails?: Array<{
     languageCode: string,
     languageName: string,
@@ -142,6 +158,7 @@ const emit = defineEmits<{
   (e: 'updateEditKeyValue', value: string): void
   (e: 'cancelEditKey'): void
   (e: 'paste'): void
+  (e: 'undoPaste'): void
   (e: 'updateValue', data: { languageCode: string, value: string }): void
   (e: 'delete'): void
 }>()
