@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">Multi-Language Editor</string>
+    
+    <!-- Welcome Screen -->
+    <string name="welcome_title">Welcome!</string>
+    <string name="welcome_message">Start editing your translations</string>
+    
+    <!-- Common Actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    
+    <!-- Messages -->
+    <string name="message_success">Success!</string>
+    <string name="message_error">An error occurred</string>
+    
+    <!-- Format strings with placeholders -->
+    <string name="hello_user">Hello %s!</string>
+    <string name="item_count">You have %d items</string>
+</resources>

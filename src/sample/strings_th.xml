@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">โปรแกรมแก้ไขหลายภาษา</string>
+    
+    <!-- Welcome Screen -->
+    <string name="welcome_title">ยินดีต้อนรับ!</string>
+    <string name="welcome_message">เริ่มแก้ไขการแปลของคุณ</string>
+    
+    <!-- Common Actions -->
+    <string name="action_save">บันทึก</string>
+    <string name="action_cancel">ยกเลิก</string>
+    <string name="action_delete">ลบ</string>
+    <string name="action_edit">แก้ไข</string>
+    
+    <!-- Messages -->
+    <string name="message_success">สำเร็จ!</string>
+    <string name="message_error">เกิดข้อผิดพลาด</string>
+    
+    <!-- Format strings with placeholders -->
+    <string name="hello_user">สวัสดี %s!</string>
+    <string name="item_count">คุณมี %d รายการ</string>
+</resources>

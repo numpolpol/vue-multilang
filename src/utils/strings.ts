@@ -1,3 +1,5 @@
+import type { StructureItem } from './androidXml'
+
 // Helper function to safely escape quotes and backslashes for export
 function escapeQuotesForExport(value: string): string {
   let result = value
@@ -17,13 +19,7 @@ function escapeQuotesForExport(value: string): string {
 // Enhanced structure to preserve original file format
 export interface ParsedStringsFile {
   data: Record<string, string>
-  structure: Array<{
-    type: 'comment' | 'key' | 'blank'
-    content: string
-    key?: string
-    value?: string
-    inlineComment?: string // Capture inline comments after key-value pairs
-  }>
+  structure: StructureItem[]
   originalContent: string
 }
 
@@ -300,7 +296,7 @@ export function parseStringsWithStructure(content: string): ParsedStringsFile {
 // Enhanced export with structure preservation
 export function toStringsWithStructure(
   data: Record<string, string>, 
-  originalStructure?: ParsedStringsFile['structure']
+  originalStructure?: StructureItem[]
 ): string {
   try {
     if (!originalStructure) {
