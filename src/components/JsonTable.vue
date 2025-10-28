@@ -243,6 +243,7 @@
 import { ref, computed, defineProps, defineEmits, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useFilesStore } from '../stores/files'
 import { toStrings, toStringsWithStructure } from '../utils/strings'
+import { toAndroidXml, toAndroidXmlWithStructure } from '../utils/androidXml'
 import { hasSpecialCharactersInLanguageData } from '../utils/specialCharacters'
 import LanguageColumnHeader from './LanguageColumnHeader.vue'
 import TableSearchControls from './TableSearchControls.vue'
@@ -763,20 +764,37 @@ function exportLanguageColumn(languageCode: string) {
     return
   }
 
-  // Create filename (always exports complete file regardless of filters)
-  let filename = `${languageCode}`
-
-  // Generate iOS .strings content with structure preservation
+  // Determine file type and create appropriate filename
+  const fileType = language.fileType || 'strings'
+  let filename: string
   let content: string
-  if (language.originalStructure) {
-    // Use structure-preserving export to maintain comments and order
-    content = toStringsWithStructure(columnData, language.originalStructure)
+  let mimeType: string
+
+  if (fileType === 'android-xml') {
+    // Android XML export
+    filename = 'strings.xml'
+    mimeType = 'text/xml;charset=utf-8'
+    
+    if (language.originalStructure) {
+      // Use structure-preserving export to maintain comments and order
+      content = toAndroidXmlWithStructure(columnData, language.originalStructure)
+    } else {
+      // Use standard export
+      content = toAndroidXml(columnData)
+    }
   } else {
-    // Use standard export
-    content = toStrings(columnData)
+    // iOS .strings export
+    filename = `${languageCode}.strings`
+    mimeType = 'text/plain;charset=utf-8'
+    
+    if (language.originalStructure) {
+      // Use structure-preserving export to maintain comments and order
+      content = toStringsWithStructure(columnData, language.originalStructure)
+    } else {
+      // Use standard export
+      content = toStrings(columnData)
+    }
   }
-  filename += '.strings'
-  const mimeType = 'text/plain;charset=utf-8'
 
   // Download the file
   const blob = new Blob([content], { type: mimeType })

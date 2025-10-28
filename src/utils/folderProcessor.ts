@@ -1,4 +1,5 @@
 import { parseStrings, parseStringsWithStructure, type ParseResult } from './strings'
+import { parseAndroidXml, parseAndroidXmlWithStructure, isAndroidXml, type StructureItem } from './androidXml'
 import type { LanguageColumn } from '../stores/files'
 
 export interface FolderFile {
@@ -8,8 +9,9 @@ export interface FolderFile {
   languageName: string
   size: number
   isValidStrings: boolean
+  fileType: 'strings' | 'android-xml'
   parseResult?: ParseResult
-  originalStructure?: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }>
+  originalStructure?: StructureItem[]
   originalContent?: string
 }
 
@@ -23,42 +25,54 @@ export interface FolderImportResult {
 }
 
 /**
- * Extract language code from filename (iOS .strings files only)
+ * Extract language code from filename (iOS .strings and Android XML)
  * Returns null for unsupported languages or invalid patterns
  */
 export function extractLanguageCode(filename: string): string | null {
-  // Only process .strings files
-  if (!filename.toLowerCase().endsWith('.strings')) {
-    return null
-  }
-  
-  // Remove .strings extension
-  const nameWithoutExt = filename.replace(/\.strings$/i, '')
-  
-  // Common language code patterns
-  const patterns = [
-    // Direct language codes: en.strings, th.strings
-    /^([a-z]{2})$/i,
-    // With country: en_US.strings, zh_CN.strings
-    /^([a-z]{2})_[A-Z]{2}$/i,
-    // With country prefixed: Localizable_en_US.strings
-    /.*_([a-z]{2})_[A-Z]{2}$/i,
-    // Prefixed: Localizable_en.strings (must come after country patterns)
-    /.*_([a-z]{2})$/i,
-  ]
+  // Check for .strings files (iOS)
+  if (filename.toLowerCase().endsWith('.strings')) {
+    // Remove .strings extension
+    const nameWithoutExt = filename.replace(/\.strings$/i, '')
+    
+    // Common language code patterns
+    const patterns = [
+      // Direct language codes: en.strings, th.strings
+      /^([a-z]{2})$/i,
+      // With country: en_US.strings, zh_CN.strings
+      /^([a-z]{2})_[A-Z]{2}$/i,
+      // With country prefixed: Localizable_en_US.strings
+      /.*_([a-z]{2})_[A-Z]{2}$/i,
+      // Prefixed: Localizable_en.strings (must come after country patterns)
+      /.*_([a-z]{2})$/i,
+    ]
 
-  for (const pattern of patterns) {
-    const match = nameWithoutExt.match(pattern)
-    if (match) {
-      const code = match[1].toLowerCase()
-      // Only return if it's a supported language
-      if (isValidLanguageCode(code)) {
-        return code
+    for (const pattern of patterns) {
+      const match = nameWithoutExt.match(pattern)
+      if (match) {
+        const code = match[1].toLowerCase()
+        // Only return if it's a supported language
+        if (isValidLanguageCode(code)) {
+          return code
+        }
       }
     }
   }
-
-  // If no supported language found, return null
+  
+  // Check for Android XML files
+  if (filename.toLowerCase().endsWith('.xml')) {
+    // Android pattern: values/strings.xml (default/English)
+    //                  values-th/strings.xml (Thai)
+    //                  values-km/strings.xml (Khmer)
+    //                  values-my/strings.xml (Myanmar)
+    
+    // Extract from parent folder path if available
+    // This will be handled in processFolder where we have full path
+    // For now, check if filename is strings.xml (indicates Android format)
+    if (filename.toLowerCase() === 'strings.xml') {
+      return 'android-xml' // Special marker to be resolved later
+    }
+  }
+  
   return null
 }
 
@@ -85,21 +99,24 @@ export function isValidLanguageCode(code: string): boolean {
 }
 
 /**
- * Validate if file is a .strings file
- * Only allows files with .strings extension
+ * Validate if file is a .strings file or Android strings.xml
  */
 export function isStringsFile(file: File): boolean {
-  // Must have .strings extension (case insensitive)
-  const hasStringsExtension = file.name.toLowerCase().endsWith('.strings')
+  const fileName = file.name.toLowerCase()
   
-  // Must be a text file or have empty type (common for .strings files)
-  const isTextFile = file.type === 'text/plain' || file.type === '' || file.type === 'text/x-strings'
+  // iOS .strings file
+  const isIosStrings = fileName.endsWith('.strings') && 
+    (file.type === 'text/plain' || file.type === '' || file.type === 'text/x-strings')
   
-  return hasStringsExtension && isTextFile
+  // Android strings.xml file
+  const isAndroidXml = fileName === 'strings.xml' &&
+    (file.type === 'text/xml' || file.type === 'application/xml' || file.type === 'text/plain' || file.type === '')
+  
+  return isIosStrings || isAndroidXml
 }
 
 /**
- * Process a folder of files and extract .strings files
+ * Process a folder of files and extract .strings files and Android XML
  */
 export async function processFolderFiles(files: File[]): Promise<FolderImportResult> {
   const result: FolderImportResult = {
@@ -111,41 +128,81 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
     errors: []
   }
 
-  // Filter for .strings files
+  // Filter for .strings files and Android XML
   const stringsFiles = files.filter(isStringsFile)
   
   if (stringsFiles.length === 0) {
     result.hasErrors = true
-    result.errors.push('No .strings files found in the selected folder')
+    result.errors.push('No .strings or strings.xml files found in the selected folder')
     return result
   }
 
   // Track all unique keys across files
   const allKeys = new Set<string>()
 
-  // Process each .strings file
+  // Process each file
   for (const file of stringsFiles) {
     try {
       const content = await readFileAsText(file)
-      const parseResult = parseStrings(content, true)
-      const structuredResult = parseStringsWithStructure(content)
-      const languageCode = extractLanguageCode(file.name)
+      const fileName = file.name.toLowerCase()
+      const isAndroid = fileName === 'strings.xml'
+      
+      // Detect file type and parse accordingly
+      let parseResult: ParseResult
+      let structuredResult: any
+      let fileType: 'strings' | 'android-xml'
+      
+      if (isAndroid || isAndroidXml(content)) {
+        // Android XML
+        fileType = 'android-xml'
+        parseResult = parseAndroidXml(content, true) as ParseResult
+        structuredResult = parseAndroidXmlWithStructure(content)
+      } else {
+        // iOS .strings
+        fileType = 'strings'
+        parseResult = parseStrings(content, true)
+        structuredResult = parseStringsWithStructure(content)
+      }
+      
+      // Extract language code
+      let languageCode: string | null = null
+      
+      if (fileType === 'android-xml') {
+        // For Android, check webkitRelativePath for values-XX folder
+        const webkitPath = (file as any).webkitRelativePath || file.name
+        const valuesMatch = webkitPath.match(/values-([a-z]{2})/i)
+        
+        if (valuesMatch) {
+          const code = valuesMatch[1].toLowerCase()
+          if (isValidLanguageCode(code)) {
+            languageCode = code
+          }
+        } else if (webkitPath.includes('values/') || webkitPath === 'strings.xml') {
+          // Default values folder = English
+          languageCode = 'en'
+        }
+      } else {
+        // iOS .strings
+        languageCode = extractLanguageCode(file.name)
+      }
       
       // Skip files with unsupported languages
       if (!languageCode) {
         result.hasErrors = true
-        const fileName = file.name.replace(/\.strings$/i, '')
-        result.errors.push(`Language '${fileName}' is not supported. Supported languages: ${Object.keys(SUPPORTED_LANGUAGES).join(', ')}`)
+        const identifier = fileType === 'android-xml' 
+          ? `Android XML from ${file.name}` 
+          : file.name.replace(/\.strings$/i, '')
+        result.errors.push(`Language '${identifier}' is not supported. Supported languages: ${Object.keys(SUPPORTED_LANGUAGES).join(', ')}`)
         continue
       }
       
       const code = languageCode
       const name = getLanguageName(languageCode)!
 
-      // Check if parsing actually found valid .strings content
+      // Check if parsing actually found valid content
       const hasValidContent = Object.keys(parseResult.data).length > 0 || 
                              content.trim() === '' || // Empty files are valid
-                             /^\s*(\/\/.*|\s)*$/.test(content) // Comments/whitespace only are valid
+                             /^\s*(\/\/.*|<!--.*-->|\s)*$/.test(content) // Comments/whitespace only are valid
 
       const folderFile: FolderFile = {
         file,
@@ -154,6 +211,7 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
         languageName: name,
         size: file.size,
         isValidStrings: hasValidContent,
+        fileType,
         parseResult,
         originalStructure: structuredResult.structure,
         originalContent: structuredResult.originalContent
@@ -167,7 +225,7 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
         Object.keys(parseResult.data).forEach(key => allKeys.add(key))
       } else {
         result.hasErrors = true
-        result.errors.push(`File ${file.name} contains invalid .strings syntax`)
+        result.errors.push(`File ${file.name} contains invalid ${fileType === 'android-xml' ? 'XML' : '.strings'} syntax`)
       }
 
     } catch (error) {
@@ -184,7 +242,8 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
         languageCode: code,
         languageName: name,
         size: file.size,
-        isValidStrings: false
+        isValidStrings: false,
+        fileType: file.name.toLowerCase() === 'strings.xml' ? 'android-xml' : 'strings'
       })
     }
   }
@@ -203,7 +262,7 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
           name: folderFile.languageName,
           data: {},
           hasFile: true,
-          fileType: 'strings',
+          fileType: folderFile.fileType,
           originalStructure: folderFile.originalStructure,
           originalContent: folderFile.originalContent
         })
@@ -217,6 +276,7 @@ export async function processFolderFiles(files: File[]): Promise<FolderImportRes
       if (!existing.originalStructure && folderFile.originalStructure) {
         existing.originalStructure = folderFile.originalStructure
         existing.originalContent = folderFile.originalContent
+        existing.fileType = folderFile.fileType
       }
     }
   }

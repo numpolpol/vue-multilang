@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
+import type { StructureItem } from '../utils/androidXml'
 
 export interface LanguageColumn {
   code: string
   name: string
   data: Record<string, string>
   hasFile: boolean
-  fileType?: 'strings' // Only support .strings files
-  originalStructure?: Array<{ type: 'comment' | 'key' | 'blank', content: string, key?: string, value?: string, inlineComment?: string }> // Preserve original file structure
+  fileType?: 'strings' | 'android-xml' // Support iOS .strings and Android XML
+  originalStructure?: StructureItem[] // Preserve original file structure
   originalContent?: string // Preserve original file content
 }
 
