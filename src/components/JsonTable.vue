@@ -63,7 +63,7 @@
           <template v-for="page in getPageNumbers()" :key="page">
             <button 
               v-if="page !== '...'"
-              @click="currentPage = page"
+              @click="typeof page === 'number' && (currentPage = page)"
               class="btn btn-sm"
               :class="currentPage === page ? 'btn-primary' : 'btn-outline'"
             >
